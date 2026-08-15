@@ -2,7 +2,7 @@
 
 Trabalho final da disciplina **Metaheurísticas e Aplicações**, do curso de Métodos Matemáticos Aplicados da UTFPR.
 
-O projeto investiga a aplicação e a comparação de três metaheurísticas — **Particle Swarm Optimization (PSO)**, **Busca Tabu (TS)** e **Ant Colony Optimization (ACO)** — ao problema de formação de lotes operacionais de linhas de ônibus.
+O projeto investiga a aplicação e a comparação de três metaheurísticas - **Particle Swarm Optimization (PSO)**, **Busca Tabu (TS)** e **Ant Colony Optimization (ACO)** - ao problema de formação de lotes operacionais de linhas de ônibus.
 
 ## Objetivo
 
@@ -24,17 +24,17 @@ A primeira versão do problema será resolvida para um número fixo de lotes `K`
 
 O mesmo problema e a mesma função objetivo serão avaliados com:
 
-1. **PSO — Particle Swarm Optimization**
+1. **PSO - Particle Swarm Optimization**
    - adaptação ao domínio combinatório;
    - representação contínua com decodificação para lotes;
    - documentação explícita da estratégia de discretização.
 
-2. **TS — Tabu Search**
+2. **TS - Tabu Search**
    - movimentos de realocação de linhas entre lotes;
    - lista tabu baseada em atributos dos movimentos;
    - critério de aspiração.
 
-3. **ACO — Ant Colony Optimization**
+3. **ACO - Ant Colony Optimization**
    - construção sequencial da partição;
    - feromônio associado à alocação linha–lote;
    - informação heurística baseada em características do problema.

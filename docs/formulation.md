@@ -1,4 +1,4 @@
-# Formulação do Problema — Formação de Lotes Operacionais de Linhas de Ônibus
+# Formulação do Problema - Formação de Lotes Operacionais de Linhas de Ônibus
 
 ## 1. Objetivo
 

@@ -1,4 +1,4 @@
-# AGENTS.md — Projeto de Metaheurísticas
+# AGENTS.md - Projeto de Metaheurísticas
 
 ## 1. Objetivo deste repositório
 
@@ -29,9 +29,9 @@ Esses documentos são a fonte primária dos requisitos do trabalho. Em caso de c
 
 O trabalho deve implementar e comparar, para o mesmo problema:
 
-1. **PSO — Particle Swarm Optimization**
-2. **TS — Tabu Search / Busca Tabu**
-3. **ACO — Ant Colony Optimization**
+1. **PSO - Particle Swarm Optimization**
+2. **TS - Tabu Search / Busca Tabu**
+3. **ACO - Ant Colony Optimization**
 
 O código deve ser desenvolvido em **Python**.
 
@@ -137,7 +137,7 @@ Não assumir definitivamente que `K` precisa ser fixo.
 
 Trabalhar em duas etapas:
 
-### Etapa A — baseline com K fixo
+### Etapa A - baseline com K fixo
 
 Resolver:
 
@@ -147,7 +147,7 @@ Executar para uma faixa plausível:
 
 `K_min <= K <= K_max`
 
-### Etapa B — seleção de K
+### Etapa B - seleção de K
 
 Comparar o melhor resultado para diferentes valores de `K`.
 
@@ -414,8 +414,8 @@ sem necessidade. Fazer mudanças incrementais para preservar capacidade de diagn
 
 Documentos acadêmicos do professor:
 
-- `docs/trabalho.md` — especificação formal do trabalho.
-- `docs/dicas.md` — orientações de implementação.
+- `docs/trabalho.md` - especificação formal do trabalho.
+- `docs/dicas.md` - orientações de implementação.
 
 Ao escrever relatório, comentários metodológicos ou documentação:
 

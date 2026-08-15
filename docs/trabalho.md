@@ -9,7 +9,7 @@
 
 ## 1. Visão Geral
 
-Este trabalho final tem como objetivo consolidar os conhecimentos adquiridos nas aulas sobre metaheurísticas, aplicando três algoritmos específicos — **Otimização por Enxame de Partículas (PSO), Busca Tabu (TS) e Algoritmos de Colônia de Formigas (ACO)** — para resolver um problema de otimização complexo escolhido dentre as opções fornecidas. O foco estará na implementação, experimentação, análise comparativa de desempenho e escalabilidade das metaheurísticas.
+Este trabalho final tem como objetivo consolidar os conhecimentos adquiridos nas aulas sobre metaheurísticas, aplicando três algoritmos específicos - **Otimização por Enxame de Partículas (PSO), Busca Tabu (TS) e Algoritmos de Colônia de Formigas (ACO)** - para resolver um problema de otimização complexo escolhido dentre as opções fornecidas. O foco estará na implementação, experimentação, análise comparativa de desempenho e escalabilidade das metaheurísticas.
 
 ## 2. Escolha do Problema
 
@@ -95,7 +95,7 @@ O trabalho será avaliado com base nos seguintes critérios:
 - Correta implementação das metaheurísticas e adaptações (**30%**).
 - Qualidade e profundidade da análise experimental e comparativa, incluindo escalabilidade e parâmetros (**30%**).
 - Clareza, organização e completude do relatório técnico, incluindo gráficos e tabelas (**30%**).
-- Qualidade e organização do código fonte — comentários, clareza, executabilidade (**10%**).
+- Qualidade e organização do código fonte - comentários, clareza, executabilidade (**10%**).
 
 ## 7. Colaboração e Compartilhamento
 

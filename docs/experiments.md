@@ -1,4 +1,4 @@
-# Protocolo Experimental — Formação de Lotes Operacionais de Linhas de Ônibus
+# Protocolo Experimental - Formação de Lotes Operacionais de Linhas de Ônibus
 
 ## 1. Objetivo
 
