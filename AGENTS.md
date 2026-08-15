@@ -46,6 +46,12 @@ A análise deve incluir:
 
 O repositório também deverá conter um `README.md` com instruções de execução.
 
+## 2.1. Preferências de redação
+
+- Todos os textos devem estar em português brasileiro, com acentuação correta.
+- Nunca usar o travessão tipográfico.
+- Usar o hífen simples `-` quando ele for adequado.
+
 ---
 
 ## 3. Diretriz de escopo
