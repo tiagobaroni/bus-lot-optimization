@@ -263,21 +263,14 @@ A heurística precisa ser documentada e testada.
 
 PSO clássico é contínuo; o problema é combinatório.
 
-Usar uma adaptação explícita e documentada.
-
-Baseline sugerido:
+Usar uma adaptação explícita e documentada por **Random Keys**, conforme o protocolo experimental atual:
 
 - posição da partícula em espaço contínuo;
-- decoder discreto para lotes.
+- decodificação determinística para uma alocação discreta em `K` lotes;
+- reparo para garantir que todos os lotes permaneçam ativos;
+- comparação com TS e ACO usando a mesma função objetivo e o mesmo orçamento de avaliações.
 
-Uma possibilidade para `K` fixo:
-
-- partícula com matriz real `N x K`;
-- linha `i` é atribuída ao lote `argmax(position[i, :])`.
-
-Avaliar também uma alternativa por Random Keys se ela produzir uma representação mais simples e justa.
-
-Não esconder a adaptação: ela é parte central do trabalho e deve ser explicada no relatório.
+Não esconder a adaptação: ela é parte central do trabalho e deve ser explicada no relatório. Qualquer mudança para outra representação deverá ser registrada antes do tuning.
 
 ---
 
@@ -334,7 +327,7 @@ Criar pelo menos uma instância minúscula em que o resultado possa ser verifica
 
 ---
 
-## 10. Estrutura sugerida do repositório
+## 10. Estrutura atual e planejada do repositório
 
 ```text
 metaheuristica/
@@ -377,13 +370,15 @@ metaheuristica/
     └── figures/
 ```
 
-A estrutura pode evoluir, mas manter separação clara entre problema, algoritmos, experimentos e resultados.
+A estrutura de diretórios já foi criada, mas os diretórios de código, testes, dados, experimentos e resultados ainda contêm apenas marcadores `.gitkeep`. Os arquivos Python listados acima são a estrutura planejada, não componentes já implementados.
+
+A estrutura pode evoluir, mas deve manter separação clara entre problema, algoritmos, experimentos e resultados.
 
 ---
 
 ## 11. Engenharia e qualidade
 
-- Python 3.11+.
+- Python 3.14, conforme a restrição declarada em `pyproject.toml` e no protocolo experimental.
 - Preferir código tipado quando isso melhorar clareza.
 - Manter funções pequenas e testáveis.
 - Evitar dependências pesadas sem necessidade.
@@ -434,17 +429,31 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
-Estado inicial:
+Estado registrado em 15/08/2026:
 
-- pasta local criada em `D:\dev\metaheuristica`;
-- `git init` já executado;
-- repositório remoto ainda não criado;
-- problema candidato escolhido: formação de lotes operacionais;
-- decisão atual: começar com `K` fixo e varrer uma faixa de valores de `K`;
-- possível extensão: `K` endógeno;
-- metaheurísticas obrigatórias: PSO, TS e ACO;
-- linguagem escolhida: Python.
+- o repositório Git está sincronizado com o remoto `https://github.com/tiagobaroni/bus-lot-optimization.git` na branch `main`;
+- o projeto está na fase de preparação para implementação, e ainda não há algoritmos, instâncias ou resultados executáveis versionados;
+- a linguagem definida é Python 3.14;
+- `docs/formulation.md` contém a formulação conceitual do baseline;
+- `docs/experiments.md` contém o protocolo experimental planejado;
+- `docs/trabalho.md` e `docs/dicas.md` preservam os requisitos e orientações acadêmicas;
+- a unidade de decisão é o sentido/variante operacional de uma linha de ônibus;
+- o baseline resolve separadamente `K` em `{3, 4, 5, 6, 7, 8}`;
+- a função objetivo planejada possui quatro componentes com pesos iguais: equilíbrio de demanda, equilíbrio de produção em PU·km, coerência territorial e afinidade funcional;
+- a formulação também prevê reparo de lotes vazios, canonicalização de rótulos e uma heurística gulosa determinística de referência;
+- o protocolo prevê instâncias aninhadas de 20, 60 e 150 unidades, 30 seeds por cenário, 100 checkpoints de convergência e orçamento de 20.000, 60.000 e 150.000 avaliações, respectivamente;
+- o tuning planejado soma 440 execuções e o experimento principal soma 1.620 execuções;
+- os benchmarks finais serão executados em Linux nativo, com uma thread por execução individual;
+- GPU é um experimento adicional e não será requisito para executar o projeto;
+- os diretórios `src`, `tests`, `data`, `experiments` e `results` existem, mas ainda não possuem implementação, instâncias ou resultados;
+- o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
+
+Detalhes operacionais ainda pendentes antes do benchmark principal incluem a obtenção e preparação dos dados, a fórmula exata da matriz territorial, a regra empírica de integração funcional, a construção dos dados OD, a implementação da função objetivo e a validação dos algoritmos.
 
 Próximo objetivo recomendado:
 
-> implementar uma especificação mínima do problema e uma função objetivo determinística em uma instância pequena antes de iniciar qualquer uma das três metaheurísticas.
+1. definir o esquema dos dados e criar uma instância mínima verificável manualmente;
+2. implementar `canonical`, `problem`, `objective` e seus testes;
+3. implementar a heurística gulosa determinística;
+4. implementar e testar TS, ACO e PSO com o mesmo contador de avaliações;
+5. somente depois executar tuning e o benchmark principal.

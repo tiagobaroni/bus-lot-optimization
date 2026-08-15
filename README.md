@@ -62,28 +62,23 @@ O trabalho exige, entre outros itens:
 
 ## Estado atual
 
-O projeto está na fase de **formulação do problema**.
+O projeto está na fase de **preparação para implementação**. A formulação conceitual e o protocolo experimental já foram documentados, mas ainda não há código dos algoritmos, instâncias, execução automatizada ou resultados versionados.
 
-Decisões atuais:
+Decisões registradas:
 
-- linguagem: **Python**;
-- problema: formação de lotes operacionais de linhas de ônibus;
-- baseline: `K` fixo;
-- análise posterior: varredura de diferentes valores de `K`;
-- extensão possível: `K` endógeno às próprias metaheurísticas;
-- todas as metaheurísticas deverão avaliar exatamente a mesma função objetivo e as mesmas instâncias.
+- linguagem: **Python 3.14**;
+- unidade de decisão: sentido/variante operacional de uma linha de ônibus;
+- baseline: `K` fixo, com `K` em `{3, 4, 5, 6, 7, 8}`;
+- função objetivo: quatro componentes com pesos iguais, cobrindo equilíbrio de demanda, equilíbrio de produção em PU·km, coerência territorial e afinidade funcional;
+- métodos: PSO com adaptação por Random Keys, Busca Tabu e ACO;
+- referência adicional: heurística gulosa determinística;
+- protocolo: instâncias de 20, 60 e 150 unidades, 30 seeds, orçamento proporcional de avaliações e 100 checkpoints de convergência;
+- ambiente oficial dos benchmarks: Linux nativo;
+- GPU: experimento adicional, sem ser requisito de execução.
 
-Antes da implementação dos algoritmos, serão definidos:
+O estado detalhado e as pendências metodológicas estão em [`AGENTS.md`](AGENTS.md), [`docs/formulation.md`](docs/formulation.md) e [`docs/experiments.md`](docs/experiments.md).
 
-1. modelo de dados mínimo;
-2. representação da solução;
-3. componentes da função objetivo;
-4. normalização e pesos;
-5. restrições hard e soft;
-6. instâncias sintéticas verificáveis;
-7. protocolo experimental.
-
-## Estrutura planejada
+## Estrutura atual e planejada
 
 ```text
 metaheuristica/
@@ -118,21 +113,27 @@ metaheuristica/
     └── figures/
 ```
 
-A estrutura poderá ser simplificada ou ajustada conforme a formulação amadurecer.
+A estrutura de diretórios já existe, mas os diretórios de código, testes, dados, experimentos e resultados ainda contêm apenas marcadores `.gitkeep`. Os módulos Python listados são a estrutura planejada e serão criados durante a implementação.
 
-## Ambiente
+## Ambiente e caminhos
 
-Recomendação inicial:
+Os benchmarks finais serão executados em Linux nativo. O desenvolvimento também poderá ocorrer no Windows. O caminho físico do projeto varia conforme o ambiente e não deve ser fixado em scripts: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pela máquina ou pelo ambiente de execução.
 
-- Python 3.14
-- ambiente virtual local
-- dependências declaradas em `pyproject.toml`
+Use caminhos relativos à raiz do projeto e, quando necessário, uma variável de ambiente para indicar essa raiz.
 
 Exemplo usando `venv` no Windows PowerShell:
 
 ```powershell
 py -3.14 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+```
+
+Exemplo equivalente em Linux:
+
+```bash
+python3.14 -m venv .venv
+source .venv/bin/activate
 python -m pip install --upgrade pip
 ```
 
@@ -146,15 +147,13 @@ As dependências serão definidas após a formulação inicial. A intenção é 
 
 ## Execução
 
-Os comandos de execução serão definidos quando a primeira versão funcional estiver implementada.
-
-A meta é que a execução experimental seja reproduzível por linha de comando, por exemplo:
+Ainda não há comandos funcionais de execução, pois a implementação não foi iniciada. A interface planejada é reproduzível por linha de comando, por exemplo:
 
 ```bash
 python -m experiments.run_benchmark --config experiments/configs/baseline.yaml
 ```
 
-O formato final ainda poderá mudar.
+Os módulos e os comandos definitivos serão documentados assim que forem implementados.
 
 ## Reprodutibilidade
 
@@ -180,15 +179,14 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Consolidar `docs/formulation.md`.
-2. Definir uma instância mínima verificável manualmente.
-3. Implementar e testar a função objetivo.
-4. Consolidar `docs/experiments.md`.
-5. Implementar uma heurística de referência simples.
-6. Implementar TS, ACO e PSO.
-7. Realizar tuning e experimentos de escalabilidade.
-8. Gerar tabelas, gráficos e relatório final.
+1. Definir o esquema dos dados e criar uma instância mínima verificável manualmente.
+2. Implementar a canonicalização, o modelo do problema, a função objetivo e os testes.
+3. Implementar a heurística gulosa determinística.
+4. Implementar e testar TS, ACO e PSO com o mesmo orçamento de avaliações.
+5. Preparar as instâncias aninhadas de 20, 60 e 150 unidades.
+6. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
+7. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
 
 ## Licença
 
-Projeto acadêmico. A licença de distribuição ainda não foi definida.
+Este projeto é distribuído sob a licença MIT. Consulte o arquivo [`LICENSE`](LICENSE).
