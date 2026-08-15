@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter and local tooling
+.ipynb_checkpoints/
+.idea/
+.vscode/
+
+# Generated experiment outputs
+results/**/*.csv
+results/**/*.json
+results/**/*.parquet
+results/**/*.png
+results/**/*.pdf
+
+# Local environment files
+.env
+.env.*
+!.env.example
