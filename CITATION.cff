@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: "Formação de Lotes Operacionais de Linhas de Ônibus com Metaheurísticas"
+message: "Se este projeto for utilizado, cite-o usando este arquivo."
+type: software
+authors:
+  - given-names: "Tiago H. F."
+    family-names: Baroni
+    username: tiagobaroni
+    email: t.baroni@gmail.com
+repository-code: "https://github.com/tiagobaroni/bus-lot-optimization"
+url: "https://github.com/tiagobaroni/bus-lot-optimization"
+license: MIT
+version: 0.1.0
+date-released: 2026-08-15
+abstract: >-
+  Projeto acadêmico em Python para formular, implementar e comparar
+  metaheurísticas aplicadas à formação de lotes operacionais de linhas de
+  ônibus, considerando equilíbrio de demanda e produção, coerência territorial
+  e afinidade funcional.
+keywords:
+  - metaheurísticas
+  - otimização combinatória
+  - formação de lotes
+  - transporte coletivo
+  - Particle Swarm Optimization
+  - Busca Tabu
+  - Ant Colony Optimization
