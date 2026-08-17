@@ -6,7 +6,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from metaheuristica.errors import ConfigurationError, SolutionValidationError
+from metaheuristica.errors import (
+    ConfigurationError,
+    EvaluationLimitReached,
+    SolutionValidationError,
+)
 from metaheuristica.instances import load_tiny_instance
 from metaheuristica.metrics import RunConfig, TerminationReason
 from metaheuristica.optimizer import OptimizationContext, execute_optimizer
@@ -71,6 +75,27 @@ def test_context_exposes_common_incumbent_as_read_only_state() -> None:
         search=search,
     )
     assert observed == [((0, 0, 1, 1), 0.0)]
+
+
+def test_last_completed_evaluation_is_available_on_limit_signal() -> None:
+    observed: list[float] = []
+
+    def search(context: OptimizationContext, config: None) -> None:
+        while True:
+            try:
+                context.evaluate([0, 0, 1, 1])
+            except EvaluationLimitReached as exhausted:
+                observed.append(exhausted.result.total_cost)
+                raise
+
+    execute_optimizer(
+        TINY,
+        RunConfig(k=2, seed=1, budget=100),
+        None,
+        algorithm="limit_result_test",
+        search=search,
+    )
+    assert observed == [0.0]
 
 
 def test_same_seed_reproduces_all_deterministic_fields() -> None:

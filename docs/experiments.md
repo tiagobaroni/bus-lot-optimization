@@ -519,6 +519,15 @@ execuções de tuning.
 
 ## 15. Grade de tuning do ACO
 
+O ACO constrói diretamente sequências canônicas, garantindo `K` lotes ativos sem
+reparo. A informação heurística normaliza em `[1, 2]` os custos parciais das
+alternativas permitidas. Cada solução completa consome uma avaliação.
+
+Todas as formigas de uma geração usam a mesma matriz `tau`. Ao completar a
+colônia, aplica-se evaporação por `(1-rho)` e cada formiga deposita
+`1-custo_total` nas próprias atribuições. Geração interrompida pelo orçamento
+não atualiza feromônio parcialmente.
+
 Parâmetros avaliados:
 
 ### Peso do feromônio

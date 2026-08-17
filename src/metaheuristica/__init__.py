@@ -5,6 +5,7 @@ from metaheuristica.canonical import (
     solution_key,
     validate_solution,
 )
+from metaheuristica.aco import AcoConfig, run_aco
 from metaheuristica.errors import (
     BudgetExhausted,
     ConfigurationError,
@@ -30,6 +31,7 @@ from metaheuristica.tabu import TabuConfig, TabuMove, run_tabu
 
 __all__ = [
     "BudgetExhausted",
+    "AcoConfig",
     "canonicalize_solution",
     "ConfigurationError",
     "ConvergenceCheckpoint",
@@ -47,6 +49,7 @@ __all__ = [
     "ProblemInstance",
     "RepairBudgetExhausted",
     "repair_empty_lots",
+    "run_aco",
     "run_greedy",
     "run_tabu",
     "RunConfig",

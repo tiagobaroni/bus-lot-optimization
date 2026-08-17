@@ -9,7 +9,11 @@ from typing import Any, Protocol, TypeVar
 import numpy as np
 
 from metaheuristica.canonical import canonicalize_solution
-from metaheuristica.errors import BudgetExhausted, ConfigurationError
+from metaheuristica.errors import (
+    BudgetExhausted,
+    ConfigurationError,
+    EvaluationLimitReached,
+)
 from metaheuristica.evaluator import FitnessEvaluator
 from metaheuristica.metrics import (
     ConvergenceRecorder,
@@ -69,12 +73,12 @@ class OptimizationContext:
 
     def evaluate(self, solution: Any) -> EvaluationResult:
         result = self._evaluator.evaluate(solution)
-        self._stop_at_limit()
+        self._stop_at_limit(result)
         return result
 
     def evaluate_provisional_for_repair(self, solution: Any) -> EvaluationResult:
         result = self._evaluator.evaluate_provisional_for_repair(solution)
-        self._stop_at_limit()
+        self._stop_at_limit(result)
         return result
 
     def update_diagnostics(self, **values: Any) -> None:
@@ -84,9 +88,10 @@ class OptimizationContext:
     def diagnostics(self) -> Mapping[str, Any]:
         return dict(self._diagnostics)
 
-    def _stop_at_limit(self) -> None:
+    def _stop_at_limit(self, result: EvaluationResult) -> None:
         if self._evaluator.remaining == 0:
-            raise BudgetExhausted(
+            raise EvaluationLimitReached(
+                result,
                 f"orçamento esgotado: {self.evaluations}/{self.evaluations} avaliações"
             )
 

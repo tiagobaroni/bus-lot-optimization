@@ -26,21 +26,62 @@ def _provisional_labels(solution: Any, *, n_units: int, k: int) -> np.ndarray:
     return result
 
 
-def _balance_component(values: np.ndarray, labels: np.ndarray, k: int) -> tuple[float, float]:
-    totals = np.bincount(labels, weights=values, minlength=k)
+def _balance_totals_component(totals: np.ndarray) -> tuple[float, float]:
     mean = float(np.mean(totals))
     cv = float(np.std(totals, ddof=0) / mean)
     return cv / (1.0 + cv), cv
+
+
+def _balance_component(values: np.ndarray, labels: np.ndarray, k: int) -> tuple[float, float]:
+    totals = np.bincount(labels, weights=values, minlength=k)
+    return _balance_totals_component(totals)
+
+
+def _cut_fraction(numerator: float, denominator: float) -> float:
+    if denominator == 0.0:
+        return 0.0
+    return numerator / denominator
 
 
 def _cut_component(matrix: np.ndarray, labels: np.ndarray) -> float:
     row, column = np.triu_indices(len(labels), k=1)
     weights = matrix[row, column]
     denominator = float(np.sum(weights))
-    if denominator == 0.0:
-        return 0.0
     cut = labels[row] != labels[column]
-    return float(np.sum(weights[cut]) / denominator)
+    return _cut_fraction(float(np.sum(weights[cut])), denominator)
+
+
+def _evaluate_aggregates(
+    *,
+    demand_totals: np.ndarray,
+    production_totals: np.ndarray,
+    territorial_cut: float,
+    territorial_total: float,
+    affinity_cut: float,
+    affinity_total: float,
+    weights: ObjectiveWeights,
+) -> EvaluationResult:
+    """Avalia agregados equivalentes, usados na construção incremental do ACO."""
+
+    c_demand, cv_demand = _balance_totals_component(demand_totals)
+    c_production, cv_production = _balance_totals_component(production_totals)
+    c_territorial = _cut_fraction(territorial_cut, territorial_total)
+    c_affinity = _cut_fraction(affinity_cut, affinity_total)
+    total_cost = (
+        weights.demand * c_demand
+        + weights.production * c_production
+        + weights.territorial * c_territorial
+        + weights.affinity * c_affinity
+    )
+    return EvaluationResult(
+        total_cost=total_cost,
+        c_demand=c_demand,
+        c_production=c_production,
+        c_territorial=c_territorial,
+        c_affinity=c_affinity,
+        cv_demand=cv_demand,
+        cv_production=cv_production,
+    )
 
 
 def _evaluate_labels(
@@ -71,24 +112,18 @@ def _evaluate_arrays(
     k: int,
     weights: ObjectiveWeights,
 ) -> EvaluationResult:
-    c_demand, cv_demand = _balance_component(demand, labels, k)
-    c_production, cv_production = _balance_component(production, labels, k)
-    c_territorial = _cut_component(s_territorial, labels)
-    c_affinity = _cut_component(w_affinity, labels)
-    total_cost = (
-        weights.demand * c_demand
-        + weights.production * c_production
-        + weights.territorial * c_territorial
-        + weights.affinity * c_affinity
-    )
-    return EvaluationResult(
-        total_cost=total_cost,
-        c_demand=c_demand,
-        c_production=c_production,
-        c_territorial=c_territorial,
-        c_affinity=c_affinity,
-        cv_demand=cv_demand,
-        cv_production=cv_production,
+    row, column = np.triu_indices(len(labels), k=1)
+    territorial_values = s_territorial[row, column]
+    affinity_values = w_affinity[row, column]
+    cut = labels[row] != labels[column]
+    return _evaluate_aggregates(
+        demand_totals=np.bincount(labels, weights=demand, minlength=k),
+        production_totals=np.bincount(labels, weights=production, minlength=k),
+        territorial_cut=float(np.sum(territorial_values[cut])),
+        territorial_total=float(np.sum(territorial_values)),
+        affinity_cut=float(np.sum(affinity_values[cut])),
+        affinity_total=float(np.sum(affinity_values)),
+        weights=weights,
     )
 
 

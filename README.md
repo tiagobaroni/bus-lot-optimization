@@ -62,15 +62,16 @@ O trabalho exige, entre outros itens:
 
 ## Estado atual
 
-O projeto concluiu a preparação dos dados, o núcleo comum do problema e o
-contrato comum dos otimizadores e a Busca Tabu. As
+O projeto concluiu a preparação dos dados, o núcleo comum do problema, o
+contrato comum dos otimizadores, a Busca Tabu e o ACO. As
 instâncias, o carregamento, a canonicalização, a função objetivo, o orçamento de
 avaliações, o cache opcional, o reparo de lotes vazios e o baseline guloso
 determinístico estão implementados e testados. Também estão implementados a
 configuração uniforme das execuções, o RNG local, os 100 checkpoints, a parada
 estrita pelo orçamento, a cronometragem e o resultado serializável. A TS usa
-realocações amostradas, memória de reversão, aspiração e reinícios. ACO e PSO
-ainda não foram implementados.
+realocações amostradas, memória de reversão, aspiração e reinícios. O ACO usa
+construção canônica, heurística parcial e atualização de feromônio por geração.
+O PSO ainda não foi implementado.
 
 Decisões registradas:
 
@@ -121,8 +122,8 @@ metaheuristica/
     └── figures/
 ```
 
-Os módulos do núcleo já implementados estão em `src/metaheuristica`. Os módulos
-de PSO, Busca Tabu e ACO permanecem planejados para os próximos blocos.
+Os módulos do núcleo, da Busca Tabu e do ACO estão em `src/metaheuristica`. O
+módulo de PSO permanece planejado para o próximo bloco algorítmico.
 
 ## Ambiente e caminhos
 
@@ -155,7 +156,7 @@ uv sync --dev
 
 ## Execução
 
-Ainda não há um comando de benchmark, pois ACO, PSO e o executor experimental
+Ainda não há um comando de benchmark, pois PSO e o executor experimental
 não foram implementados. O núcleo pode ser verificado com:
 
 ```bash
@@ -183,6 +184,21 @@ from metaheuristica import load_artesp_instance, run_greedy
 
 instance = load_artesp_instance("data/instances", 20)
 result = run_greedy(instance, k=3)
+print(result.solution, result.evaluation.total_cost, result.evaluations)
+```
+
+O ACO também exige configuração explícita. Estes valores são ilustrativos e
+ainda serão submetidos ao tuning:
+
+```python
+from metaheuristica import AcoConfig, RunConfig, load_artesp_instance, run_aco
+
+instance = load_artesp_instance("data/instances", 20)
+result = run_aco(
+    instance,
+    RunConfig(k=3, seed=20260817, budget=20_000),
+    AcoConfig(alpha=1.0, beta=2.0, rho=0.1, n_ants=20),
+)
 print(result.solution, result.evaluation.total_cost, result.evaluations)
 ```
 
@@ -225,7 +241,7 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Implementar e testar ACO e PSO com o mesmo orçamento de avaliações.
+1. Implementar e testar PSO com o mesmo orçamento de avaliações.
 2. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
 3. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
 

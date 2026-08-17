@@ -21,5 +21,13 @@ class BudgetExhausted(MetaheuristicaError, RuntimeError):
     """Indica que uma nova avaliação ultrapassaria o orçamento."""
 
 
+class EvaluationLimitReached(BudgetExhausted):
+    """Indica que uma avaliação concluída consumiu a última unidade do orçamento."""
+
+    def __init__(self, result: object, message: str) -> None:
+        super().__init__(message)
+        self.result = result
+
+
 class RepairBudgetExhausted(BudgetExhausted):
     """Indica que o orçamento terminou durante um reparo."""

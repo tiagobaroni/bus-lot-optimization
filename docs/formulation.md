@@ -615,7 +615,38 @@ estagnação relevante.
 
 ---
 
-## 15. Hipóteses e limitações do baseline
+## 15. Ant Colony Optimization
+
+Cada formiga constrói uma sequência de crescimento restrito na ordem estável da
+instância. A primeira unidade recebe lote `0`; as seguintes podem escolher um
+lote aberto ou abrir somente o próximo rótulo. Quando as unidades restantes são
+exatamente suficientes para os lotes ainda fechados, a abertura é obrigatória.
+Assim, cada partição possui uma única representação canônica e termina viável
+sem reparo.
+
+Para cada escolha permitida, o ACO calcula o custo parcial dos mesmos quatro
+componentes usados pelo guloso. Esses custos são convertidos em informação
+heurística no intervalo `[1, 2]`:
+
+```text
+eta[i,k] = 1 + (C_max - C[i,k]) / (C_max - C_min)
+```
+
+Quando a amplitude dos custos não supera `1e-12`, todas as alternativas recebem
+`eta = 1`. Esses cálculos orientam a construção, mas somente a solução completa
+da formiga consome uma avaliação do orçamento.
+
+A matriz densa `tau[i,k]` começa em `1.0`. As probabilidades são proporcionais a
+`tau[i,k]^alpha * eta[i,k]^beta` e são calculadas em log para estabilidade.
+
+Depois de uma geração completa, o feromônio evapora por `(1-rho)` e cada formiga
+deposita `1-custo_total` em todas as suas atribuições. Uma geração interrompida
+pelo orçamento preserva suas avaliações e o incumbente, mas não evapora nem
+deposita feromônio parcialmente.
+
+---
+
+## 16. Hipóteses e limitações do baseline
 
 A formulação inicial assume explicitamente:
 
@@ -643,7 +674,7 @@ Essas hipóteses são decisões metodológicas do baseline e poderão ser revist
 
 ---
 
-## 16. Decisões fechadas após a preparação dos dados
+## 17. Decisões fechadas após a preparação dos dados
 
 Os detalhes que dependiam dos dados reais foram resolvidos da seguinte forma:
 
@@ -666,7 +697,7 @@ idêntica para demanda e PU·km.
 
 ---
 
-## 17. Extensões futuras possíveis
+## 18. Extensões futuras possíveis
 
 Após a implementação e validação do baseline, poderão ser estudadas:
 
@@ -685,7 +716,7 @@ Após a implementação e validação do baseline, poderão ser estudadas:
 
 ---
 
-## 18. Síntese
+## 19. Síntese
 
 O problema baseline pode ser descrito como:
 

@@ -8,11 +8,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** B5 - ACO
-- **Fase do bloco ativo:** brainstorming interativo
-- **Último bloco concluído:** B4 - Busca Tabu
-- **Próxima ação atômica:** decidir a ordem e a representação da construção das
-  formigas.
+- **Bloco ativo:** nenhum - aguardando início da B6
+- **Fase do bloco ativo:** não iniciada
+- **Último bloco concluído:** B5 - ACO
+- **Próxima ação atômica:** iniciar o brainstorming da B6 quando solicitado.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q`, com 69 testes aprovados.
 
@@ -302,7 +301,7 @@ vazio e passa nos testes comuns dos otimizadores.
 
 ## B5 - ACO
 
-**Estado:** `EM ANDAMENTO`
+**Estado:** `CONCLUÍDO`
 
 **Depende de:** B3.
 
@@ -310,13 +309,13 @@ vazio e passa nos testes comuns dos otimizadores.
 
 **Tarefas:**
 
-- [ ] Definir e testar `tau[i, k]`.
-- [ ] Implementar heurística marginal com afinidade e equilíbrio.
-- [ ] Implementar probabilidade com `alpha` e `beta`.
-- [ ] Garantir lotes ativos por construção ou reparo comum.
-- [ ] Implementar evaporação e depósito de feromônio.
-- [ ] Integrar orçamento e checkpoints comuns.
-- [ ] Testar probabilidades, atualização, validade e reprodutibilidade.
+- [x] Definir e testar `tau[i, k]`.
+- [x] Implementar heurística marginal com afinidade e equilíbrio.
+- [x] Implementar probabilidade com `alpha` e `beta`.
+- [x] Garantir lotes ativos por construção ou reparo comum.
+- [x] Implementar evaporação e depósito de feromônio.
+- [x] Integrar orçamento e checkpoints comuns.
+- [x] Testar probabilidades, atualização, validade e reprodutibilidade.
 
 **Critério de saída:** ACO produz soluções válidas, documenta sua heurística e
 passa nos testes comuns dos otimizadores.
@@ -324,8 +323,49 @@ passa nos testes comuns dos otimizadores.
 **Checkpoint:**
 
 - brainstorming iniciado após a conclusão e o push da B4 no commit `c4413c1`;
-- próxima ação atômica: decidir como construir soluções viáveis sem reintroduzir
-  simetria de rótulos no feromônio `tau[i, k]`;
+- cada formiga processa as unidades na ordem estável da instância e constrói uma
+  sequência de crescimento restrito: a primeira unidade usa lote `0` e cada
+  seguinte escolhe lote aberto ou abre somente o próximo rótulo;
+- quando as unidades restantes forem exatamente suficientes para abrir os lotes
+  faltantes, a abertura passa a ser obrigatória;
+- toda solução termina canônica e com exatamente `K` lotes, sem reparo, e cada
+  partição possui uma única representação para o feromônio `tau[i, k]`;
+- `eta[i, k]` reutiliza o custo parcial dos quatro componentes; entre escolhas
+  permitidas, recebe `1 + (C_max - C[i,k])/(C_max - C_min)`, ficando em `[1, 2]`;
+- se os custos parciais empatarem dentro de `1e-12`, todas as escolhas recebem
+  `eta = 1`;
+- cálculos heurísticos parciais não consomem orçamento; somente a solução
+  completa de cada formiga usa uma avaliação comum;
+- `tau` é matriz densa `N x K` inicializada em `1.0`; probabilidades usam
+  `tau^alpha * eta^beta`, calculadas em log;
+- após cada geração completa, aplicar evaporação por `(1-rho)` e somar, em cada
+  atribuição, depósito `1-custo_total` de todas as formigas;
+- geração interrompida não altera o feromônio, mas suas formigas já avaliadas
+  permanecem válidas para incumbente e checkpoints;
+- `AcoConfig` é imutável, sem padrões antes do tuning, e exige `alpha > 0`,
+  `beta > 0`, `0 < rho < 1` e `n_ants` inteiro positivo;
+- ficam preservadas as grades `alpha={1,2}`, `beta={1,2}`, `rho={0.1,0.3}` e
+  `n_ants={20,40}`;
+- todas as formigas de uma geração usam o mesmo `tau`; evaporação e depósitos
+  ocorrem uma única vez somente após as `n_ants` avaliações completas;
+- o baseline não terá estagnação ou reinício e continuará até o orçamento comum;
+- os diagnósticos registram gerações, formigas, atualizações, atribuições
+  forçadas e probabilísticas, melhorias globais e extremos finais de `tau`;
+- a formiga que esgota o orçamento é contabilizada, mas geração parcial não
+  incrementa geração ou atualização de feromônio;
+- testes cobrirão construção, heurística, probabilidades, atualização, geração
+  parcial, reprodutibilidade e os 18 cenários reais com orçamento reduzido;
+- CPU `float64` permanece normativa e GPU fica fora da B5;
+- brainstorming encerrado e especificação escrita em
+  `superpowers/B5_spec.md`;
+- especificação aprovada pelo usuário;
+- plano de implementação escrito em `superpowers/B5_plan.md`;
+- plano aprovado e implementação concluída conforme a especificação;
+- cálculo parcial incremental validado contra a função comum, sem alterar a
+  formulação;
+- integração validada nos 18 cenários ARTESP com orçamento reduzido;
+- verificação final: 157 testes aprovados e `git diff --check` sem erros;
+- próxima ação atômica: iniciar o brainstorming da B6 quando solicitado;
 - bloqueio: nenhum.
 
 ---

@@ -486,15 +486,17 @@ Estado registrado em 17/08/2026:
   serializável;
 - a Busca Tabu está implementada com realocações amostradas, memória de reversão,
   aspiração estrita e reinícios por estagnação ou bloqueio;
-- ACO e PSO ainda não estão implementados;
+- o ACO está implementado com construção canônica, heurística de custo parcial,
+  probabilidades estáveis e atualização de feromônio por geração;
+- PSO ainda não está implementado;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
 Os detalhes de dados e formulação do baseline estão consolidados. Permanecem
-pendentes a implementação e validação de ACO e PSO, o tuning e o benchmark
+pendentes a implementação e validação do PSO, o tuning e o benchmark
 principal.
 
 Próximo objetivo recomendado:
 
-1. iniciar o brainstorming e a especificação do ACO;
-2. implementar e testar ACO e PSO sobre o contrato comum;
+1. iniciar o brainstorming e a especificação do PSO;
+2. implementar e testar PSO sobre o contrato comum;
 3. somente depois executar tuning e o benchmark principal.
