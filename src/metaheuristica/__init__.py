@@ -15,7 +15,15 @@ from metaheuristica.errors import (
 from metaheuristica.evaluator import FitnessEvaluator
 from metaheuristica.instances import load_artesp_instance, load_tiny_instance
 from metaheuristica.greedy import GreedyResult, GreedyTraceStep, run_greedy
+from metaheuristica.metrics import (
+    ConvergenceCheckpoint,
+    OptimizationResult,
+    RunConfig,
+    TerminationReason,
+    checkpoint_thresholds,
+)
 from metaheuristica.objective import evaluate_solution
+from metaheuristica.optimizer import OptimizationContext, execute_optimizer
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
 from metaheuristica.repair import repair_empty_lots
 
@@ -23,6 +31,7 @@ __all__ = [
     "BudgetExhausted",
     "canonicalize_solution",
     "ConfigurationError",
+    "ConvergenceCheckpoint",
     "EvaluationResult",
     "evaluate_solution",
     "FitnessEvaluator",
@@ -32,11 +41,17 @@ __all__ = [
     "load_artesp_instance",
     "load_tiny_instance",
     "ObjectiveWeights",
+    "OptimizationContext",
+    "OptimizationResult",
     "ProblemInstance",
     "RepairBudgetExhausted",
     "repair_empty_lots",
     "run_greedy",
+    "RunConfig",
     "SolutionValidationError",
     "solution_key",
+    "TerminationReason",
     "validate_solution",
+    "checkpoint_thresholds",
+    "execute_optimizer",
 ]

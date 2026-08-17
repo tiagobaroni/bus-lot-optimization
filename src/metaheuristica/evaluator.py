@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from metaheuristica.canonical import solution_key, validate_k
@@ -12,6 +13,11 @@ from metaheuristica.objective import (
     evaluate_solution,
 )
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
+
+
+EvaluationObserver = Callable[
+    [int, tuple[int, ...] | None, EvaluationResult, bool], None
+]
 
 
 class FitnessEvaluator:
@@ -25,6 +31,7 @@ class FitnessEvaluator:
         "_evaluations",
         "_instance",
         "_k",
+        "_observer",
         "_weights",
     )
 
@@ -36,17 +43,21 @@ class FitnessEvaluator:
         budget: int,
         weights: ObjectiveWeights | None = None,
         cache_enabled: bool = False,
+        observer: EvaluationObserver | None = None,
     ) -> None:
         validate_k(k, instance.n_units)
         if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
             raise ConfigurationError("orçamento deve ser um inteiro positivo")
         if not isinstance(cache_enabled, bool):
             raise ConfigurationError("cache_enabled deve ser booleano")
+        if observer is not None and not callable(observer):
+            raise ConfigurationError("observer deve ser chamável")
         self._instance = instance
         self._k = k
         self._budget = budget
         self._weights = weights or ObjectiveWeights()
         self._cache_enabled = cache_enabled
+        self._observer = observer
         self._evaluations = 0
         self._cache_hits = 0
         self._cache: dict[tuple[int, ...], EvaluationResult] = {}
@@ -95,27 +106,31 @@ class FitnessEvaluator:
         self._consume()
         if self._cache_enabled and key in self._cache:
             self._cache_hits += 1
-            return self._cache[key]
-        result = evaluate_solution(
-            self._instance,
-            key,
-            k=self._k,
-            weights=self._weights,
-        )
-        if self._cache_enabled:
-            self._cache[key] = result
+            result = self._cache[key]
+        else:
+            result = evaluate_solution(
+                self._instance,
+                key,
+                k=self._k,
+                weights=self._weights,
+            )
+            if self._cache_enabled:
+                self._cache[key] = result
+        self._notify(key, result, eligible=True)
         return result
 
     def evaluate_provisional_for_repair(self, solution: Any) -> EvaluationResult:
         """Avalia um estado possivelmente vazio sem cache, somente para reparo."""
 
         self._consume()
-        return _evaluate_provisional_solution(
+        result = _evaluate_provisional_solution(
             self._instance,
             solution,
             k=self._k,
             weights=self._weights,
         )
+        self._notify(None, result, eligible=False)
+        return result
 
     def evaluate_partial_for_greedy(
         self, processed_indices: Any, labels: Any
@@ -123,10 +138,22 @@ class FitnessEvaluator:
         """Avalia um subproblema induzido sem cache, somente para o baseline."""
 
         self._consume()
-        return _evaluate_partial_assignment(
+        result = _evaluate_partial_assignment(
             self._instance,
             processed_indices,
             labels,
             k=self._k,
             weights=self._weights,
         )
+        self._notify(None, result, eligible=False)
+        return result
+
+    def _notify(
+        self,
+        solution: tuple[int, ...] | None,
+        result: EvaluationResult,
+        *,
+        eligible: bool,
+    ) -> None:
+        if self._observer is not None:
+            self._observer(self._evaluations, solution, result, eligible)

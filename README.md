@@ -36,7 +36,7 @@ O mesmo problema e a mesma função objetivo serão avaliados com:
 
 3. **ACO - Ant Colony Optimization**
    - construção sequencial da partição;
-   - feromônio associado à alocação linha–lote;
+   - feromônio associado à alocação linha-lote;
    - informação heurística baseada em características do problema.
 
 ## Requisitos acadêmicos
@@ -62,11 +62,14 @@ O trabalho exige, entre outros itens:
 
 ## Estado atual
 
-O projeto concluiu a preparação dos dados e o núcleo comum do problema. As
+O projeto concluiu a preparação dos dados, o núcleo comum do problema e o
+contrato comum dos otimizadores. As
 instâncias, o carregamento, a canonicalização, a função objetivo, o orçamento de
 avaliações, o cache opcional, o reparo de lotes vazios e o baseline guloso
-determinístico estão implementados e testados. As três metaheurísticas ainda não
-foram implementadas.
+determinístico estão implementados e testados. Também estão implementados a
+configuração uniforme das execuções, o RNG local, os 100 checkpoints, a parada
+estrita pelo orçamento, a cronometragem e o resultado serializável. As três
+metaheurísticas ainda não foram implementadas.
 
 Decisões registradas:
 
@@ -206,10 +209,9 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Definir o contrato comum dos otimizadores.
-2. Implementar e testar TS, ACO e PSO com o mesmo orçamento de avaliações.
-3. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
-4. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
+1. Implementar e testar TS, ACO e PSO com o mesmo orçamento de avaliações.
+2. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
+3. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
 
 ## Licença
 

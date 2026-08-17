@@ -8,11 +8,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** B3 - Contrato comum dos otimizadores
-- **Fase do bloco ativo:** brainstorming interativo ainda não iniciado
-- **Último bloco concluído:** B2 - Baseline guloso determinístico
-- **Próxima ação atômica:** iniciar o brainstorming interativo da B3 quando
-  solicitado pelo usuário.
+- **Bloco ativo:** nenhum - aguardando início da B4
+- **Fase do bloco ativo:** não iniciada
+- **Último bloco concluído:** B3 - Contrato comum dos otimizadores
+- **Próxima ação atômica:** iniciar o brainstorming da B4 quando solicitado.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q`, com 69 testes aprovados.
 
@@ -155,7 +154,7 @@ repetíveis byte a byte para a mesma entrada.
 
 ## B3 - Contrato comum dos otimizadores
 
-**Estado:** `EM ANDAMENTO`
+**Estado:** `CONCLUÍDO`
 
 **Depende de:** B1 e B2.
 
@@ -164,13 +163,13 @@ resultado entre PSO, TS e ACO.
 
 **Tarefas:**
 
-- [ ] Definir configuração comum de execução.
-- [ ] Definir resultado comum com seed, custo, componentes e solução.
-- [ ] Definir histórico nos 100 checkpoints normalizados.
-- [ ] Implementar parada estrita pelo orçamento de avaliações.
-- [ ] Separar tempo de carregamento do tempo de otimização.
-- [ ] Garantir RNG local e explícito por execução.
-- [ ] Testar serialização e igualdade de resultados reproduzidos.
+- [x] Definir configuração comum de execução.
+- [x] Definir resultado comum com seed, custo, componentes e solução.
+- [x] Definir histórico nos 100 checkpoints normalizados.
+- [x] Implementar parada estrita pelo orçamento de avaliações.
+- [x] Separar tempo de carregamento do tempo de otimização.
+- [x] Garantir RNG local e explícito por execução.
+- [x] Testar serialização e igualdade de resultados reproduzidos.
 
 **Arquivos previstos:**
 
@@ -180,6 +179,44 @@ resultado entre PSO, TS e ACO.
 
 **Critério de saída:** um otimizador de teste usa o contrato sem ultrapassar o
 orçamento e produz todos os campos exigidos pelo protocolo.
+
+**Checkpoint:**
+
+- última decisão concluída: separar `RunConfig` imutável, contendo `K`, seed,
+  orçamento, pesos, checkpoints e política de cache, das configurações de
+  hiperparâmetros específicas de TS, ACO e PSO; fornecer a instância
+  separadamente;
+- os 100 checkpoints usam os limiares `ceil(j * orçamento / 100)`, registram o
+  melhor incumbente imediatamente após cada limiar e contêm índice, avaliações,
+  custo total e componentes normalizados, enquanto a solução completa permanece
+  apenas no resultado final;
+- toda avaliação, inclusive na inicialização, consome orçamento; o otimizador
+  interrompe inclusive uma iteração em andamento ao esgotá-lo e retorna o melhor
+  incumbente viável;
+- o resultado comum registra algoritmo, `K`, seed, orçamento, pesos, solução
+  canônica, custo total, componentes normalizados, avaliações consumidas,
+  acertos de cache, 100 checkpoints, tempo de otimização, motivo da parada e um
+  campo separado para diagnósticos específicos;
+- o tempo de otimização usa relógio monotônico e cobre a preparação interna do
+  algoritmo até a última avaliação, excluindo carregamento da instância, leitura
+  de arquivos e serialização;
+- execuções reproduzidas devem coincidir em solução, custos, avaliações e
+  checkpoints, mas não em tempo;
+- cada execução usa um `numpy.random.Generator` local criado pela infraestrutura
+  a partir da seed, sem RNG global ou compartilhado;
+- a infraestrutura cria RNG, avaliador e registrador, trata exclusivamente o
+  sinal de orçamento esgotado como término normal, valida e canonicaliza o
+  incumbente final e não mascara ausência de incumbente ou outros erros;
+- o contrato é estrutural, sem herança obrigatória, e será comprovado por um
+  otimizador mínimo restrito aos testes;
+- brainstorming encerrado e especificação escrita em
+  `superpowers/B3_spec.md`;
+- especificação aprovada pelo usuário;
+- plano de implementação escrito em `superpowers/B3_plan.md`;
+- plano aprovado e implementação concluída conforme a especificação;
+- verificação final: 99 testes aprovados e `git diff --check` sem erros;
+- próxima ação atômica: iniciar o brainstorming da B4 quando solicitado;
+- bloqueio: nenhum.
 
 ---
 

@@ -308,16 +308,16 @@ Registrar:
 Criar inicialmente três classes:
 
 ### Pequena
-- aproximadamente 10–20 linhas;
-- 2–3 lotes.
+- aproximadamente 10-20 linhas;
+- 2-3 lotes.
 
 ### Média
-- aproximadamente 30–60 linhas;
-- 3–5 lotes.
+- aproximadamente 30-60 linhas;
+- 3-5 lotes.
 
 ### Grande
 - aproximadamente 100+ linhas;
-- 4–8 lotes.
+- 4-8 lotes.
 
 Instâncias sintéticas devem ser reproduzíveis por `seed`.
 
@@ -462,31 +462,38 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
-Estado registrado em 15/08/2026:
+Estado registrado em 17/08/2026:
 
-- o repositório Git está sincronizado com o remoto `https://github.com/tiagobaroni/bus-lot-optimization.git` na branch `main`;
-- o projeto está na fase de preparação para implementação, e ainda não há algoritmos, instâncias ou resultados executáveis versionados;
+- a branch `main` parte do estado sincronizado com o remoto
+  `https://github.com/tiagobaroni/bus-lot-optimization.git`; as alterações da B3
+  permanecem locais até uma solicitação explícita de commit e push;
+- as instâncias reais de 20, 60 e 150 unidades e a instância minúscula estão
+  versionadas e carregam sem depender dos dados-fonte ignorados;
 - a linguagem definida é Python 3.14;
 - `docs/formulation.md` contém a formulação conceitual do baseline;
 - `docs/experiments.md` contém o protocolo experimental planejado;
 - `docs/trabalho.md` e `docs/dicas.md` preservam os requisitos e orientações acadêmicas;
 - a unidade de decisão é o sentido/variante operacional de uma linha de ônibus;
 - o baseline resolve separadamente `K` em `{3, 4, 5, 6, 7, 8}`;
-- a função objetivo planejada possui quatro componentes com pesos iguais: equilíbrio de demanda, equilíbrio de produção em PU·km, coerência territorial e afinidade funcional;
-- a formulação também prevê reparo de lotes vazios, canonicalização de rótulos e uma heurística gulosa determinística de referência;
+- a função objetivo com quatro componentes, o reparo de lotes vazios, a
+  canonicalização e a heurística gulosa determinística estão implementados e
+  testados;
 - o protocolo prevê instâncias aninhadas de 20, 60 e 150 unidades, 30 seeds por cenário, 100 checkpoints de convergência e orçamento de 20.000, 60.000 e 150.000 avaliações, respectivamente;
 - o tuning planejado soma 440 execuções e o experimento principal soma 1.620 execuções;
 - os benchmarks finais serão executados em Linux nativo, com uma thread por execução individual;
 - GPU é um experimento adicional e não será requisito para executar o projeto;
-- os diretórios `src`, `tests`, `data`, `experiments` e `results` existem, mas ainda não possuem implementação, instâncias ou resultados;
+- o contrato comum dos otimizadores está implementado com `RunConfig`, RNG
+  local, orçamento estrito, 100 checkpoints, cronometragem e resultado
+  serializável;
+- TS, ACO e PSO ainda não estão implementados;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
-Detalhes operacionais ainda pendentes antes do benchmark principal incluem a obtenção e preparação dos dados, a fórmula exata da matriz territorial, a regra empírica de integração funcional, a construção dos dados OD, a implementação da função objetivo e a validação dos algoritmos.
+Os detalhes de dados e formulação do baseline estão consolidados. Permanecem
+pendentes a implementação e validação de TS, ACO e PSO, o tuning e o benchmark
+principal.
 
 Próximo objetivo recomendado:
 
-1. definir o esquema dos dados e criar uma instância mínima verificável manualmente;
-2. implementar `canonical`, `problem`, `objective` e seus testes;
-3. implementar a heurística gulosa determinística;
-4. implementar e testar TS, ACO e PSO com o mesmo contador de avaliações;
-5. somente depois executar tuning e o benchmark principal.
+1. iniciar o brainstorming e a especificação da Busca Tabu;
+2. implementar e testar TS, ACO e PSO sobre o contrato comum;
+3. somente depois executar tuning e o benchmark principal.

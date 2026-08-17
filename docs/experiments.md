@@ -264,13 +264,32 @@ avaliações da função objetivo por unidade da instância.
 
 O tempo computacional será medido como resultado, e não utilizado como critério principal de parada.
 
+Cada execução usa um `numpy.random.Generator` local, inicializado por
+`numpy.random.PCG64(seed)`. Não é permitido usar ou alterar RNG global. Todas as
+consultas à função objetivo consomem orçamento, incluindo inicialização, reparo,
+soluções repetidas e cache hits. O cache fica desabilitado por padrão.
+
+O algoritmo é interrompido imediatamente depois da avaliação que consome o
+limite, ainda que isso ocorra no meio de uma iteração, geração ou construção. O
+melhor incumbente viável é então devolvido com o motivo
+`budget_exhausted`.
+
 ---
 
 ## 9. Registro da convergência
 
-Em cada execução serão armazenados 100 checkpoints igualmente espaçados no orçamento de avaliações.
+Em cada execução serão armazenados 100 checkpoints igualmente espaçados no orçamento de avaliações. Para orçamento (B), o checkpoint (j) é registrado imediatamente depois da avaliação de limiar
 
-Para cada checkpoint será registrado:
+\[
+e_j=\left\lceil\frac{jB}{100}\right\rceil,
+\qquad j=1,\ldots,100.
+\]
+
+Para cada checkpoint serão registrados o melhor custo total acumulado e seus
+quatro componentes normalizados. A solução completa é armazenada somente no
+resultado final.
+
+O valor principal de cada checkpoint é:
 
 \[
 C_{\text{best}}(e),
@@ -287,6 +306,10 @@ p_j=\frac{j}{100}, \qquad j=1,\ldots,100.
 Assim, cada curva representa a evolução da melhor solução em função da fração do orçamento total consumido.
 
 Isso permite comparar algoritmos e tamanhos de instância em escala normalizada.
+
+Cada avaliação é processada individualmente, mesmo que o método trabalhe com
+populações ou lotes de candidatos. Assim, nenhum algoritmo arredonda o orçamento
+para completar sua iteração interna.
 
 ---
 
@@ -866,6 +889,10 @@ seed
 checkpoint
 evaluations
 best_cost
+C_D
+C_P
+C_T
+C_A
 ```
 
 Isso facilita:
@@ -874,6 +901,11 @@ Isso facilita:
 - gráficos;
 - auditoria;
 - reprodução.
+
+O tempo `runtime_s` usa relógio monotônico e cobre a preparação operacional
+interna do algoritmo, sua inicialização e suas avaliações. Ficam fora dessa
+janela o carregamento da instância, a leitura de arquivos, a validação e
+canonicalização finais, a serialização e a gravação do resultado.
 
 ---
 

@@ -71,3 +71,40 @@ def test_evaluators_do_not_share_state() -> None:
 def test_invalid_budget_is_rejected(budget: object) -> None:
     with pytest.raises(ConfigurationError):
         FitnessEvaluator(INSTANCE, k=2, budget=budget)  # type: ignore[arg-type]
+
+
+def test_observer_receives_completed_viable_and_provisional_evaluations() -> None:
+    events: list[tuple[int, tuple[int, ...] | None, bool]] = []
+
+    def observe(
+        evaluations: int,
+        solution: tuple[int, ...] | None,
+        result: object,
+        eligible: bool,
+    ) -> None:
+        events.append((evaluations, solution, eligible))
+
+    evaluator = FitnessEvaluator(INSTANCE, k=2, budget=2, observer=observe)
+    evaluator.evaluate([1, 1, 0, 0])
+    evaluator.evaluate_provisional_for_repair([0, 0, 0, 0])
+    assert events == [(1, (0, 0, 1, 1), True), (2, None, False)]
+
+
+def test_observer_is_notified_for_cache_hit() -> None:
+    events: list[int] = []
+
+    def observe(
+        evaluations: int,
+        solution: tuple[int, ...] | None,
+        result: object,
+        eligible: bool,
+    ) -> None:
+        events.append(evaluations)
+
+    evaluator = FitnessEvaluator(
+        INSTANCE, k=2, budget=2, cache_enabled=True, observer=observe
+    )
+    evaluator.evaluate([0, 0, 1, 1])
+    evaluator.evaluate([1, 1, 0, 0])
+    assert events == [1, 2]
+    assert evaluator.cache_hits == 1
