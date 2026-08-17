@@ -1,0 +1,24 @@
+schema_version = 1
+campaign_commit = "dc9146841586a36e1bc9eb82c59b8b361470d8b1"
+selection_path = "results/tables/tuning_selection.json"
+selection_sha256 = "effa018d119b1bdbbce16a158114b602526295d13a896825240d955c3e79e3da"
+manifest_path = "results/tables/tuning_manifest.json"
+manifest_sha256 = "b576238b75faec3050ded2a968d8e7497e5e33783828864fd197c5fee112db15"
+change_policy = "requires_new_tuning"
+
+[tabu]
+tabu_tenure = 10
+neighborhood_size = 20
+stagnation_limit = 100
+
+[aco]
+alpha = 1.0
+beta = 2.0
+rho = 0.1
+n_ants = 40
+
+[pso]
+n_particles = 40
+inertia = 0.4
+cognitive = 2.0
+social = 1.5

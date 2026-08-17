@@ -385,14 +385,15 @@ Quando útil, também poderão ser calculadas para:
 
 ## 12. Tuning de hiperparâmetros
 
-O tuning será realizado antes do experimento principal.
+O tuning foi realizado antes do experimento principal.
 
 Será utilizada apenas:
 
 - instância média: \(N=60\);
 - \(K=5\).
 
-Depois do tuning, os melhores parâmetros serão **congelados** e utilizados em todas as instâncias e valores de \(K\) no experimento principal.
+Os melhores parâmetros foram **congelados** e serão utilizados em todas as
+instâncias e valores de \(K\) no experimento principal.
 
 A finalidade é evitar ajuste específico para cada cenário e reduzir o risco de overfitting experimental.
 
@@ -428,9 +429,30 @@ desempate, pois concorrência
 pode introduzir ruído. Nenhuma configuração é eliminada antecipadamente e a
 seleção exige as 440 execuções oficiais completas.
 
-Além do resumo por configuração, serão calculados efeitos marginais por nível
-de hiperparâmetro. Eles são exclusivamente descritivos e não serão interpretados
+Além do resumo por configuração, foram calculados efeitos marginais por nível
+de hiperparâmetro. Eles são exclusivamente descritivos e não são interpretados
 como efeitos causais, pois existem interações entre parâmetros.
+
+### 12.2. Resultado do tuning oficial
+
+A campanha oficial foi executada em 17/08/2026 no commit `dc91468`, com 16
+workers, e completou as 440 execuções sem falhas. O intervalo entre o início da
+primeira execução e o fim da última foi de aproximadamente 3 h 43 min. Foram
+consolidadas 440 linhas de execução e 44.000 checkpoints.
+
+| Algoritmo | Parâmetros selecionados | Custo médio | Desvio-padrão amostral | Segundo colocado | Diferença de média |
+|---|---|---:|---:|---:|---:|
+| Busca Tabu | `tabu_tenure=10`, `neighborhood_size=20`, `stagnation_limit=100` | 0,126415 | 0,013287 | 0,129629 | 0,003214 |
+| ACO | `alpha=1.0`, `beta=2.0`, `rho=0.1`, `n_ants=40` | 0,146303 | 0,021000 | 0,151504 | 0,005201 |
+| PSO | `n_particles=40`, `inertia=0.4`, `cognitive=2.0`, `social=1.5` | 0,274437 | 0,033236 | 0,287264 | 0,012826 |
+
+A análise marginal descritiva sugere, dentro das grades avaliadas, menor custo
+médio com `alpha=1.0` no ACO, `inertia=0.4` e `social=1.5` no PSO e
+`stagnation_limit=100` na Busca Tabu. Esses contrastes não são causais e não
+isolam interações entre hiperparâmetros. Os resultados completos estão nos
+Parquet de resumo e efeitos em `results/tables/`, e os parâmetros oficiais estão
+em `experiments/configs/frozen_parameters.toml`. Qualquer alteração nesses
+parâmetros exige um novo ciclo de tuning.
 
 ---
 

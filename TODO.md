@@ -8,12 +8,13 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** B9 - Tuning
-- **Fase do bloco ativo:** implementação pré-campanha
-- **Último bloco concluído:** B8 - Automação experimental
-- **Próxima ação atômica:** verificar, commitar e enviar a infraestrutura antes do tuning.
+- **Bloco ativo:** nenhum
+- **Fase do bloco ativo:** B9 concluída, aguardando início da B10
+- **Último bloco concluído:** B9 - Tuning
+- **Próxima ação atômica:** iniciar o brainstorming interativo da B10 quando solicitado.
 - **Bloqueios conhecidos:** nenhum.
-- **Última verificação:** `uv run pytest -q`, com 221 testes aprovados.
+- **Última verificação:** `uv run pytest -q` aprovado, `git diff --check` sem
+  erros e auditoria dos sete artefatos concluída em 17/08/2026.
 
 > **Aviso:** todos os blocos devem seguir o fluxo obrigatório definido na Seção
 > 12.1 de `AGENTS.md`: brainstorming, especificação, aprovação, plano, aprovação
@@ -628,7 +629,7 @@ resultados válidos nem corromper arquivos.
 
 ## B9 - Tuning
 
-**Estado:** `EM ANDAMENTO`
+**Estado:** `CONCLUÍDO`
 
 **Depende de:** B8.
 
@@ -637,13 +638,13 @@ configuração por algoritmo.
 
 **Tarefas:**
 
-- [ ] Executar tuning do PSO.
-- [ ] Executar tuning da TS.
-- [ ] Executar tuning do ACO.
-- [ ] Consolidar qualidade, dispersão e tempo.
-- [ ] Escolher parâmetros pelo critério documentado.
-- [ ] Registrar configurações congeladas e justificativas.
-- [ ] Proibir alteração posterior sem novo ciclo de tuning.
+- [x] Executar tuning do PSO.
+- [x] Executar tuning da TS.
+- [x] Executar tuning do ACO.
+- [x] Consolidar qualidade, dispersão e tempo.
+- [x] Escolher parâmetros pelo critério documentado.
+- [x] Registrar configurações congeladas e justificativas.
+- [x] Proibir alteração posterior sem novo ciclo de tuning.
 
 **Critério de saída:** três configurações congeladas, rastreáveis e prontas para
 o piloto final.
@@ -698,8 +699,18 @@ o piloto final.
 - a tentativa inicial com 8 workers foi interrompida após 39 resultados válidos,
   movidos de forma recuperável para `_temp/b9_discarded_workers8` e excluídos da
   campanha oficial;
-- próxima ação: verificar, commitar e enviar o padrão de 16 workers, executar
-  novo preflight e reiniciar integralmente a campanha;
+- o preflight com 16 workers concluiu 18 cenários sem falhas, OOM ou uso
+  material de swap;
+- a campanha oficial completou 440 execuções, com 440 IDs únicos, zero falhas,
+  44.000 checkpoints e proveniência uniforme no commit `dc91468`;
+- a consolidação foi marcada como completa e oficial, com hashes verificados;
+- os vencedores automáticos foram Busca Tabu `(10, 20, 100)`, ACO
+  `(1.0, 2.0, 0.1, 40)` e PSO `(40, 0.4, 2.0, 1.5)`, nas ordens de parâmetros
+  documentadas;
+- os sete artefatos oficiais foram gerados, inclusive
+  `experiments/configs/frozen_parameters.toml`, cuja política exige novo tuning
+  para qualquer alteração;
+- próxima ação: iniciar o brainstorming interativo da B10 quando solicitado;
 - bloqueio: nenhum.
 
 ---

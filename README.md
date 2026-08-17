@@ -63,7 +63,8 @@ O trabalho exige, entre outros itens:
 ## Estado atual
 
 O projeto concluiu a preparação dos dados, o núcleo comum do problema, o
-contrato comum dos otimizadores, a Busca Tabu, o ACO e o PSO. As
+contrato comum dos otimizadores, a Busca Tabu, o ACO, o PSO e o tuning oficial.
+As
 instâncias, o carregamento, a canonicalização, a função objetivo, o orçamento de
 avaliações, o cache opcional, o reparo de lotes vazios e o baseline guloso
 determinístico estão implementados e testados. Também estão implementados a
@@ -85,6 +86,17 @@ Decisões registradas:
 - protocolo: instâncias de 20, 60 e 150 unidades, 30 seeds, orçamento proporcional de avaliações e 100 checkpoints de convergência;
 - ambiente oficial dos benchmarks: Linux nativo;
 - GPU: experimento adicional, sem ser requisito de execução.
+
+O tuning oficial completou 440 execuções na instância de 60 unidades, com
+`K=5`, 60.000 avaliações e 10 seeds por configuração. Os parâmetros selecionados
+automaticamente e congelados são:
+
+- Busca Tabu: `tabu_tenure=10`, `neighborhood_size=20` e
+  `stagnation_limit=100`;
+- ACO: `alpha=1.0`, `beta=2.0`, `rho=0.1` e `n_ants=40`;
+- PSO: `n_particles=40`, `inertia=0.4`, `cognitive=2.0` e `social=1.5`.
+
+Os resultados consolidados e a seleção auditável estão em `results/tables/`.
 
 O estado detalhado e as pendências metodológicas estão em [`AGENTS.md`](AGENTS.md), [`docs/formulation.md`](docs/formulation.md) e [`docs/experiments.md`](docs/experiments.md).
 
@@ -156,8 +168,8 @@ uv sync --dev
 
 ## Execução
 
-As configurações finais de benchmark ainda dependem do tuning. A automação já
-permite planejar, executar, retomar e consolidar campanhas. O núcleo e as
+Os hiperparâmetros finais foram congelados pelo tuning. A automação permite
+planejar, executar, retomar e consolidar campanhas. O núcleo e as
 metaheurísticas podem ser verificados com:
 
 ```bash
@@ -203,9 +215,9 @@ uv run python -m experiments.run \
   --config experiments/configs/tuning.toml plan
 ```
 
-Essa configuração contém 440 execuções sobre a instância de 60 unidades e não
-deve ser alterada depois do início da campanha. Após execução e consolidação
-completas, a seleção automática é produzida por:
+Essa configuração contém as 440 execuções concluídas sobre a instância de 60
+unidades e não deve ser alterada sem um novo ciclo de tuning. A seleção
+automática pode ser reproduzida por:
 
 ```bash
 uv run python -m experiments.analyze_tuning \
@@ -308,8 +320,8 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Implementar e testar PSO com o mesmo orçamento de avaliações.
-2. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
+1. Executar o piloto pré-benchmark com os parâmetros congelados.
+2. Executar o benchmark principal.
 3. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
 
 ## Licença

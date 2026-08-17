@@ -499,18 +499,23 @@ Estado registrado em 17/08/2026:
   cenários ARTESP, sem alterar o código de produção;
 - a B8 implementou TOML estrito, IDs por conteúdo, retomada,
   multiprocessamento, proveniência e consolidação, sem executar campanhas reais;
-- a infraestrutura local da B9 está implementada e aguarda o commit obrigatório
-  anterior ao preflight e às 440 execuções oficiais;
-- a primeira tentativa do tuning com 8 workers foi interrompida por decisão
-  metodológica antes da seleção; o reinício integral usará 16 workers após novo
-  preflight e commit limpo;
+- a B9 completou as 440 execuções oficiais de tuning no commit `dc91468`, com
+  16 workers, zero falhas, 44.000 checkpoints e consolidação oficial;
+- os parâmetros congelados são Busca Tabu `(tabu_tenure=10,
+  neighborhood_size=20, stagnation_limit=100)`, ACO `(alpha=1.0, beta=2.0,
+  rho=0.1, n_ants=40)` e PSO `(n_particles=40, inertia=0.4, cognitive=2.0,
+  social=1.5)`;
+- os artefatos consolidados, o ranking, os efeitos marginais descritivos e a
+  seleção auditável estão em `results/tables/`; qualquer alteração dos
+  parâmetros congelados exige novo ciclo de tuning;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
-Os detalhes de dados e formulação do baseline estão consolidados. Permanecem
-pendentes a automação experimental, o tuning e o benchmark principal.
+Os detalhes de dados, formulação, automação experimental e tuning estão
+consolidados. Permanecem pendentes o piloto pré-benchmark e o benchmark
+principal.
 
 Próximo objetivo recomendado:
 
-1. definir as seeds do tuning e concluir sua configuração;
-2. executar o tuning e congelar as configurações;
-3. somente depois executar o piloto e o benchmark principal.
+1. executar o fluxo de brainstorming, especificação e plano da B10;
+2. executar o piloto pré-benchmark com os parâmetros congelados;
+3. somente depois executar o benchmark principal.
