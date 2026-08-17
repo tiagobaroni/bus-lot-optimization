@@ -8,10 +8,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** nenhum - aguardando início da B4
-- **Fase do bloco ativo:** não iniciada
+- **Bloco ativo:** B4 - Busca Tabu
+- **Fase do bloco ativo:** brainstorming interativo
 - **Último bloco concluído:** B3 - Contrato comum dos otimizadores
-- **Próxima ação atômica:** iniciar o brainstorming da B4 quando solicitado.
+- **Próxima ação atômica:** decidir a vizinhança inicial da Busca Tabu.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q`, com 69 testes aprovados.
 
@@ -222,7 +222,7 @@ orçamento e produz todos os campos exigidos pelo protocolo.
 
 ## B4 - Busca Tabu
 
-**Estado:** `PENDENTE`
+**Estado:** `EM ANDAMENTO`
 
 **Depende de:** B3.
 
@@ -240,6 +240,13 @@ orçamento e produz todos os campos exigidos pelo protocolo.
 
 **Critério de saída:** TS respeita exatamente o orçamento, nunca retorna lote
 vazio e passa nos testes comuns dos otimizadores.
+
+**Checkpoint:**
+
+- brainstorming iniciado após a conclusão e o push da B3 no commit `0893890`;
+- próxima ação atômica: decidir entre vizinhança inicial somente com `move` ou
+  inclusão imediata de `swap`;
+- bloqueio: nenhum.
 
 ---
 
