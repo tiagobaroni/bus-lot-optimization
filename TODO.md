@@ -8,10 +8,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** nenhum - aguardando início da B5
-- **Fase do bloco ativo:** não iniciada
+- **Bloco ativo:** B5 - ACO
+- **Fase do bloco ativo:** brainstorming interativo
 - **Último bloco concluído:** B4 - Busca Tabu
-- **Próxima ação atômica:** iniciar o brainstorming da B5 quando solicitado.
+- **Próxima ação atômica:** decidir a ordem e a representação da construção das
+  formigas.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q`, com 69 testes aprovados.
 
@@ -301,7 +302,7 @@ vazio e passa nos testes comuns dos otimizadores.
 
 ## B5 - ACO
 
-**Estado:** `PENDENTE`
+**Estado:** `EM ANDAMENTO`
 
 **Depende de:** B3.
 
@@ -319,6 +320,13 @@ vazio e passa nos testes comuns dos otimizadores.
 
 **Critério de saída:** ACO produz soluções válidas, documenta sua heurística e
 passa nos testes comuns dos otimizadores.
+
+**Checkpoint:**
+
+- brainstorming iniciado após a conclusão e o push da B4 no commit `c4413c1`;
+- próxima ação atômica: decidir como construir soluções viáveis sem reintroduzir
+  simetria de rótulos no feromônio `tau[i, k]`;
+- bloqueio: nenhum.
 
 ---
 
