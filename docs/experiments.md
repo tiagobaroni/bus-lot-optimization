@@ -454,6 +454,12 @@ Total:
 
 configurações.
 
+O PSO implementado usa posição Random Keys de dimensão `N`, topologia global,
+inicialização balanceada, velocidade limitada a `[-0.5,0.5]` e posição limitada
+a `[0,1]`. Lotes vazios são tratados pelo reparo comum, cujas avaliações também
+consomem o orçamento experimental. A execução CPU com NumPy e `float64` é a
+referência normativa; GPU permanece um estudo adicional posterior.
+
 Com 10 execuções por configuração:
 
 \[

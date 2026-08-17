@@ -646,7 +646,27 @@ deposita feromônio parcialmente.
 
 ---
 
-## 16. Hipóteses e limitações do baseline
+## 16. Particle Swarm Optimization com Random Keys
+
+Cada partícula possui uma posição `float64` de dimensão `N` em `[0,1]`. A chave
+da unidade `i` é decodificada por
+`min(floor(K*x[i]), K-1)`. A inicialização parte de uma alocação aleatória
+balanceada e sorteia as chaves dentro dos intervalos dos lotes, garantindo que
+todos estejam ativos.
+
+A velocidade segue a fórmula clássica com inércia e componentes cognitivo e
+social, vetores aleatórios independentes e topologia global. As posições são
+limitadas a `[0,1]`, as velocidades a `[-0.5,0.5]` e cada iteração usa um único
+snapshot do melhor global.
+
+Quando a decodificação esvazia lotes, o PSO usa o reparo comum e contabiliza
+todas as avaliações provisórias. A solução reparada é projetada de volta ao
+espaço contínuo preservando a fração interna de cada chave. Somente candidatos
+com avaliação viável completa alteram a partícula e seus melhores.
+
+---
+
+## 17. Hipóteses e limitações do baseline
 
 A formulação inicial assume explicitamente:
 
@@ -674,7 +694,7 @@ Essas hipóteses são decisões metodológicas do baseline e poderão ser revist
 
 ---
 
-## 17. Decisões fechadas após a preparação dos dados
+## 18. Decisões fechadas após a preparação dos dados
 
 Os detalhes que dependiam dos dados reais foram resolvidos da seguinte forma:
 
@@ -697,7 +717,7 @@ idêntica para demanda e PU·km.
 
 ---
 
-## 18. Extensões futuras possíveis
+## 19. Extensões futuras possíveis
 
 Após a implementação e validação do baseline, poderão ser estudadas:
 
@@ -716,7 +736,7 @@ Após a implementação e validação do baseline, poderão ser estudadas:
 
 ---
 
-## 19. Síntese
+## 20. Síntese
 
 O problema baseline pode ser descrito como:
 

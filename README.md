@@ -63,7 +63,7 @@ O trabalho exige, entre outros itens:
 ## Estado atual
 
 O projeto concluiu a preparação dos dados, o núcleo comum do problema, o
-contrato comum dos otimizadores, a Busca Tabu e o ACO. As
+contrato comum dos otimizadores, a Busca Tabu, o ACO e o PSO. As
 instâncias, o carregamento, a canonicalização, a função objetivo, o orçamento de
 avaliações, o cache opcional, o reparo de lotes vazios e o baseline guloso
 determinístico estão implementados e testados. Também estão implementados a
@@ -71,7 +71,8 @@ configuração uniforme das execuções, o RNG local, os 100 checkpoints, a para
 estrita pelo orçamento, a cronometragem e o resultado serializável. A TS usa
 realocações amostradas, memória de reversão, aspiração e reinícios. O ACO usa
 construção canônica, heurística parcial e atualização de feromônio por geração.
-O PSO ainda não foi implementado.
+O PSO usa Random Keys, inicialização balanceada, reparo contabilizado e
+projeção coerente da solução reparada.
 
 Decisões registradas:
 
@@ -122,8 +123,7 @@ metaheuristica/
     └── figures/
 ```
 
-Os módulos do núcleo, da Busca Tabu e do ACO estão em `src/metaheuristica`. O
-módulo de PSO permanece planejado para o próximo bloco algorítmico.
+Os módulos do núcleo e das três metaheurísticas estão em `src/metaheuristica`.
 
 ## Ambiente e caminhos
 
@@ -156,8 +156,8 @@ uv sync --dev
 
 ## Execução
 
-Ainda não há um comando de benchmark, pois PSO e o executor experimental
-não foram implementados. O núcleo pode ser verificado com:
+Ainda não há um comando de benchmark, pois o executor experimental não foi
+implementado. O núcleo e as metaheurísticas podem ser verificados com:
 
 ```bash
 uv run pytest -q
@@ -198,6 +198,21 @@ result = run_aco(
     instance,
     RunConfig(k=3, seed=20260817, budget=20_000),
     AcoConfig(alpha=1.0, beta=2.0, rho=0.1, n_ants=20),
+)
+print(result.solution, result.evaluation.total_cost, result.evaluations)
+```
+
+O PSO exige os quatro hiperparâmetros explícitos. Os valores são ilustrativos e
+serão submetidos ao tuning:
+
+```python
+from metaheuristica import PsoConfig, RunConfig, load_artesp_instance, run_pso
+
+instance = load_artesp_instance("data/instances", 20)
+result = run_pso(
+    instance,
+    RunConfig(k=3, seed=20260817, budget=20_000),
+    PsoConfig(n_particles=20, inertia=0.7, cognitive=1.5, social=1.5),
 )
 print(result.solution, result.evaluation.total_cost, result.evaluations)
 ```

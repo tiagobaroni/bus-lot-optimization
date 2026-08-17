@@ -77,6 +77,26 @@ def test_context_exposes_common_incumbent_as_read_only_state() -> None:
     assert observed == [((0, 0, 1, 1), 0.0)]
 
 
+def test_context_exposes_instance_and_k_as_read_only_properties() -> None:
+    observed: list[tuple[object, int]] = []
+
+    def search(context: OptimizationContext, config: None) -> None:
+        observed.append((context.instance, context.k))
+        with pytest.raises(AttributeError):
+            context.k = 3  # type: ignore[misc]
+        while True:
+            context.evaluate([0, 0, 1, 1])
+
+    execute_optimizer(
+        TINY,
+        RunConfig(k=2, seed=1, budget=100),
+        None,
+        algorithm="context_properties",
+        search=search,
+    )
+    assert observed == [(TINY, 2)]
+
+
 def test_last_completed_evaluation_is_available_on_limit_signal() -> None:
     observed: list[float] = []
 

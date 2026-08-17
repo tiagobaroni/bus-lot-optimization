@@ -2,17 +2,30 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 
 from metaheuristica.canonical import canonicalize_solution, validate_k
 from metaheuristica.errors import (
     BudgetExhausted,
+    EvaluationLimitReached,
     RepairBudgetExhausted,
     SolutionValidationError,
 )
-from metaheuristica.evaluator import FitnessEvaluator
+from metaheuristica.problem import EvaluationResult, ProblemInstance
+
+
+class RepairEvaluator(Protocol):
+    """Interface mínima necessária para executar o reparo comum."""
+
+    @property
+    def instance(self) -> ProblemInstance: ...
+
+    @property
+    def k(self) -> int: ...
+
+    def evaluate_provisional_for_repair(self, solution: Any) -> EvaluationResult: ...
 
 
 def _repairable_labels(solution: Any, *, n_units: int, k: int) -> np.ndarray:
@@ -28,7 +41,7 @@ def _repairable_labels(solution: Any, *, n_units: int, k: int) -> np.ndarray:
     return result
 
 
-def repair_empty_lots(solution: Any, evaluator: FitnessEvaluator) -> np.ndarray:
+def repair_empty_lots(solution: Any, evaluator: RepairEvaluator) -> np.ndarray:
     """Preenche lotes vazios pelo menor custo provisório e devolve forma canônica."""
 
     labels = _repairable_labels(
@@ -54,19 +67,43 @@ def repair_empty_lots(solution: Any, evaluator: FitnessEvaluator) -> np.ndarray:
             raise SolutionValidationError("não existe unidade doadora para reparar lote vazio")
 
         best_choice: tuple[float, int, int] | None = None
-        for unit_index in candidates:
+        for candidate_index, unit_index in enumerate(candidates):
             source = int(labels[unit_index])
             candidate = labels.copy()
             candidate[unit_index] = target
             try:
                 result = evaluator.evaluate_provisional_for_repair(candidate)
+            except EvaluationLimitReached as error:
+                if not isinstance(error.result, EvaluationResult):
+                    raise RepairBudgetExhausted(
+                        "orçamento esgotado durante o reparo de lotes vazios"
+                    ) from error
+                result = error.result
+                exhausted_after_candidate = True
             except BudgetExhausted as error:
                 raise RepairBudgetExhausted(
                     "orçamento esgotado durante o reparo de lotes vazios"
                 ) from error
+            else:
+                exhausted_after_candidate = False
             choice = (result.total_cost, unit_index, source)
             if best_choice is None or choice < best_choice:
                 best_choice = choice
+            if exhausted_after_candidate and candidate_index < len(candidates) - 1:
+                raise RepairBudgetExhausted(
+                    "orçamento esgotado durante o reparo de lotes vazios"
+                )
 
         assert best_choice is not None
         labels[best_choice[1]] = target
+        if exhausted_after_candidate:
+            counts = np.bincount(labels, minlength=evaluator.k)
+            if np.any(counts == 0):
+                raise RepairBudgetExhausted(
+                    "orçamento esgotado durante o reparo de lotes vazios"
+                )
+            return canonicalize_solution(
+                labels,
+                n_units=evaluator.instance.n_units,
+                k=evaluator.k,
+            )

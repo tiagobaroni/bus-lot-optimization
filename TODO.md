@@ -8,11 +8,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** B6 - PSO com Random Keys
-- **Fase do bloco ativo:** brainstorming interativo
-- **Último bloco concluído:** B5 - ACO
-- **Próxima ação atômica:** decidir dimensão, domínio e decodificação das Random
-  Keys.
+- **Bloco ativo:** nenhum
+- **Fase do bloco ativo:** bloco B6 concluído
+- **Último bloco concluído:** B6 - PSO com Random Keys
+- **Próxima ação atômica:** iniciar o brainstorming da B7 quando solicitado.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q`, com 69 testes aprovados.
 
@@ -373,7 +372,7 @@ passa nos testes comuns dos otimizadores.
 
 ## B6 - PSO com Random Keys
 
-**Estado:** `EM ANDAMENTO`
+**Estado:** `CONCLUÍDO`
 
 **Depende de:** B3.
 
@@ -381,13 +380,13 @@ passa nos testes comuns dos otimizadores.
 
 **Tarefas:**
 
-- [ ] Fixar a dimensão e a semântica da posição contínua.
-- [ ] Implementar decodificação determinística para `K` lotes.
-- [ ] Aplicar reparo comum para lotes vazios.
-- [ ] Implementar velocidade, inércia e componentes cognitivo e social.
-- [ ] Atualizar `pbest` e `gbest` com desempates determinísticos.
-- [ ] Integrar orçamento e checkpoints comuns.
-- [ ] Testar decodificação, validade e reprodutibilidade.
+- [x] Fixar a dimensão e a semântica da posição contínua.
+- [x] Implementar decodificação determinística para `K` lotes.
+- [x] Aplicar reparo comum para lotes vazios.
+- [x] Implementar velocidade, inércia e componentes cognitivo e social.
+- [x] Atualizar `pbest` e `gbest` com desempates determinísticos.
+- [x] Integrar orçamento e checkpoints comuns.
+- [x] Testar decodificação, validade e reprodutibilidade.
 
 **Critério de saída:** PSO respeita a adaptação por Random Keys, produz soluções
 válidas e passa nos testes comuns dos otimizadores.
@@ -395,8 +394,56 @@ válidas e passa nos testes comuns dos otimizadores.
 **Checkpoint:**
 
 - brainstorming iniciado após a conclusão e o push da B5 no commit `ee9026c`;
-- próxima ação atômica: decidir a semântica da posição contínua e sua
-  decodificação anterior ao reparo;
+- cada partícula possui posição de dimensão `N` em `[0,1]`; a coordenada `x[i]`
+  representa a unidade `i` e decodifica para
+  `min(floor(K*x[i]), K-1)`;
+- posições são limitadas a `[0,1]` após atualização e a decodificação é
+  determinística;
+- lotes vazios usam o reparo comum, com todas as avaliações provisórias
+  consumindo o orçamento do PSO;
+- a divisão por ranking em `K` partes foi descartada porque imporia lotes quase
+  iguais em quantidade de unidades, restrição ausente da formulação;
+- cada posição inicial parte de alocação aleatória balanceada e sorteia chaves
+  dentro do intervalo do lote correspondente, garantindo viabilidade inicial;
+- velocidades começam uniformemente em `[-0.5,0.5]` e permanecem limitadas a
+  esse intervalo; posições são limitadas a `[0,1]`;
+- a velocidade usa a fórmula clássica com vetores independentes `r1` e `r2` por
+  partícula e dimensão;
+- cada iteração usa snapshot de `gbest`; avaliações são sequenciais, `pbest` e
+  `gbest` atualizam após candidato completo, mas só afetam velocidades na
+  iteração seguinte;
+- partículas não avaliadas por interrupção não alteram melhores pessoais ou
+  global;
+- candidato atualizado é decodificado, reparado com avaliações contabilizadas,
+  projetado preservando a fração interna de cada chave e só então avaliado como
+  solução viável completa;
+- a projeção usa `x'=(lote_reparado+u)/K`, onde
+  `u=K*x-lote_decodificado`, com ajuste numérico dentro do intervalo;
+- candidato interrompido durante reparo ou antes da avaliação final não altera
+  posição, velocidade, `pbest` ou `gbest`;
+- `PsoConfig` é imutável e sem padrões, com `n_particles` positivo, inércia
+  finita em `[0,1]` e coeficientes cognitivo e social positivos;
+- preservam-se as grades `{20,40}`, `{0.4,0.7}`, `{1.5,2.0}` e `{1.5,2.0}`;
+- a topologia é global e `pbest` e `gbest` comparam custo, solução canônica e
+  posição lexicográfica, nessa ordem, sempre armazenando cópias;
+- toda a população inicial é avaliada antes da primeira atualização;
+- `n_particles` deve caber no orçamento; diagnósticos registram iterações,
+  partículas, reparos, avaliações de reparo, melhores e cortes de limites;
+- iteração só termina com toda a população avaliada; partículas completas de uma
+  iteração interrompida permanecem válidas, sem incrementar a iteração;
+- deve valer `particles_evaluated + repair_evaluations = avaliações totais`;
+- testes cobrirão Random Keys, dinâmica, reparo, projeção, sincronismo,
+  interrupções, reprodutibilidade e os 18 cenários reais;
+- CPU `float64` permanece normativa e GPU fica fora da B6;
+- brainstorming encerrado e especificação escrita em
+  `superpowers/B6_spec.md`;
+- especificação aprovada pelo usuário;
+- plano de implementação escrito em `superpowers/B6_plan.md`;
+- plano aprovado pelo usuário e implementação iniciada;
+- núcleo Random Keys, projeção, dinâmica síncrona e diagnósticos implementados;
+- integração validada nos 18 cenários ARTESP com orçamento reduzido;
+- verificação final: 179 testes aprovados e `git diff --check` sem erros;
+- próxima ação atômica: iniciar o brainstorming da B7 quando solicitado;
 - bloqueio: nenhum.
 
 ---

@@ -466,6 +466,7 @@ Estado registrado em 17/08/2026:
 
 - a B5 foi incorporada à branch `main` e enviada ao remoto
   `https://github.com/tiagobaroni/bus-lot-optimization.git` no commit `ee9026c`;
+- a implementação local da B6 está concluída e aguarda commit e push;
 - as instâncias reais de 20, 60 e 150 unidades e a instância minúscula estão
   versionadas e carregam sem depender dos dados-fonte ignorados;
 - a linguagem definida é Python 3.14;
@@ -488,15 +489,15 @@ Estado registrado em 17/08/2026:
   aspiração estrita e reinícios por estagnação ou bloqueio;
 - o ACO está implementado com construção canônica, heurística de custo parcial,
   probabilidades estáveis e atualização de feromônio por geração;
-- PSO ainda não está implementado;
+- o PSO está implementado com Random Keys, inicialização balanceada, dinâmica
+  síncrona, reparo contabilizado e projeção coerente;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
 Os detalhes de dados e formulação do baseline estão consolidados. Permanecem
-pendentes a implementação e validação do PSO, o tuning e o benchmark
-principal.
+pendentes a validação cruzada, o tuning e o benchmark principal.
 
 Próximo objetivo recomendado:
 
-1. iniciar o brainstorming e a especificação do PSO;
-2. implementar e testar PSO sobre o contrato comum;
-3. somente depois executar tuning e o benchmark principal.
+1. validar conjuntamente PSO, TS e ACO;
+2. implementar o executor experimental e executar o tuning;
+3. somente depois executar o benchmark principal.

@@ -26,6 +26,7 @@ from metaheuristica.metrics import (
 from metaheuristica.objective import evaluate_solution
 from metaheuristica.optimizer import OptimizationContext, execute_optimizer
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
+from metaheuristica.pso import PsoConfig, run_pso
 from metaheuristica.repair import repair_empty_lots
 from metaheuristica.tabu import TabuConfig, TabuMove, run_tabu
 
@@ -47,10 +48,12 @@ __all__ = [
     "OptimizationContext",
     "OptimizationResult",
     "ProblemInstance",
+    "PsoConfig",
     "RepairBudgetExhausted",
     "repair_empty_lots",
     "run_aco",
     "run_greedy",
+    "run_pso",
     "run_tabu",
     "RunConfig",
     "SolutionValidationError",

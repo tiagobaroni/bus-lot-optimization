@@ -64,6 +64,14 @@ class OptimizationContext:
         return self._evaluator.remaining
 
     @property
+    def instance(self) -> ProblemInstance:
+        return self._evaluator.instance
+
+    @property
+    def k(self) -> int:
+        return self._evaluator.k
+
+    @property
     def incumbent_solution(self) -> tuple[int, ...] | None:
         return self._recorder.incumbent_solution
 
