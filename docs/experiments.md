@@ -939,6 +939,29 @@ canonicalização finais, a serialização e a gravação do resultado.
 
 ## 28. Reprodutibilidade
 
+### 28.1. Automação, retomada e integridade
+
+As campanhas são descritas por TOML estrito e expandidas em cenários
+determinísticos. Cada cenário recebe SHA-256 calculado sobre algoritmo,
+hiperparâmetros, instância, `K`, seed, orçamento, pesos e cache. Resultados
+individuais são publicados atomicamente em JSON e somente um documento válido e
+com hash esperado é considerado concluído.
+
+A CLI oferece `plan`, `execute` e `consolidate`. A execução é sequencial por
+padrão e aceita processos independentes por `--workers`, mantendo uma thread por
+execução. Retomadas ignoram resultados válidos, tentam novamente falhas e
+interrompem diante de arquivo corrompido ou incompatível.
+
+Os JSON são fonte operacional. A consolidação produz uma tabela Parquet de
+execuções, outra de checkpoints e um manifesto com contagens e hashes. Campanha
+incompleta exige autorização explícita e permanece marcada como provisória e não
+oficial.
+
+Execuções oficiais exigem Git disponível e worktree limpa. Ambiente, commit,
+versões, limites de threads e instantes UTC são registrados. Autorizações para
+estado sujo ou não versionado existem apenas para desenvolvimento e tornam o
+resultado não oficial.
+
 Antes da execução final, o repositório deverá permitir reproduzir os experimentos por comandos explícitos.
 
 Exemplo de estrutura conceitual:

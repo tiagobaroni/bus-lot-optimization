@@ -9,11 +9,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 17/08/2026
 - **Bloco ativo:** nenhum
-- **Fase do bloco ativo:** bloco B7 concluído
-- **Último bloco concluído:** B7 - Validação cruzada dos métodos
-- **Próxima ação atômica:** iniciar o brainstorming da B8 quando solicitado.
+- **Fase do bloco ativo:** bloco B8 concluído
+- **Último bloco concluído:** B8 - Automação experimental
+- **Próxima ação atômica:** iniciar o brainstorming da B9 quando solicitado.
 - **Bloqueios conhecidos:** nenhum.
-- **Última verificação:** `uv run pytest -q`, com 201 testes aprovados.
+- **Última verificação:** `uv run pytest -q`, com 221 testes aprovados.
 
 > **Aviso:** todos os blocos devem seguir o fluxo obrigatório definido na Seção
 > 12.1 de `AGENTS.md`: brainstorming, especificação, aprovação, plano, aprovação
@@ -537,7 +537,7 @@ custo, e todos passam pelo piloto curto sem violar invariantes.
 
 ## B8 - Automação experimental
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDO`
 
 **Depende de:** B7.
 
@@ -546,17 +546,83 @@ duplicar resultados.
 
 **Tarefas:**
 
-- [ ] Definir arquivos de configuração para tuning, piloto e benchmark.
-- [ ] Implementar CLI de execução por algoritmo, instância, `K` e seed.
-- [ ] Gerar identificador determinístico de cada execução.
-- [ ] Gravar resultados de forma atômica.
-- [ ] Detectar e ignorar execuções já concluídas.
-- [ ] Registrar falhas sem perder execuções anteriores.
-- [ ] Consolidar tabela principal e checkpoints.
-- [ ] Documentar comandos no README.
+- [x] Definir configuração piloto e modelos para tuning e benchmark.
+- [x] Implementar CLI de execução por algoritmo, instância, `K` e seed.
+- [x] Gerar identificador determinístico de cada execução.
+- [x] Gravar resultados de forma atômica.
+- [x] Detectar e ignorar execuções já concluídas.
+- [x] Registrar falhas sem perder execuções anteriores.
+- [x] Consolidar tabela principal e checkpoints.
+- [x] Documentar comandos no README.
 
 **Critério de saída:** uma execução interrompida pode ser retomada sem repetir
 resultados válidos nem corromper arquivos.
+
+**Checkpoint:**
+
+- brainstorming iniciado após a conclusão e o push da B7 no commit `e9daa2b`;
+- as configurações serão arquivos TOML declarativos separados por finalidade em
+  `experiments/configs/`: tuning, piloto e benchmark;
+- a leitura usará `tomllib` do Python 3.14, sem dependência adicional, e a
+  automação expandirá instâncias, valores de `K`, seeds, orçamentos, pesos,
+  algoritmos e grades em cenários individuais;
+- campos desconhecidos, combinações duplicadas e valores inválidos serão
+  rejeitados explicitamente;
+- cada execução terá SHA-256 de um JSON canônico contendo versão do esquema,
+  finalidade, algoritmo, hiperparâmetros, instância e seu hash, `K`, seed,
+  orçamento, pesos e política de cache;
+- o nome será legível e terminará com os 12 primeiros caracteres do hash, mas o
+  resultado armazenará o hash completo; qualquer entrada relevante alterada
+  produzirá outro ID;
+- cada execução será armazenada em JSON independente sob
+  `results/raw/<finalidade>/`, publicado por arquivo temporário no mesmo
+  diretório, validação, sincronização e `os.replace`;
+- retomadas ignorarão somente JSON válido, completo e com hash esperado;
+  arquivos inválidos ou incompatíveis causarão erro sem sobrescrita automática;
+- falhas ficarão separadas em `results/failures/<finalidade>/` e nunca serão
+  consideradas conclusões;
+- uma única CLI oferecerá operações `plan`, `execute` e `consolidate`, além de
+  seleção por `--scenario-id` e limite diagnóstico `--max-runs`;
+- `execute` será sequencial por padrão e aceitará `--workers N` explícito para
+  processos independentes, cada execução individual restrita a uma thread;
+- a quantidade de workers nunca será escolhida automaticamente;
+- erros de configuração ou expansão impedirão qualquer execução; falhas de um
+  cenário serão registradas e os demais continuarão, salvo `--fail-fast`;
+- a CLI terminará com código não zero se restarem falhas; novas chamadas
+  tentarão novamente cenários falhos e preservarão histórico com exceção,
+  mensagem, instante e traceback mesmo após sucesso posterior;
+- `Ctrl+C` interromperá de forma limpa, sem registrar como falhos cenários que
+  ainda não começaram;
+- os JSON individuais serão a fonte primária; `consolidate` gerará em Parquet
+  tabelas de execuções e checkpoints, mais manifesto JSON com contagens e hashes;
+- a consolidação validará IDs, duplicatas, esquema, ordenação determinística e
+  completude, exigindo `--allow-incomplete` para uma saída provisória marcada;
+- as três saídas derivadas serão publicadas atomicamente;
+- cada resultado registrará commit, estado e hash do worktree, Python, sistema,
+  kernel, arquitetura, processador, CPUs, versões das dependências, limites de
+  threads e instantes UTC;
+- worktree suja será recusada por padrão e exigirá `--allow-dirty`; ausência de
+  Git exigirá `--allow-unversioned`, sempre com marcação não oficial;
+- TOML e código serão versionados; JSON individuais, falhas e temporários serão
+  ignorados; Parquet consolidados, manifestos e figuras finais serão
+  versionados;
+- as tabelas consolidadas preservarão solução, diagnósticos e proveniência, e o
+  manifesto registrará hashes e completude;
+- saídas incompletas, sujas ou não versionadas não poderão ser resultados finais;
+- brainstorming encerrado e especificação escrita em
+  `superpowers/B8_spec.md`;
+- especificação aprovada pelo usuário;
+- plano de implementação escrito em `superpowers/B8_plan.md`;
+- plano aprovado pelo usuário e implementação executada sem alteração em
+  `src/metaheuristica`;
+- configuração, expansão, IDs, proveniência, persistência, retomada, falhas,
+  execução sequencial e paralela, CLI e consolidação implementadas;
+- `pilot.toml` é executável; tuning e benchmark permanecem como modelos não
+  executáveis até a aprovação das seeds e o congelamento dos parâmetros;
+- verificação final: 221 testes aprovados e `git diff --check` sem erros;
+- nenhuma campanha real foi executada e nenhum resultado real foi criado;
+- próxima ação: iniciar o brainstorming da B9 quando solicitado;
+- bloqueio: nenhum.
 
 ---
 

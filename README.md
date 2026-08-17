@@ -156,12 +156,45 @@ uv sync --dev
 
 ## Execução
 
-Ainda não há um comando de benchmark, pois o executor experimental não foi
-implementado. O núcleo e as metaheurísticas podem ser verificados com:
+As configurações finais de benchmark ainda dependem do tuning. A automação já
+permite planejar, executar, retomar e consolidar campanhas. O núcleo e as
+metaheurísticas podem ser verificados com:
 
 ```bash
 uv run pytest -q
 ```
+
+O piloto diagnóstico versionado pode ser inspecionado sem executar cenários:
+
+```bash
+uv run python -m experiments.run \
+  --config experiments/configs/pilot.toml plan
+```
+
+Para executar ou retomar uma campanha limpa:
+
+```bash
+uv run python -m experiments.run \
+  --config experiments/configs/pilot.toml \
+  --workers 1 execute
+```
+
+Uma quantidade maior de workers deve ser escolhida explicitamente. Cada worker
+mantém uma thread por execução. Worktrees sujas são recusadas por padrão;
+`--allow-dirty` existe somente para desenvolvimento e marca o resultado como não
+oficial.
+
+Depois que todos os cenários terminarem:
+
+```bash
+uv run python -m experiments.run \
+  --config experiments/configs/pilot.toml consolidate
+```
+
+Os JSON individuais ficam em `results/raw/` e não entram no Git. As tabelas
+Parquet e o manifesto em `results/tables/` são os artefatos consolidados. Um
+resultado existente inválido interrompe a retomada e nunca é sobrescrito
+automaticamente.
 
 Exemplo mínimo de carregamento e avaliação:
 

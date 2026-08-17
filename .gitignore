@@ -16,12 +16,10 @@ env/
 _temp/
 superpowers/
 
-# Generated experiment outputs
-results/**/*.csv
-results/**/*.json
-results/**/*.parquet
-results/**/*.png
-results/**/*.pdf
+# Operational experiment outputs
+results/raw/
+results/failures/
+results/**/*.tmp
 
 # Local environment files
 .env
