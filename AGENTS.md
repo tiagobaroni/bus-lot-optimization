@@ -483,6 +483,8 @@ Estado registrado em 17/08/2026:
 - o protocolo prevê instâncias aninhadas de 20, 60 e 150 unidades, 30 seeds por cenário, 100 checkpoints de convergência e orçamento de 20.000, 60.000 e 150.000 avaliações, respectivamente;
 - o tuning planejado soma 440 execuções e o experimento principal soma 1.620 execuções;
 - os benchmarks finais serão executados em Linux nativo, com uma thread por execução individual;
+- nesta máquina de referência, usar por padrão 16 workers independentes, um por
+  núcleo físico; não usar automaticamente as 32 threads lógicas;
 - GPU é um experimento adicional e não será requisito para executar o projeto;
 - o contrato comum dos otimizadores está implementado com `RunConfig`, RNG
   local, orçamento estrito, 100 checkpoints, cronometragem e resultado
@@ -499,6 +501,9 @@ Estado registrado em 17/08/2026:
   multiprocessamento, proveniência e consolidação, sem executar campanhas reais;
 - a infraestrutura local da B9 está implementada e aguarda o commit obrigatório
   anterior ao preflight e às 440 execuções oficiais;
+- a primeira tentativa do tuning com 8 workers foi interrompida por decisão
+  metodológica antes da seleção; o reinício integral usará 16 workers após novo
+  preflight e commit limpo;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
 Os detalhes de dados e formulação do baseline estão consolidados. Permanecem

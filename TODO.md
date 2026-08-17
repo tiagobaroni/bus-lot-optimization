@@ -660,9 +660,9 @@ o piloto final.
   tolerância e, por fim, menor tupla lexicográfica dos hiperparâmetros na ordem
   documentada;
 - não será criada faixa subjetiva de resultados praticamente próximos;
-- o tuning usará até 8 workers, uma thread por execução, após preflight de
-  memória, estabilidade e limites de thread; o valor poderá ser reduzido, mas
-  será mantido durante toda a campanha e registrado;
+- nesta máquina, o padrão aprovado passou a ser 16 workers, um por núcleo
+  físico e uma thread por execução; as 32 threads lógicas não serão usadas
+  automaticamente;
 - o tempo será somente o terceiro desempate; comparações rigorosas de tempo
   ficarão para o benchmark controlado;
 - todas as 440 execuções usarão `artesp_rmsp_60`, `K=5`, orçamento 60.000,
@@ -695,7 +695,11 @@ o piloto final.
 - `tuning.toml` implementado com expansão validada em 440 cenários;
 - estatísticas, ranking, sensibilidade descritiva e geração dos artefatos
   implementados e testados com dados sintéticos;
-- próxima ação: executar a suíte, commitar e enviar antes da campanha;
+- a tentativa inicial com 8 workers foi interrompida após 39 resultados válidos,
+  movidos de forma recuperável para `_temp/b9_discarded_workers8` e excluídos da
+  campanha oficial;
+- próxima ação: verificar, commitar e enviar o padrão de 16 workers, executar
+  novo preflight e reiniciar integralmente a campanha;
 - bloqueio: nenhum.
 
 ---

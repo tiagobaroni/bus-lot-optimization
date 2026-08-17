@@ -422,8 +422,9 @@ algoritmo: menor média do custo, empate até `1e-12` resolvido por menor
 desvio-padrão amostral (`ddof=1`), depois menor tempo médio e, por fim, menor
 tupla lexicográfica dos hiperparâmetros.
 
-O tuning usa até 8 processos independentes depois de preflight, sempre com uma
-thread por execução. O tempo é somente o terceiro desempate, pois concorrência
+O tuning usa 16 processos independentes depois de preflight, um por núcleo
+físico e sempre com uma thread por execução. O tempo é somente o terceiro
+desempate, pois concorrência
 pode introduzir ruído. Nenhuma configuração é eliminada antecipadamente e a
 seleção exige as 440 execuções oficiais completas.
 
@@ -827,7 +828,9 @@ Exemplo conceitual:
 → 1 thread por execução
 ```
 
-O número real de workers poderá ser reduzido caso benchmarks preliminares indiquem:
+Nesta máquina de referência, o padrão será de 16 workers independentes, um por
+núcleo físico. As 32 threads lógicas não serão usadas automaticamente. O número
+real de workers poderá ser reduzido caso benchmarks preliminares indiquem:
 
 - contenção de memória;
 - competição por cache;
