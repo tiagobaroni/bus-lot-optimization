@@ -48,6 +48,31 @@ def test_execute_optimizer_exhausts_budget_and_builds_all_checkpoints() -> None:
     assert result.diagnostics["cycle_position"] == 1
 
 
+def test_context_exposes_common_incumbent_as_read_only_state() -> None:
+    observed: list[tuple[tuple[int, ...], float]] = []
+
+    def search(context: OptimizationContext, config: None) -> None:
+        assert context.incumbent_solution is None
+        assert context.incumbent_evaluation is None
+        context.evaluate([0, 0, 1, 1])
+        assert context.incumbent_solution == (0, 0, 1, 1)
+        assert context.incumbent_evaluation is not None
+        observed.append(
+            (context.incumbent_solution, context.incumbent_evaluation.total_cost)
+        )
+        while True:
+            context.evaluate([0, 1, 0, 1])
+
+    execute_optimizer(
+        TINY,
+        RunConfig(k=2, seed=1, budget=100),
+        None,
+        algorithm="incumbent_test",
+        search=search,
+    )
+    assert observed == [((0, 0, 1, 1), 0.0)]
+
+
 def test_same_seed_reproduces_all_deterministic_fields() -> None:
     arguments = (TINY, RunConfig(k=2, seed=9, budget=100), DummyConfig())
     first = execute_optimizer(*arguments, algorithm="dummy", search=_search)

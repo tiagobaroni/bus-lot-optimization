@@ -484,15 +484,17 @@ Estado registrado em 17/08/2026:
 - o contrato comum dos otimizadores está implementado com `RunConfig`, RNG
   local, orçamento estrito, 100 checkpoints, cronometragem e resultado
   serializável;
-- TS, ACO e PSO ainda não estão implementados;
+- a Busca Tabu está implementada com realocações amostradas, memória de reversão,
+  aspiração estrita e reinícios por estagnação ou bloqueio;
+- ACO e PSO ainda não estão implementados;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
 Os detalhes de dados e formulação do baseline estão consolidados. Permanecem
-pendentes a implementação e validação de TS, ACO e PSO, o tuning e o benchmark
+pendentes a implementação e validação de ACO e PSO, o tuning e o benchmark
 principal.
 
 Próximo objetivo recomendado:
 
-1. iniciar o brainstorming e a especificação da Busca Tabu;
-2. implementar e testar TS, ACO e PSO sobre o contrato comum;
+1. iniciar o brainstorming e a especificação do ACO;
+2. implementar e testar ACO e PSO sobre o contrato comum;
 3. somente depois executar tuning e o benchmark principal.

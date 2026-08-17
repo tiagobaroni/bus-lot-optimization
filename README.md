@@ -63,13 +63,14 @@ O trabalho exige, entre outros itens:
 ## Estado atual
 
 O projeto concluiu a preparação dos dados, o núcleo comum do problema e o
-contrato comum dos otimizadores. As
+contrato comum dos otimizadores e a Busca Tabu. As
 instâncias, o carregamento, a canonicalização, a função objetivo, o orçamento de
 avaliações, o cache opcional, o reparo de lotes vazios e o baseline guloso
 determinístico estão implementados e testados. Também estão implementados a
 configuração uniforme das execuções, o RNG local, os 100 checkpoints, a parada
-estrita pelo orçamento, a cronometragem e o resultado serializável. As três
-metaheurísticas ainda não foram implementadas.
+estrita pelo orçamento, a cronometragem e o resultado serializável. A TS usa
+realocações amostradas, memória de reversão, aspiração e reinícios. ACO e PSO
+ainda não foram implementados.
 
 Decisões registradas:
 
@@ -154,8 +155,8 @@ uv sync --dev
 
 ## Execução
 
-Ainda não há um comando de benchmark, pois as metaheurísticas não foram
-implementadas. O núcleo pode ser verificado com:
+Ainda não há um comando de benchmark, pois ACO, PSO e o executor experimental
+não foram implementados. O núcleo pode ser verificado com:
 
 ```bash
 uv run pytest -q
@@ -185,6 +186,21 @@ result = run_greedy(instance, k=3)
 print(result.solution, result.evaluation.total_cost, result.evaluations)
 ```
 
+A Busca Tabu pode ser executada com configuração explícita. Os valores abaixo
+são apenas um exemplo e não substituem o tuning planejado:
+
+```python
+from metaheuristica import RunConfig, TabuConfig, load_artesp_instance, run_tabu
+
+instance = load_artesp_instance("data/instances", 20)
+result = run_tabu(
+    instance,
+    RunConfig(k=3, seed=20260817, budget=20_000),
+    TabuConfig(tabu_tenure=10, neighborhood_size=50, stagnation_limit=100),
+)
+print(result.solution, result.evaluation.total_cost, result.evaluations)
+```
+
 ## Reprodutibilidade
 
 Toda execução experimental deverá registrar, no mínimo:
@@ -209,7 +225,7 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Implementar e testar TS, ACO e PSO com o mesmo orçamento de avaliações.
+1. Implementar e testar ACO e PSO com o mesmo orçamento de avaliações.
 2. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
 3. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
 

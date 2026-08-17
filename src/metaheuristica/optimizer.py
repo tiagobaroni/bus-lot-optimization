@@ -34,11 +34,17 @@ class SearchRoutine(Protocol[AlgorithmConfig]):
 class OptimizationContext:
     """Capacidades controladas oferecidas a uma rotina de busca."""
 
-    __slots__ = ("_diagnostics", "_evaluator", "_rng")
+    __slots__ = ("_diagnostics", "_evaluator", "_recorder", "_rng")
 
-    def __init__(self, evaluator: FitnessEvaluator, rng: np.random.Generator) -> None:
+    def __init__(
+        self,
+        evaluator: FitnessEvaluator,
+        rng: np.random.Generator,
+        recorder: ConvergenceRecorder,
+    ) -> None:
         self._evaluator = evaluator
         self._rng = rng
+        self._recorder = recorder
         self._diagnostics: dict[str, Any] = {}
 
     @property
@@ -52,6 +58,14 @@ class OptimizationContext:
     @property
     def remaining(self) -> int:
         return self._evaluator.remaining
+
+    @property
+    def incumbent_solution(self) -> tuple[int, ...] | None:
+        return self._recorder.incumbent_solution
+
+    @property
+    def incumbent_evaluation(self) -> EvaluationResult | None:
+        return self._recorder.incumbent_evaluation
 
     def evaluate(self, solution: Any) -> EvaluationResult:
         result = self._evaluator.evaluate(solution)
@@ -106,7 +120,7 @@ def execute_optimizer(
         cache_enabled=run_config.cache_enabled,
         observer=recorder.observe,
     )
-    context = OptimizationContext(evaluator, rng)
+    context = OptimizationContext(evaluator, rng, recorder)
     returned_diagnostics: Mapping[str, Any] | None = None
     try:
         returned_diagnostics = search(context, algorithm_config)

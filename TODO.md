@@ -8,10 +8,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** B4 - Busca Tabu
-- **Fase do bloco ativo:** brainstorming interativo
-- **Último bloco concluído:** B3 - Contrato comum dos otimizadores
-- **Próxima ação atômica:** decidir a vizinhança inicial da Busca Tabu.
+- **Bloco ativo:** nenhum - aguardando início da B5
+- **Fase do bloco ativo:** não iniciada
+- **Último bloco concluído:** B4 - Busca Tabu
+- **Próxima ação atômica:** iniciar o brainstorming da B5 quando solicitado.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q`, com 69 testes aprovados.
 
@@ -222,7 +222,7 @@ orçamento e produz todos os campos exigidos pelo protocolo.
 
 ## B4 - Busca Tabu
 
-**Estado:** `EM ANDAMENTO`
+**Estado:** `CONCLUÍDO`
 
 **Depende de:** B3.
 
@@ -230,13 +230,13 @@ orçamento e produz todos os campos exigidos pelo protocolo.
 
 **Tarefas:**
 
-- [ ] Implementar movimento `move` sem esvaziar lote.
-- [ ] Avaliar se `swap` é necessário antes de adicioná-lo.
-- [ ] Implementar vizinhança amostrada com RNG explícito.
-- [ ] Armazenar atributos de movimento na lista tabu.
-- [ ] Implementar aspiração por melhoria do melhor global.
-- [ ] Integrar orçamento e checkpoints comuns.
-- [ ] Testar validade, tabu, aspiração e reprodutibilidade.
+- [x] Implementar movimento `move` sem esvaziar lote.
+- [x] Avaliar se `swap` é necessário antes de adicioná-lo.
+- [x] Implementar vizinhança amostrada com RNG explícito.
+- [x] Armazenar atributos de movimento na lista tabu.
+- [x] Implementar aspiração por melhoria do melhor global.
+- [x] Integrar orçamento e checkpoints comuns.
+- [x] Testar validade, tabu, aspiração e reprodutibilidade.
 
 **Critério de saída:** TS respeita exatamente o orçamento, nunca retorna lote
 vazio e passa nos testes comuns dos otimizadores.
@@ -244,8 +244,57 @@ vazio e passa nos testes comuns dos otimizadores.
 **Checkpoint:**
 
 - brainstorming iniciado após a conclusão e o push da B3 no commit `0893890`;
-- próxima ação atômica: decidir entre vizinhança inicial somente com `move` ou
-  inclusão imediata de `swap`;
+- a vizinhança inicial usará somente `move(linha, origem, destino)`, sem esvaziar
+  o lote de origem;
+- `swap` fica fora do baseline porque acrescentaria até `O(N²)` candidatos por
+  iteração, consumindo o orçamento de avaliações e reduzindo a quantidade de
+  atualizações da trajetória; sua inclusão futura exigirá evidência de
+  estagnação relevante;
+- a cada iteração serão enumerados os `move` válidos e amostrados uniformemente,
+  sem reposição, `min(n_viz, movimentos_válidos)` candidatos; cada candidato é
+  avaliado uma vez e vence o melhor admissível;
+- `n_viz` permanece hiperparâmetro com a grade prevista `{20, 50}`;
+- depois de aceitar `move(i, origem, destino)`, a memória proíbe o retorno
+  `move(i, destino, origem)` pelos próximos `L_tabu` movimentos aceitos, com
+  grade `{5, 10, 20}`;
+- os rótulos permanecem estáveis durante a trajetória e são canonicalizados
+  somente para comparação de incumbentes e resultado público;
+- a aspiração libera movimento tabu apenas quando o custo melhora estritamente o
+  melhor global por mais de `1e-12`; empate não ativa aspiração;
+- a solução inicial é gerada por permutação aleatória das unidades e atribuição
+  cíclica `r mod K`, garantindo lotes ativos e tamanhos equilibrados; sua
+  avaliação é a primeira do orçamento;
+- a TS não usa o guloso como inicial porque sua construção faria consultas fora
+  do orçamento comum ou consumiria avaliações parciais específicas do baseline;
+- `n_stag` conta movimentos aceitos consecutivos sem melhora estrita do melhor
+  global, com grade `{50, 100}`;
+- ao atingir `n_stag`, ou quando toda a amostra estiver tabu sem aspiração, a TS
+  gera e avalia nova solução aleatória balanceada, torna-a corrente, preserva o
+  melhor global, limpa a memória tabu e zera a estagnação;
+- cada reinício consome uma avaliação e pode atualizar o melhor global;
+- todos os movimentos amostrados são avaliados, inclusive os tabu, para permitir
+  verificar aspiração; vence o admissível de menor custo e ele é sempre aceito,
+  mesmo quando piora a solução corrente;
+- empates de custo dentro de `1e-12` são resolvidos pela menor solução resultante
+  canonicalizada e depois pela menor tupla `(índice, origem, destino)`;
+- memória tabu e estagnação são atualizadas somente depois da aceitação;
+- `TabuConfig` é imutável e exige explicitamente `tabu_tenure`,
+  `neighborhood_size` e `stagnation_limit`, todos inteiros positivos e sem
+  padrões antes do tuning;
+- os diagnósticos registram iterações concluídas, movimentos aceitos, reinícios,
+  aspirações aceitas, candidatos tabu avaliados e melhorias globais;
+- uma iteração termina apenas com movimento aceito ou reinício concluído;
+  esgotamento no meio da amostra não aplica movimento nem incrementa iteração;
+- os testes cobrirão todas as regras unitárias e todos os tamanhos e valores de
+  `K` com orçamento reduzido;
+- brainstorming encerrado e especificação escrita em
+  `superpowers/B4_spec.md`;
+- especificação aprovada pelo usuário;
+- plano de implementação escrito em `superpowers/B4_plan.md`;
+- plano aprovado e implementação concluída conforme a especificação;
+- integração validada nos 18 cenários ARTESP com orçamento reduzido;
+- verificação final: 124 testes aprovados e `git diff --check` sem erros;
+- próxima ação atômica: iniciar o brainstorming da B5 quando solicitado;
 - bloqueio: nenhum.
 
 ---

@@ -583,7 +583,39 @@ objetivo completa e será reutilizada sem nova avaliação.
 
 ---
 
-## 14. Hipóteses e limitações do baseline
+## 14. Busca Tabu
+
+A Busca Tabu usa uma solução inicial aleatória e balanceada. Uma permutação das
+unidades é distribuída ciclicamente entre os `K` lotes, garantindo viabilidade
+sem reparo. Essa solução consome a primeira avaliação do orçamento.
+
+O único movimento do baseline é `move(i, origem, destino)`. Movimentos que
+esvaziariam a origem são proibidos. A cada iteração, todos os movimentos válidos
+são enumerados e até `n_viz` deles são amostrados uniformemente, sem reposição.
+Cada candidato amostrado consome uma avaliação.
+
+Depois de aceitar `move(i, origem, destino)`, o retorno
+`move(i, destino, origem)` permanece tabu pelos próximos `L_tabu` movimentos
+aceitos. A aspiração libera essa reversão somente quando seu custo melhora o
+melhor global por mais de `1e-12`.
+
+O melhor movimento admissível da amostra é sempre aceito, inclusive quando
+piora a solução corrente. Empates de custo usam a solução canônica e depois a
+tupla do movimento. Os rótulos permanecem estáveis durante a trajetória para
+preservar a semântica da memória tabu.
+
+Depois de `n_stag` movimentos aceitos sem melhora global, a busca gera outra
+solução aleatória balanceada, limpa a memória e preserva o incumbente. O mesmo
+reinício ocorre quando toda a amostra está tabu sem aspiração.
+
+O movimento `swap` não integra o baseline. Sua vizinhança acrescentaria até
+`O(N²)` candidatos por iteração e consumiria o orçamento com menos atualizações
+da trajetória. Ele somente será reconsiderado se os experimentos mostrarem
+estagnação relevante.
+
+---
+
+## 15. Hipóteses e limitações do baseline
 
 A formulação inicial assume explicitamente:
 
@@ -611,7 +643,7 @@ Essas hipóteses são decisões metodológicas do baseline e poderão ser revist
 
 ---
 
-## 15. Decisões fechadas após a preparação dos dados
+## 16. Decisões fechadas após a preparação dos dados
 
 Os detalhes que dependiam dos dados reais foram resolvidos da seguinte forma:
 
@@ -634,7 +666,7 @@ idêntica para demanda e PU·km.
 
 ---
 
-## 16. Extensões futuras possíveis
+## 17. Extensões futuras possíveis
 
 Após a implementação e validação do baseline, poderão ser estudadas:
 
@@ -653,7 +685,7 @@ Após a implementação e validação do baseline, poderão ser estudadas:
 
 ---
 
-## 17. Síntese
+## 18. Síntese
 
 O problema baseline pode ser descrito como:
 

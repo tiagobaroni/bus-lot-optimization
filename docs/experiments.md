@@ -466,6 +466,19 @@ execuções de tuning.
 
 ## 14. Grade de tuning da Busca Tabu
 
+A Busca Tabu utiliza somente realocações de uma unidade entre lotes, sem
+esvaziar a origem. A vizinhança é amostrada uniformemente sem reposição. O
+retorno da unidade ao lote anterior permanece tabu por uma quantidade de
+movimentos aceitos, com aspiração apenas por melhora estrita do melhor global.
+
+Movimentos admissíveis de piora podem ser aceitos. Ao atingir o limite de
+estagnação, ou quando toda a amostra está tabu sem aspiração, a execução reinicia
+em outra solução aleatória balanceada e preserva o melhor global.
+
+O `swap` não faz parte do experimento principal por acrescentar uma vizinhança
+de até `O(N²)`. Sua inclusão depende de evidência de estagnação após os testes
+com `move`.
+
 Parâmetros avaliados:
 
 ### Tamanho da lista tabu

@@ -26,6 +26,7 @@ from metaheuristica.objective import evaluate_solution
 from metaheuristica.optimizer import OptimizationContext, execute_optimizer
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
 from metaheuristica.repair import repair_empty_lots
+from metaheuristica.tabu import TabuConfig, TabuMove, run_tabu
 
 __all__ = [
     "BudgetExhausted",
@@ -47,10 +48,13 @@ __all__ = [
     "RepairBudgetExhausted",
     "repair_empty_lots",
     "run_greedy",
+    "run_tabu",
     "RunConfig",
     "SolutionValidationError",
     "solution_key",
     "TerminationReason",
+    "TabuConfig",
+    "TabuMove",
     "validate_solution",
     "checkpoint_thresholds",
     "execute_optimizer",

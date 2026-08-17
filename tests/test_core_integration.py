@@ -9,10 +9,12 @@ from metaheuristica import (
     FitnessEvaluator,
     OptimizationContext,
     RunConfig,
+    TabuConfig,
     evaluate_solution,
     execute_optimizer,
     load_artesp_instance,
     run_greedy,
+    run_tabu,
 )
 
 
@@ -85,3 +87,22 @@ def test_common_optimizer_contract_runs_on_artesp_instance() -> None:
     assert len(result.checkpoints) == 100
     assert len(set(result.solution)) == 3
     assert np.isfinite(result.evaluation.total_cost)
+
+
+@pytest.mark.parametrize("size", [20, 60, 150])
+def test_tabu_runs_for_every_artesp_k_with_common_contract(size: int) -> None:
+    instance = load_artesp_instance(INSTANCES_DIR, size)
+    config = TabuConfig(tabu_tenure=5, neighborhood_size=20, stagnation_limit=50)
+    for k in range(3, 9):
+        result = run_tabu(
+            instance,
+            RunConfig(k=k, seed=20260817, budget=100),
+            config,
+        )
+        assert result.evaluations == 100
+        assert len(result.checkpoints) == 100
+        assert len(set(result.solution)) == k
+        assert np.isfinite(result.evaluation.total_cost)
+        assert result.diagnostics["iterations_completed"] == (
+            result.diagnostics["accepted_moves"] + result.diagnostics["restarts"]
+        )
