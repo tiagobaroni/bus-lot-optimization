@@ -416,6 +416,21 @@ A melhor configuração será selecionada segundo:
 
 As seeds do tuning também deverão ser fixadas e registradas.
 
+As seeds fixadas para o tuning são `{0,1,2,3,4,5,6,7,8,9}`. O benchmark usará
+posteriormente um conjunto disjunto. A seleção é automática e separada por
+algoritmo: menor média do custo, empate até `1e-12` resolvido por menor
+desvio-padrão amostral (`ddof=1`), depois menor tempo médio e, por fim, menor
+tupla lexicográfica dos hiperparâmetros.
+
+O tuning usa até 8 processos independentes depois de preflight, sempre com uma
+thread por execução. O tempo é somente o terceiro desempate, pois concorrência
+pode introduzir ruído. Nenhuma configuração é eliminada antecipadamente e a
+seleção exige as 440 execuções oficiais completas.
+
+Além do resumo por configuração, serão calculados efeitos marginais por nível
+de hiperparâmetro. Eles são exclusivamente descritivos e não serão interpretados
+como efeitos causais, pois existem interações entre parâmetros.
+
 ---
 
 ## 13. Grade de tuning do PSO

@@ -468,6 +468,7 @@ Estado registrado em 17/08/2026:
   `https://github.com/tiagobaroni/bus-lot-optimization.git` no commit `ee9026c`;
 - a B6 foi incorporada à branch `main` e enviada ao remoto no commit `5b6fd4c`;
 - a B7 foi incorporada à branch `main` e enviada ao remoto no commit `e9daa2b`;
+- a B8 foi incorporada à branch `main` e enviada ao remoto no commit `8ef628f`;
 - as instâncias reais de 20, 60 e 150 unidades e a instância minúscula estão
   versionadas e carregam sem depender dos dados-fonte ignorados;
 - a linguagem definida é Python 3.14;
@@ -496,6 +497,8 @@ Estado registrado em 17/08/2026:
   cenários ARTESP, sem alterar o código de produção;
 - a B8 implementou TOML estrito, IDs por conteúdo, retomada,
   multiprocessamento, proveniência e consolidação, sem executar campanhas reais;
+- a infraestrutura local da B9 está implementada e aguarda o commit obrigatório
+  anterior ao preflight e às 440 execuções oficiais;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
 Os detalhes de dados e formulação do baseline estão consolidados. Permanecem

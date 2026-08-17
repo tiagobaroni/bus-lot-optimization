@@ -1,0 +1,35 @@
+schema_version = 1
+name = "tuning_official"
+purpose = "tuning"
+output_root = "results"
+seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+cache_enabled = false
+
+[weights]
+demand = 0.25
+production = 0.25
+territorial = 0.25
+affinity = 0.25
+
+[[instances]]
+name = "artesp_rmsp_60"
+path = "data/instances/artesp_rmsp_60.json"
+budget = 60000
+k_values = [5]
+
+[algorithms.pso]
+n_particles = [20, 40]
+inertia = [0.4, 0.7]
+cognitive = [1.5, 2.0]
+social = [1.5, 2.0]
+
+[algorithms.tabu]
+tabu_tenure = [5, 10, 20]
+neighborhood_size = [20, 50]
+stagnation_limit = [50, 100]
+
+[algorithms.aco]
+alpha = [1.0, 2.0]
+beta = [1.0, 2.0]
+rho = [0.1, 0.3]
+n_ants = [20, 40]

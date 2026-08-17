@@ -128,6 +128,7 @@ def execute_campaign(
         allow_dirty=allow_dirty,
         allow_unversioned=allow_unversioned,
     )
+    provenance["campaign_workers"] = workers
     succeeded = 0
     failures = 0
     output_root = config.repository_root / config.output_root

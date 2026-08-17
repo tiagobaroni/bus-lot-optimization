@@ -8,10 +8,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** nenhum
-- **Fase do bloco ativo:** bloco B8 concluído
+- **Bloco ativo:** B9 - Tuning
+- **Fase do bloco ativo:** implementação pré-campanha
 - **Último bloco concluído:** B8 - Automação experimental
-- **Próxima ação atômica:** iniciar o brainstorming da B9 quando solicitado.
+- **Próxima ação atômica:** verificar, commitar e enviar a infraestrutura antes do tuning.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q`, com 221 testes aprovados.
 
@@ -628,7 +628,7 @@ resultados válidos nem corromper arquivos.
 
 ## B9 - Tuning
 
-**Estado:** `PENDENTE`
+**Estado:** `EM ANDAMENTO`
 
 **Depende de:** B8.
 
@@ -647,6 +647,56 @@ configuração por algoritmo.
 
 **Critério de saída:** três configurações congeladas, rastreáveis e prontas para
 o piloto final.
+
+**Checkpoint:**
+
+- brainstorming iniciado após a conclusão e o push da B8 no commit `8ef628f`;
+- o tuning usará as seeds explícitas `{0,1,2,3,4,5,6,7,8,9}`, igualmente
+  para PSO, TS e ACO;
+- as 30 seeds do benchmark serão decididas depois e formarão conjunto disjunto
+  das seeds usadas no tuning;
+- cada algoritmo escolherá por menor média de custo; empate até `1e-12` usará
+  menor desvio-padrão amostral (`ddof=1`), depois menor tempo médio com a mesma
+  tolerância e, por fim, menor tupla lexicográfica dos hiperparâmetros na ordem
+  documentada;
+- não será criada faixa subjetiva de resultados praticamente próximos;
+- o tuning usará até 8 workers, uma thread por execução, após preflight de
+  memória, estabilidade e limites de thread; o valor poderá ser reduzido, mas
+  será mantido durante toda a campanha e registrado;
+- o tempo será somente o terceiro desempate; comparações rigorosas de tempo
+  ficarão para o benchmark controlado;
+- todas as 440 execuções usarão `artesp_rmsp_60`, `K=5`, orçamento 60.000,
+  pesos iguais, cache desabilitado e as grades completas aprovadas: 160 PSO,
+  120 TS e 160 ACO;
+- nenhuma configuração será eliminada antecipadamente;
+- infraestrutura e análise serão testadas, commitadas e enviadas antes da
+  campanha oficial, que exigirá worktree limpa;
+- a seleção exigirá 440 resultados válidos e oficiais; falhas serão retentadas
+  com histórico e uma falha persistente após três tentativas será apresentada;
+- correção posterior invalidará somente resultados afetados, identificados por
+  commit e cenário;
+- serão versionados Parquet de execuções e checkpoints, manifesto, resumo por
+  configuração, JSON de seleção e `frozen_parameters.toml` referenciado ao
+  manifesto oficial;
+- o resumo registrará 10 execuções, média, desvio-padrão amostral, mínimo,
+  mediana, máximo, tempo médio, ranking e indicador da selecionada;
+- o ranking será separado por algoritmo e usará custo total final; não haverá
+  substituição manual do vencedor;
+- componentes serão resumidos para interpretação, e efeitos marginais por nível
+  de hiperparâmetro serão descritivos, sem alegação causal; interações completas
+  permanecerão disponíveis;
+- resultados surpreendentes serão documentados, não contornados por escolha
+  manual;
+- brainstorming encerrado e especificação escrita em
+  `superpowers/B9_spec.md`;
+- especificação aprovada pelo usuário;
+- plano de implementação escrito em `superpowers/B9_plan.md`;
+- plano aprovado pelo usuário;
+- `tuning.toml` implementado com expansão validada em 440 cenários;
+- estatísticas, ranking, sensibilidade descritiva e geração dos artefatos
+  implementados e testados com dados sintéticos;
+- próxima ação: executar a suíte, commitar e enviar antes da campanha;
+- bloqueio: nenhum.
 
 ---
 

@@ -196,6 +196,25 @@ Parquet e o manifesto em `results/tables/` são os artefatos consolidados. Um
 resultado existente inválido interrompe a retomada e nunca é sobrescrito
 automaticamente.
 
+O tuning oficial é planejado por:
+
+```bash
+uv run python -m experiments.run \
+  --config experiments/configs/tuning.toml plan
+```
+
+Essa configuração contém 440 execuções sobre a instância de 60 unidades e não
+deve ser alterada depois do início da campanha. Após execução e consolidação
+completas, a seleção automática é produzida por:
+
+```bash
+uv run python -m experiments.analyze_tuning \
+  --config experiments/configs/tuning.toml
+```
+
+O comando recusa campanha incompleta ou não oficial e gera resumo, efeitos
+marginais descritivos, seleção auditável e `frozen_parameters.toml`.
+
 Exemplo mínimo de carregamento e avaliação:
 
 ```python
