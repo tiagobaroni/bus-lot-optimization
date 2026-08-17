@@ -8,10 +8,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** nenhum - aguardando início da B6
-- **Fase do bloco ativo:** não iniciada
+- **Bloco ativo:** B6 - PSO com Random Keys
+- **Fase do bloco ativo:** brainstorming interativo
 - **Último bloco concluído:** B5 - ACO
-- **Próxima ação atômica:** iniciar o brainstorming da B6 quando solicitado.
+- **Próxima ação atômica:** decidir dimensão, domínio e decodificação das Random
+  Keys.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q`, com 69 testes aprovados.
 
@@ -372,7 +373,7 @@ passa nos testes comuns dos otimizadores.
 
 ## B6 - PSO com Random Keys
 
-**Estado:** `PENDENTE`
+**Estado:** `EM ANDAMENTO`
 
 **Depende de:** B3.
 
@@ -390,6 +391,13 @@ passa nos testes comuns dos otimizadores.
 
 **Critério de saída:** PSO respeita a adaptação por Random Keys, produz soluções
 válidas e passa nos testes comuns dos otimizadores.
+
+**Checkpoint:**
+
+- brainstorming iniciado após a conclusão e o push da B5 no commit `ee9026c`;
+- próxima ação atômica: decidir a semântica da posição contínua e sua
+  decodificação anterior ao reparo;
+- bloqueio: nenhum.
 
 ---
 

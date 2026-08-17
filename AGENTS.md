@@ -464,8 +464,8 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 Estado registrado em 17/08/2026:
 
-- a B4 foi incorporada à branch `main` e enviada ao remoto
-  `https://github.com/tiagobaroni/bus-lot-optimization.git` no commit `c4413c1`;
+- a B5 foi incorporada à branch `main` e enviada ao remoto
+  `https://github.com/tiagobaroni/bus-lot-optimization.git` no commit `ee9026c`;
 - as instâncias reais de 20, 60 e 150 unidades e a instância minúscula estão
   versionadas e carregam sem depender dos dados-fonte ignorados;
 - a linguagem definida é Python 3.14;
