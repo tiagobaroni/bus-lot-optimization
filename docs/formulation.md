@@ -553,19 +553,33 @@ Além de PSO, Busca Tabu e ACO, será implementada uma heurística gulosa determ
 
 ### 13.1. Ordem de processamento
 
-As unidades serão ordenadas em ordem decrescente de PU·km.
+As unidades serão ordenadas em ordem decrescente de PU·km. Empates serão
+resolvidos por `unit_id` em ordem lexicográfica crescente.
 
 ### 13.2. Construção
 
-Cada unidade será atribuída ao lote que produzir o menor aumento marginal da função objetivo.
+As primeiras `K` unidades abrirão os lotes de `0` a `K-1`, nessa ordem. Cada
+unidade restante será atribuída ao lote que produzir o menor custo parcial.
 
-A construção deverá assegurar, diretamente ou por reparo, que todos os `K` lotes sejam utilizados.
+O custo parcial será calculado no subproblema induzido pelas unidades já
+processadas. O equilíbrio manterá os `K` lotes nos vetores de totais, enquanto
+os componentes territoriais e funcionais considerarão somente relações cujas
+duas unidades já tenham sido processadas.
+
+A construção assegura diretamente que todos os `K` lotes sejam utilizados e não
+requer reparo.
 
 ### 13.3. Desempate
 
-Se duas alternativas produzirem o mesmo aumento marginal de custo, a unidade será atribuída ao lote com **menor PU·km acumulado** naquele momento.
+Custos com diferença absoluta de até `1e-12` serão considerados empatados. Nesse
+caso, a unidade será atribuída ao lote com **menor PU·km acumulado** antes da
+inclusão. Persistindo o empate, será escolhido o menor rótulo de lote.
 
 A heurística será determinística para fornecer uma referência estável às execuções estocásticas das metaheurísticas.
+
+Para uma instância com `N` unidades, o baseline realizará exatamente
+`K(N-K)` avaliações parciais. A última avaliação escolhida coincide com a função
+objetivo completa e será reutilizada sem nova avaliação.
 
 ---
 

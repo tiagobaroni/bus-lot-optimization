@@ -64,8 +64,9 @@ O trabalho exige, entre outros itens:
 
 O projeto concluiu a preparação dos dados e o núcleo comum do problema. As
 instâncias, o carregamento, a canonicalização, a função objetivo, o orçamento de
-avaliações, o cache opcional e o reparo de lotes vazios estão implementados e
-testados. As metaheurísticas ainda não foram implementadas.
+avaliações, o cache opcional, o reparo de lotes vazios e o baseline guloso
+determinístico estão implementados e testados. As três metaheurísticas ainda não
+foram implementadas.
 
 Decisões registradas:
 
@@ -171,6 +172,16 @@ result = evaluator.evaluate(solution)
 print(result.total_cost, result.c_demand, result.c_production)
 ```
 
+O baseline guloso determinístico pode ser executado diretamente:
+
+```python
+from metaheuristica import load_artesp_instance, run_greedy
+
+instance = load_artesp_instance("data/instances", 20)
+result = run_greedy(instance, k=3)
+print(result.solution, result.evaluation.total_cost, result.evaluations)
+```
+
 ## Reprodutibilidade
 
 Toda execução experimental deverá registrar, no mínimo:
@@ -195,11 +206,10 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Implementar a heurística gulosa determinística.
-2. Definir o contrato comum dos otimizadores.
-3. Implementar e testar TS, ACO e PSO com o mesmo orçamento de avaliações.
-4. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
-5. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
+1. Definir o contrato comum dos otimizadores.
+2. Implementar e testar TS, ACO e PSO com o mesmo orçamento de avaliações.
+3. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
+4. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
 
 ## Licença
 

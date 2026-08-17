@@ -19,7 +19,7 @@ def test_tiny_instance_is_loaded_in_explicit_order() -> None:
     assert instance.name == "tiny_manual"
     assert instance.unit_ids == ("A", "B", "C", "D")
     assert instance.demand.tolist() == [10.0] * 4
-    assert instance.production.tolist() == [100.0] * 4
+    assert instance.production.tolist() == [200.0, 100.0, 200.0, 100.0]
     assert instance.s_territorial[0, 1] == 1.0
     assert instance.s_territorial[2, 3] == 1.0
     assert np.array_equal(

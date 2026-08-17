@@ -50,10 +50,31 @@ def _evaluate_labels(
     k: int,
     weights: ObjectiveWeights,
 ) -> EvaluationResult:
-    c_demand, cv_demand = _balance_component(instance.demand, labels, k)
-    c_production, cv_production = _balance_component(instance.production, labels, k)
-    c_territorial = _cut_component(instance.s_territorial, labels)
-    c_affinity = _cut_component(instance.w_affinity, labels)
+    return _evaluate_arrays(
+        demand=instance.demand,
+        production=instance.production,
+        s_territorial=instance.s_territorial,
+        w_affinity=instance.w_affinity,
+        labels=labels,
+        k=k,
+        weights=weights,
+    )
+
+
+def _evaluate_arrays(
+    *,
+    demand: np.ndarray,
+    production: np.ndarray,
+    s_territorial: np.ndarray,
+    w_affinity: np.ndarray,
+    labels: np.ndarray,
+    k: int,
+    weights: ObjectiveWeights,
+) -> EvaluationResult:
+    c_demand, cv_demand = _balance_component(demand, labels, k)
+    c_production, cv_production = _balance_component(production, labels, k)
+    c_territorial = _cut_component(s_territorial, labels)
+    c_affinity = _cut_component(w_affinity, labels)
     total_cost = (
         weights.demand * c_demand
         + weights.production * c_production
@@ -68,6 +89,64 @@ def _evaluate_labels(
         c_affinity=c_affinity,
         cv_demand=cv_demand,
         cv_production=cv_production,
+    )
+
+
+def _partial_inputs(
+    instance: ProblemInstance,
+    processed_indices: Any,
+    labels: Any,
+    *,
+    k: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    validate_k(k, instance.n_units)
+    indices = np.asarray(processed_indices)
+    partial_labels = np.asarray(labels)
+    if indices.ndim != 1 or not indices.size:
+        raise SolutionValidationError("índices parciais devem formar um vetor não vazio")
+    if not np.issubdtype(indices.dtype, np.integer) or np.issubdtype(
+        indices.dtype, np.bool_
+    ):
+        raise SolutionValidationError("índices parciais devem ser inteiros")
+    indices = np.array(indices, dtype=np.int64, copy=True)
+    if np.any(indices < 0) or np.any(indices >= instance.n_units):
+        raise SolutionValidationError("índice parcial fora do intervalo da instância")
+    if len(np.unique(indices)) != len(indices):
+        raise SolutionValidationError("índices parciais contêm duplicatas")
+    if partial_labels.ndim != 1 or partial_labels.shape != indices.shape:
+        raise SolutionValidationError("rótulos parciais devem estar alinhados aos índices")
+    if not np.issubdtype(partial_labels.dtype, np.integer) or np.issubdtype(
+        partial_labels.dtype, np.bool_
+    ):
+        raise SolutionValidationError("rótulos parciais devem ser inteiros")
+    partial_labels = np.array(partial_labels, dtype=np.int64, copy=True)
+    if np.any(partial_labels < 0) or np.any(partial_labels >= k):
+        raise SolutionValidationError(f"rótulos devem estar no intervalo de 0 a {k - 1}")
+    return indices, partial_labels
+
+
+def _evaluate_partial_assignment(
+    instance: ProblemInstance,
+    processed_indices: Any,
+    labels: Any,
+    *,
+    k: int,
+    weights: ObjectiveWeights,
+) -> EvaluationResult:
+    """Avalia o subproblema induzido, exclusivamente para o baseline guloso."""
+
+    indices, partial_labels = _partial_inputs(
+        instance, processed_indices, labels, k=k
+    )
+    induced = np.ix_(indices, indices)
+    return _evaluate_arrays(
+        demand=instance.demand[indices],
+        production=instance.production[indices],
+        s_territorial=instance.s_territorial[induced],
+        w_affinity=instance.w_affinity[induced],
+        labels=partial_labels,
+        k=k,
+        weights=weights,
     )
 
 

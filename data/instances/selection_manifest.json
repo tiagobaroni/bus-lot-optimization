@@ -379,11 +379,11 @@
   "tiny_manual": {
     "json": {
       "file": "tiny_manual.json",
-      "sha256": "ec428605482b74899ed4149d7b6500b5bacaabb89da70fa13409e37e42e96c44"
+      "sha256": "d5d624c5608edc096298af5240c7e041a09df1a8c60ba828ad669df71fb8b116"
     },
     "geopackage": {
       "file": "tiny_manual.gpkg",
-      "sha256": "9042db839f5630c239d484d4ed3216a2da519e9ce73650cf86005267a11ca548"
+      "sha256": "8aa01f3f80dd77e8545c2a33405bc784f33789e1c133d36ae48cf8f247a8a3ab"
     }
   },
   "compact_data": {

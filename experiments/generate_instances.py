@@ -278,9 +278,9 @@ def _export_real_geopackage(
 
 def _export_tiny_instance(output_dir: Path) -> dict[str, Any]:
     units = [
-        {"unit_id": "A", "passengers_day": 10.0, "pu_km_day": 100.0},
+        {"unit_id": "A", "passengers_day": 10.0, "pu_km_day": 200.0},
         {"unit_id": "B", "passengers_day": 10.0, "pu_km_day": 100.0},
-        {"unit_id": "C", "passengers_day": 10.0, "pu_km_day": 100.0},
+        {"unit_id": "C", "passengers_day": 10.0, "pu_km_day": 200.0},
         {"unit_id": "D", "passengers_day": 10.0, "pu_km_day": 100.0},
     ]
     pairs = [

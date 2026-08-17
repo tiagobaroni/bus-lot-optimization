@@ -14,6 +14,7 @@ from metaheuristica.errors import (
 )
 from metaheuristica.evaluator import FitnessEvaluator
 from metaheuristica.instances import load_artesp_instance, load_tiny_instance
+from metaheuristica.greedy import GreedyResult, GreedyTraceStep, run_greedy
 from metaheuristica.objective import evaluate_solution
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
 from metaheuristica.repair import repair_empty_lots
@@ -25,6 +26,8 @@ __all__ = [
     "EvaluationResult",
     "evaluate_solution",
     "FitnessEvaluator",
+    "GreedyResult",
+    "GreedyTraceStep",
     "InstanceDataError",
     "load_artesp_instance",
     "load_tiny_instance",
@@ -32,6 +35,7 @@ __all__ = [
     "ProblemInstance",
     "RepairBudgetExhausted",
     "repair_empty_lots",
+    "run_greedy",
     "SolutionValidationError",
     "solution_key",
     "validate_solution",

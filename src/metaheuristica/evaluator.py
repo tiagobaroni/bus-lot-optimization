@@ -6,7 +6,11 @@ from typing import Any
 
 from metaheuristica.canonical import solution_key, validate_k
 from metaheuristica.errors import BudgetExhausted, ConfigurationError
-from metaheuristica.objective import _evaluate_provisional_solution, evaluate_solution
+from metaheuristica.objective import (
+    _evaluate_partial_assignment,
+    _evaluate_provisional_solution,
+    evaluate_solution,
+)
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
 
 
@@ -109,6 +113,20 @@ class FitnessEvaluator:
         return _evaluate_provisional_solution(
             self._instance,
             solution,
+            k=self._k,
+            weights=self._weights,
+        )
+
+    def evaluate_partial_for_greedy(
+        self, processed_indices: Any, labels: Any
+    ) -> EvaluationResult:
+        """Avalia um subproblema induzido sem cache, somente para o baseline."""
+
+        self._consume()
+        return _evaluate_partial_assignment(
+            self._instance,
+            processed_indices,
+            labels,
             k=self._k,
             weights=self._weights,
         )

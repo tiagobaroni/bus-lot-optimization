@@ -49,6 +49,15 @@ def test_provisional_repair_evaluation_consumes_budget_without_cache() -> None:
     assert evaluator.cache_hits == 0
 
 
+def test_partial_greedy_evaluation_consumes_budget_without_cache() -> None:
+    evaluator = FitnessEvaluator(INSTANCE, k=2, budget=2, cache_enabled=True)
+    first = evaluator.evaluate_partial_for_greedy([0, 2], [0, 1])
+    second = evaluator.evaluate_partial_for_greedy([0, 2], [0, 1])
+    assert first == second
+    assert evaluator.evaluations == 2
+    assert evaluator.cache_hits == 0
+
+
 def test_evaluators_do_not_share_state() -> None:
     first = FitnessEvaluator(INSTANCE, k=2, budget=2, cache_enabled=True)
     second = FitnessEvaluator(INSTANCE, k=2, budget=2, cache_enabled=True)

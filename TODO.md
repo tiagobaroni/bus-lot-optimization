@@ -8,13 +8,13 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** B2 - Baseline guloso determinístico
+- **Bloco ativo:** B3 - Contrato comum dos otimizadores
 - **Fase do bloco ativo:** brainstorming interativo ainda não iniciado
-- **Último bloco concluído:** B1 - Núcleo do problema
-- **Próxima ação atômica:** iniciar o brainstorming interativo da B2 quando
+- **Último bloco concluído:** B2 - Baseline guloso determinístico
+- **Próxima ação atômica:** iniciar o brainstorming interativo da B3 quando
   solicitado pelo usuário.
 - **Bloqueios conhecidos:** nenhum.
-- **Última verificação:** `uv run pytest -q`, com 53 testes aprovados.
+- **Última verificação:** `uv run pytest -q`, com 69 testes aprovados.
 
 > **Aviso:** todos os blocos devem seguir o fluxo obrigatório definido na Seção
 > 12.1 de `AGENTS.md`: brainstorming, especificação, aprovação, plano, aprovação
@@ -113,7 +113,7 @@ objetivo é única, determinística, testada e independente dos algoritmos.
 
 ## B2 - Baseline guloso determinístico
 
-**Estado:** `EM ANDAMENTO`
+**Estado:** `CONCLUÍDO`
 
 **Depende de:** B1.
 
@@ -122,22 +122,40 @@ depuração.
 
 **Tarefas:**
 
-- [ ] Ordenar unidades por PU·km decrescente, com desempate determinístico.
-- [ ] Garantir a abertura inicial dos `K` lotes.
-- [ ] Alocar pelo menor aumento marginal do custo.
-- [ ] Aplicar os desempates definidos na formulação.
-- [ ] Usar o contador central de avaliações.
-- [ ] Registrar solução, componentes, avaliações e convergência.
-- [ ] Testar determinismo e viabilidade para todos os valores de `K`.
+- [x] Ordenar unidades por PU·km decrescente, com desempate determinístico.
+- [x] Garantir a abertura inicial dos `K` lotes.
+- [x] Alocar pelo menor aumento marginal do custo.
+- [x] Aplicar os desempates definidos na formulação.
+- [x] Usar o contador central de avaliações.
+- [x] Registrar solução, componentes, avaliações e convergência.
+- [x] Testar determinismo e viabilidade para todos os valores de `K`.
 
 **Critério de saída:** baseline executável nas quatro instâncias e resultados
 repetíveis byte a byte para a mesma entrada.
+
+**Checkpoint:**
+
+- última decisão concluída: ordenar por PU·km decrescente, abrir os `K` lotes
+  com as primeiras unidades e avaliar cada alocação seguinte no subproblema
+  induzido pelas unidades já processadas, consumindo exatamente `K(N-K)`
+  avaliações; ordenar empates de PU·km por `unit_id` e desempatar lotes por
+  custo com tolerância de `1e-12`, menor PU·km acumulado e menor rótulo;
+  retornar solução canônica, custo decomposto, avaliações, ordem de processamento
+  e rastreio das inclusões, deixando tempo e serialização comum para a B3;
+- especificação aprovada: `superpowers/B2_spec.md`;
+- plano aprovado: `superpowers/B2_plan.md`;
+- ajuste aprovado: PU·km de `A` e `C` igual a 200 e de `B` e `D` igual a 100,
+  permitindo que a abertura gulosa preserve a possibilidade do ótimo conhecido;
+- implementação concluída com orçamento exato `K(N-K)` nos 18 cenários reais;
+- verificação final: 69 testes aprovados e `git diff --check` sem erros;
+- próxima ação atômica: iniciar o brainstorming da B3 quando solicitado;
+- bloqueio: nenhum.
 
 ---
 
 ## B3 - Contrato comum dos otimizadores
 
-**Estado:** `PENDENTE`
+**Estado:** `EM ANDAMENTO`
 
 **Depende de:** B1 e B2.
 
