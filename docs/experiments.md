@@ -66,6 +66,55 @@ Devem ser registrados:
 - seed utilizada na amostragem, quando aplicável;
 - IDs das unidades pertencentes a cada instância.
 
+### 2.3. Regra de seleção adotada
+
+São elegíveis apenas unidades com demanda, PU·km, centroide das paradas e
+estratos necessários não nulos. Em particular, as 11 unidades sem PU·km são
+excluídas antes da amostragem, pois não permitiriam calcular um dos componentes
+da função objetivo sem imputação.
+
+O campo `programacao_vigente_na_data` não é usado como filtro. No sistema da
+ARTESP, a programação é atualizada quando há alteração do serviço, enquanto o
+registro anterior continua representando a operação que não foi alterada. Por
+isso, o valor `False` nesse campo não indica inatividade. A presença de
+passageiros observados confirma a operação das unidades mantidas no universo.
+
+A similaridade de mercados O-D será mantida na função objetivo, embora cerca de
+64,1% da massa da matriz possua destino modelado por modelo gravitacional. Os
+resultados serão descritos como derivados de uma matriz que combina informação
+observada e modelada, nunca como fluxos integralmente observados. Uma análise
+adicional poderá retirar \(O_{ij}\) de \(W_{ij}\) e renormalizar os dois
+componentes restantes para medir a sensibilidade a essa limitação.
+
+A cobertura territorial é representada por uma grade de 4 por 4. Seus limites
+são os quartis das latitudes e longitudes dos centroides médios das paradas de
+cada unidade elegível. A instância de 20 unidades deve conter ao menos uma
+unidade de cada uma das 16 células, impedindo concentração em uma única parte da
+RMSP.
+
+Depois dessa cobertura inicial, a seleção é incremental e busca aproximar as
+distribuições do universo em célula espacial, quartil de demanda e quartil de
+PU·km. O desvio territorial recebe peso 2, enquanto os desvios de demanda e
+PU·km recebem peso 1 cada. A seed adotada é `20260816`, e os empates são
+resolvidos por uma prioridade pseudoaleatória determinada por essa mesma seed e,
+por fim, por `unit_id`.
+
+O gerador está em `experiments/generate_instances.py`. Os IDs selecionados e o
+manifesto completo da seleção ficam em `data/instances/`.
+
+Para tornar o benchmark executável sem acesso ao pacote-fonte ignorado pelo
+Git, `data/instances/` também contém os atributos das 150 unidades e uma tabela
+esparsa com \(S_{ij}\), \(T_{ij}\), \(I_{ij}\) e \(O_{ij}\). As instâncias de
+20 e 60 são obtidas filtrando essas tabelas pelos IDs registrados, sem duplicar
+os dados. Pares ausentes da tabela esparsa têm valor zero nas quatro métricas.
+
+O mesmo diretório contém um GeoPackage para cada tamanho experimental, com
+camadas de itinerários, paradas e terminais que podem ser abertas diretamente no
+QGIS. A instância sintética `tiny_manual`, com quatro unidades e dois lotes,
+possui solução ótima canônica `[0, 0, 1, 1]` e custo zero, além de seu próprio
+GeoPackage com itinerários e paradas. Ela é usada somente para verificação
+manual e testes, não integra o benchmark comparativo.
+
 ---
 
 ## 3. Número de lotes

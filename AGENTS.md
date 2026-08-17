@@ -409,6 +409,39 @@ Não alterar simultaneamente:
 
 sem necessidade. Fazer mudanças incrementais para preservar capacidade de diagnóstico.
 
+## 12.1. Fluxo obrigatório por bloco
+
+Todo bloco de trabalho definido em `TODO.md` deve seguir, sem saltos, esta
+sequência:
+
+1. brainstorming interativo, tratando uma decisão por vez;
+2. escrita da especificação do bloco;
+3. aprovação explícita da especificação pelo usuário;
+4. escrita do plano de implementação;
+5. aprovação explícita do plano pelo usuário;
+6. implementação.
+
+É proibido iniciar a implementação antes das duas aprovações explícitas. A
+aprovação de uma decisão durante o brainstorming não equivale à aprovação da
+especificação nem à aprovação do plano.
+
+A especificação deve consolidar as decisões do brainstorming e definir escopo,
+comportamento, contratos, invariantes, casos de erro e critérios de aceitação,
+sem se transformar em uma sequência de passos de implementação.
+
+O plano somente deve ser escrito depois da aprovação da especificação. Ele deve
+decompor o trabalho em mudanças pequenas, indicar os arquivos afetados e definir
+as verificações de cada etapa.
+
+As especificações e os planos devem ser salvos localmente em `superpowers/`,
+preferencialmente como `superpowers/B<N>_spec.md` e
+`superpowers/B<N>_plan.md`. Esse diretório deve permanecer no `.gitignore` e
+não pode ser enviado ao GitHub.
+
+Ao interromper o trabalho, atualizar em `TODO.md` a fase atual, a última decisão
+ou tarefa concluída e a próxima ação atômica, para permitir retomada sem depender
+da memória da conversa.
+
 ---
 
 ## 13. Fontes e rastreabilidade

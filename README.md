@@ -62,7 +62,10 @@ O trabalho exige, entre outros itens:
 
 ## Estado atual
 
-O projeto está na fase de **preparação para implementação**. A formulação conceitual e o protocolo experimental já foram documentados, mas ainda não há código dos algoritmos, instâncias, execução automatizada ou resultados versionados.
+O projeto concluiu a preparação dos dados e o núcleo comum do problema. As
+instâncias, o carregamento, a canonicalização, a função objetivo, o orçamento de
+avaliações, o cache opcional e o reparo de lotes vazios estão implementados e
+testados. As metaheurísticas ainda não foram implementadas.
 
 Decisões registradas:
 
@@ -113,7 +116,8 @@ metaheuristica/
     └── figures/
 ```
 
-A estrutura de diretórios já existe, mas os diretórios de código, testes, dados, experimentos e resultados ainda contêm apenas marcadores `.gitkeep`. Os módulos Python listados são a estrutura planejada e serão criados durante a implementação.
+Os módulos do núcleo já implementados estão em `src/metaheuristica`. Os módulos
+de PSO, Busca Tabu e ACO permanecem planejados para os próximos blocos.
 
 ## Ambiente e caminhos
 
@@ -137,23 +141,35 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 ```
 
-As dependências serão definidas após a formulação inicial. A intenção é manter o conjunto pequeno, provavelmente incluindo bibliotecas para:
+As dependências e suas versões resolvidas estão em `pyproject.toml` e `uv.lock`.
+Para preparar o ambiente de desenvolvimento:
 
-- arrays e cálculo numérico;
-- manipulação de dados;
-- grafos/geometria, se necessário;
-- gráficos;
-- testes.
+```bash
+uv sync --dev
+```
 
 ## Execução
 
-Ainda não há comandos funcionais de execução, pois a implementação não foi iniciada. A interface planejada é reproduzível por linha de comando, por exemplo:
+Ainda não há um comando de benchmark, pois as metaheurísticas não foram
+implementadas. O núcleo pode ser verificado com:
 
 ```bash
-python -m experiments.run_benchmark --config experiments/configs/baseline.yaml
+uv run pytest -q
 ```
 
-Os módulos e os comandos definitivos serão documentados assim que forem implementados.
+Exemplo mínimo de carregamento e avaliação:
+
+```python
+import numpy as np
+
+from metaheuristica import FitnessEvaluator, load_artesp_instance
+
+instance = load_artesp_instance("data/instances", 20)
+evaluator = FitnessEvaluator(instance, k=3, budget=1)
+solution = np.arange(instance.n_units) % 3
+result = evaluator.evaluate(solution)
+print(result.total_cost, result.c_demand, result.c_production)
+```
 
 ## Reprodutibilidade
 
@@ -179,13 +195,11 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Definir o esquema dos dados e criar uma instância mínima verificável manualmente.
-2. Implementar a canonicalização, o modelo do problema, a função objetivo e os testes.
-3. Implementar a heurística gulosa determinística.
-4. Implementar e testar TS, ACO e PSO com o mesmo orçamento de avaliações.
-5. Preparar as instâncias aninhadas de 20, 60 e 150 unidades.
-6. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
-7. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
+1. Implementar a heurística gulosa determinística.
+2. Definir o contrato comum dos otimizadores.
+3. Implementar e testar TS, ACO e PSO com o mesmo orçamento de avaliações.
+4. Executar o tuning, congelar os hiperparâmetros e realizar o benchmark principal.
+5. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
 
 ## Licença
 

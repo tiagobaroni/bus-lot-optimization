@@ -1,0 +1,114 @@
+"""Avaliação com orçamento estrito e cache opcional por cenário."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from metaheuristica.canonical import solution_key, validate_k
+from metaheuristica.errors import BudgetExhausted, ConfigurationError
+from metaheuristica.objective import _evaluate_provisional_solution, evaluate_solution
+from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
+
+
+class FitnessEvaluator:
+    """Contexto exclusivo de avaliação para uma instância, K, pesos e orçamento."""
+
+    __slots__ = (
+        "_budget",
+        "_cache",
+        "_cache_enabled",
+        "_cache_hits",
+        "_evaluations",
+        "_instance",
+        "_k",
+        "_weights",
+    )
+
+    def __init__(
+        self,
+        instance: ProblemInstance,
+        *,
+        k: int,
+        budget: int,
+        weights: ObjectiveWeights | None = None,
+        cache_enabled: bool = False,
+    ) -> None:
+        validate_k(k, instance.n_units)
+        if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
+            raise ConfigurationError("orçamento deve ser um inteiro positivo")
+        if not isinstance(cache_enabled, bool):
+            raise ConfigurationError("cache_enabled deve ser booleano")
+        self._instance = instance
+        self._k = k
+        self._budget = budget
+        self._weights = weights or ObjectiveWeights()
+        self._cache_enabled = cache_enabled
+        self._evaluations = 0
+        self._cache_hits = 0
+        self._cache: dict[tuple[int, ...], EvaluationResult] = {}
+
+    @property
+    def instance(self) -> ProblemInstance:
+        return self._instance
+
+    @property
+    def k(self) -> int:
+        return self._k
+
+    @property
+    def budget(self) -> int:
+        return self._budget
+
+    @property
+    def weights(self) -> ObjectiveWeights:
+        return self._weights
+
+    @property
+    def cache_enabled(self) -> bool:
+        return self._cache_enabled
+
+    @property
+    def evaluations(self) -> int:
+        return self._evaluations
+
+    @property
+    def cache_hits(self) -> int:
+        return self._cache_hits
+
+    @property
+    def remaining(self) -> int:
+        return self._budget - self._evaluations
+
+    def _consume(self) -> None:
+        if self._evaluations >= self._budget:
+            raise BudgetExhausted(
+                f"orçamento esgotado: {self._evaluations}/{self._budget} avaliações"
+            )
+        self._evaluations += 1
+
+    def evaluate(self, solution: Any) -> EvaluationResult:
+        key = solution_key(solution, n_units=self._instance.n_units, k=self._k)
+        self._consume()
+        if self._cache_enabled and key in self._cache:
+            self._cache_hits += 1
+            return self._cache[key]
+        result = evaluate_solution(
+            self._instance,
+            key,
+            k=self._k,
+            weights=self._weights,
+        )
+        if self._cache_enabled:
+            self._cache[key] = result
+        return result
+
+    def evaluate_provisional_for_repair(self, solution: Any) -> EvaluationResult:
+        """Avalia um estado possivelmente vazio sem cache, somente para reparo."""
+
+        self._consume()
+        return _evaluate_provisional_solution(
+            self._instance,
+            solution,
+            k=self._k,
+            weights=self._weights,
+        )

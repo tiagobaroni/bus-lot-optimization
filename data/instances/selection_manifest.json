@@ -1,0 +1,409 @@
+{
+  "schema_version": "1.0.0",
+  "seed": 20260816,
+  "source": {
+    "units": "_temp/dados_artesp/units.parquet",
+    "units_sha256": "25eb602382e0621b7f76b2895c6af2374f40e073b9f5b463a9a12e84858425bb",
+    "stops": "_temp/dados_artesp/stops.parquet",
+    "stops_sha256": "6a71373eb77a30a4d0488bda3867578074b2fd38f71f09c27ef490ce003a1c52"
+  },
+  "eligibility": {
+    "n_source": 894,
+    "n_eligible": 883,
+    "rule": "campos de demanda, PU.km, centroide e estratificação não nulos",
+    "excluded": [
+      {
+        "unit_id": "012_ida",
+        "passengers_day": 868.280204527943,
+        "pu_km_day": null,
+        "centroid_lat": -23.831590923076924,
+        "centroid_lon": -46.75121721153846,
+        "estrato_demanda_quartil": "Q2",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "São Paulo"
+      },
+      {
+        "unit_id": "012_volta",
+        "passengers_day": 815.9188729320076,
+        "pu_km_day": null,
+        "centroid_lat": -23.833493843137255,
+        "centroid_lon": -46.75322319607843,
+        "estrato_demanda_quartil": "Q2",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "São Paulo"
+      },
+      {
+        "unit_id": "166BI1_ida",
+        "passengers_day": 108.9322127661206,
+        "pu_km_day": null,
+        "centroid_lat": -23.476039052631577,
+        "centroid_lon": -46.51460352631579,
+        "estrato_demanda_quartil": "Q1",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "Guarulhos"
+      },
+      {
+        "unit_id": "166BI1_volta",
+        "passengers_day": 59.463884919627105,
+        "pu_km_day": null,
+        "centroid_lat": -23.458127640625,
+        "centroid_lon": -46.47860421875,
+        "estrato_demanda_quartil": "Q1",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "Guarulhos"
+      },
+      {
+        "unit_id": "291_ida",
+        "passengers_day": 219.75609947513553,
+        "pu_km_day": null,
+        "centroid_lat": -23.525682341463412,
+        "centroid_lon": -46.88782020731708,
+        "estrato_demanda_quartil": "Q1",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "Barueri"
+      },
+      {
+        "unit_id": "291_volta",
+        "passengers_day": 149.00641331223065,
+        "pu_km_day": null,
+        "centroid_lat": -23.525487976744188,
+        "centroid_lon": -46.88864696511628,
+        "estrato_demanda_quartil": "Q1",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "Barueri"
+      },
+      {
+        "unit_id": "342DV1_ida",
+        "passengers_day": 90.84281262309621,
+        "pu_km_day": null,
+        "centroid_lat": -23.46927531884058,
+        "centroid_lon": -46.489253492753626,
+        "estrato_demanda_quartil": "Q1",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "Guarulhos"
+      },
+      {
+        "unit_id": "348_circular",
+        "passengers_day": 1242.4159672420344,
+        "pu_km_day": null,
+        "centroid_lat": -23.424510166666668,
+        "centroid_lon": -46.2892594,
+        "estrato_demanda_quartil": "Q3",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "Itaquaquecetuba"
+      },
+      {
+        "unit_id": "582_circular",
+        "passengers_day": 30.30331087243412,
+        "pu_km_day": null,
+        "centroid_lat": -23.88013465625,
+        "centroid_lon": -46.78960971875,
+        "estrato_demanda_quartil": "Q1",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "Embu-Guaçu"
+      },
+      {
+        "unit_id": "810_ida",
+        "passengers_day": 1346.2860433870237,
+        "pu_km_day": null,
+        "centroid_lat": -23.346677520833335,
+        "centroid_lon": -46.25809264583334,
+        "estrato_demanda_quartil": "Q3",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "Santa Isabel"
+      },
+      {
+        "unit_id": "810_volta",
+        "passengers_day": 618.3987796909571,
+        "pu_km_day": null,
+        "centroid_lat": -23.350200291666667,
+        "centroid_lon": -46.26230566666666,
+        "estrato_demanda_quartil": "Q2",
+        "estrato_pu_km_quartil": null,
+        "estrato_municipio_principal": "Santa Isabel"
+      }
+    ]
+  },
+  "spatial_method": {
+    "description": "Grade 4 x 4 formada pelos quartis de latitude e longitude dos centroides médios das paradas; a instância de 20 cobre todas as células.",
+    "latitude_boundaries": [
+      -23.631905500000002,
+      -23.534194409090908,
+      -23.473751158679928
+    ],
+    "longitude_boundaries": [
+      -46.81190627350753,
+      -46.715858292134826,
+      -46.51045333633853
+    ]
+  },
+  "selection_method": "Seleção incremental que minimiza desvios das distribuições do universo em célula espacial, quartil de demanda e quartil de PU.km; peso territorial 2.",
+  "instances": {
+    "20": {
+      "file": "artesp_rmsp_20.json",
+      "sha256": "9616ea96d24eaf1902bdc9857806f914f1a0ed024d6e875ec90e04421184c740",
+      "geopackage": {
+        "file": "artesp_rmsp_20.gpkg",
+        "sha256": "837abac54580ce45da7d6884ecf6b3c630b784e1ee3249ffb7eb4d022628fd40",
+        "layers": [
+          "itinerarios",
+          "paradas",
+          "terminais"
+        ]
+      },
+      "summary": {
+        "n_unidades": 20,
+        "n_celulas_espaciais": 16,
+        "n_municipios_principais": 13,
+        "limites_centroides": {
+          "lat_min": -23.73375515068493,
+          "lat_max": -23.329736142857143,
+          "lon_min": -46.87334077419355,
+          "lon_max": -46.38257512765957
+        },
+        "celulas_espaciais": {
+          "L1-O1": 1,
+          "L1-O2": 1,
+          "L1-O3": 2,
+          "L1-O4": 1,
+          "L2-O1": 1,
+          "L2-O2": 2,
+          "L2-O3": 1,
+          "L2-O4": 1,
+          "L3-O1": 2,
+          "L3-O2": 1,
+          "L3-O3": 1,
+          "L3-O4": 1,
+          "L4-O1": 1,
+          "L4-O2": 1,
+          "L4-O3": 1,
+          "L4-O4": 2
+        },
+        "quartis_demanda": {
+          "Q1": 4,
+          "Q2": 5,
+          "Q3": 5,
+          "Q4": 6
+        },
+        "quartis_pu_km": {
+          "Q1": 5,
+          "Q2": 5,
+          "Q3": 5,
+          "Q4": 5
+        },
+        "municipios_principais": {
+          "Caieiras": 1,
+          "Carapicuíba": 1,
+          "Ferraz de Vasconcelos": 1,
+          "Guarulhos": 2,
+          "Itapecerica da Serra": 1,
+          "Itapevi": 1,
+          "Mairiporã": 1,
+          "Mogi das Cruzes": 1,
+          "Osasco": 1,
+          "Ribeirão Pires": 1,
+          "Santana de Parnaíba": 1,
+          "São Bernardo do Campo": 1,
+          "São Paulo": 7
+        }
+      }
+    },
+    "60": {
+      "file": "artesp_rmsp_60.json",
+      "sha256": "a819812f87c91553dd10e34b0de92cd0d048832e9f3ee01a7e7314e118d1d412",
+      "geopackage": {
+        "file": "artesp_rmsp_60.gpkg",
+        "sha256": "285f42efeda0fec6afbcfca2815375e54c7c624ab09c15c9474b884f7ef7763a",
+        "layers": [
+          "itinerarios",
+          "paradas",
+          "terminais"
+        ]
+      },
+      "summary": {
+        "n_unidades": 60,
+        "n_celulas_espaciais": 16,
+        "n_municipios_principais": 24,
+        "limites_centroides": {
+          "lat_min": -23.73375515068493,
+          "lat_max": -23.29366485,
+          "lon_min": -46.97850545833333,
+          "lon_max": -46.02567996296297
+        },
+        "celulas_espaciais": {
+          "L1-O1": 2,
+          "L1-O2": 3,
+          "L1-O3": 7,
+          "L1-O4": 3,
+          "L2-O1": 5,
+          "L2-O2": 6,
+          "L2-O3": 2,
+          "L2-O4": 2,
+          "L3-O1": 6,
+          "L3-O2": 4,
+          "L3-O3": 2,
+          "L3-O4": 4,
+          "L4-O1": 2,
+          "L4-O2": 2,
+          "L4-O3": 4,
+          "L4-O4": 6
+        },
+        "quartis_demanda": {
+          "Q1": 14,
+          "Q2": 15,
+          "Q3": 15,
+          "Q4": 16
+        },
+        "quartis_pu_km": {
+          "Q1": 15,
+          "Q2": 15,
+          "Q3": 15,
+          "Q4": 15
+        },
+        "municipios_principais": {
+          "Arujá": 1,
+          "Barueri": 2,
+          "Caieiras": 1,
+          "Carapicuíba": 4,
+          "Embu das Artes": 2,
+          "Ferraz de Vasconcelos": 1,
+          "Francisco Morato": 1,
+          "Guarulhos": 9,
+          "Itapecerica da Serra": 1,
+          "Itapevi": 1,
+          "Itaquaquecetuba": 1,
+          "Mairiporã": 1,
+          "Mauá": 1,
+          "Mogi das Cruzes": 1,
+          "Osasco": 7,
+          "Ribeirão Pires": 1,
+          "Salesópolis": 1,
+          "Santana de Parnaíba": 2,
+          "Santo André": 2,
+          "São Bernardo do Campo": 2,
+          "São Caetano do Sul": 1,
+          "São Paulo": 15,
+          "Taboão da Serra": 1,
+          "Vargem Grande Paulista": 1
+        }
+      }
+    },
+    "150": {
+      "file": "artesp_rmsp_150.json",
+      "sha256": "7ab22bad2ea9669a1fc1205e2ba2f1cf6af4d608c2ce5a2e2b6cb474c072be5d",
+      "geopackage": {
+        "file": "artesp_rmsp_150.gpkg",
+        "sha256": "746fa4207eea695493adf7d53e585e5e5bbd3be9ca2eb1e40ce02d58cf353b4f",
+        "layers": [
+          "itinerarios",
+          "paradas",
+          "terminais"
+        ]
+      },
+      "summary": {
+        "n_unidades": 150,
+        "n_celulas_espaciais": 16,
+        "n_municipios_principais": 31,
+        "limites_centroides": {
+          "lat_min": -23.77266647368421,
+          "lat_max": -23.29366485,
+          "lon_min": -46.985976061224484,
+          "lon_max": -46.02567996296297
+        },
+        "celulas_espaciais": {
+          "L1-O1": 5,
+          "L1-O2": 7,
+          "L1-O3": 18,
+          "L1-O4": 7,
+          "L2-O1": 12,
+          "L2-O2": 16,
+          "L2-O3": 5,
+          "L2-O4": 5,
+          "L3-O1": 14,
+          "L3-O2": 9,
+          "L3-O3": 4,
+          "L3-O4": 10,
+          "L4-O1": 6,
+          "L4-O2": 6,
+          "L4-O3": 11,
+          "L4-O4": 15
+        },
+        "quartis_demanda": {
+          "Q1": 37,
+          "Q2": 37,
+          "Q3": 38,
+          "Q4": 38
+        },
+        "quartis_pu_km": {
+          "Q1": 38,
+          "Q2": 38,
+          "Q3": 37,
+          "Q4": 37
+        },
+        "municipios_principais": {
+          "Arujá": 1,
+          "Barueri": 6,
+          "Caieiras": 2,
+          "Cajamar": 2,
+          "Carapicuíba": 9,
+          "Cotia": 1,
+          "Diadema": 4,
+          "Embu das Artes": 6,
+          "Embu-Guaçu": 1,
+          "Ferraz de Vasconcelos": 2,
+          "Francisco Morato": 2,
+          "Guarulhos": 24,
+          "Itapecerica da Serra": 3,
+          "Itapevi": 4,
+          "Itaquaquecetuba": 2,
+          "Mairiporã": 1,
+          "Mauá": 2,
+          "Mogi das Cruzes": 3,
+          "Osasco": 14,
+          "Poá": 1,
+          "Ribeirão Pires": 3,
+          "Salesópolis": 1,
+          "Santa Isabel": 1,
+          "Santana de Parnaíba": 6,
+          "Santo André": 6,
+          "Suzano": 2,
+          "São Bernardo do Campo": 6,
+          "São Caetano do Sul": 3,
+          "São Paulo": 27,
+          "Taboão da Serra": 3,
+          "Vargem Grande Paulista": 2
+        }
+      }
+    }
+  },
+  "tiny_manual": {
+    "json": {
+      "file": "tiny_manual.json",
+      "sha256": "ec428605482b74899ed4149d7b6500b5bacaabb89da70fa13409e37e42e96c44"
+    },
+    "geopackage": {
+      "file": "tiny_manual.gpkg",
+      "sha256": "9042db839f5630c239d484d4ed3216a2da519e9ce73650cf86005267a11ca548"
+    }
+  },
+  "compact_data": {
+    "units": {
+      "file": "artesp_rmsp_150_units.parquet",
+      "sha256": "8c4bd3cb5b1367259406cadfe36bf6654f1d230a7383604d346863ae6eaeb617",
+      "n_rows": 150,
+      "description": "Atributos das 150 unidades da maior instância."
+    },
+    "pair_metrics": {
+      "file": "artesp_rmsp_150_pair_metrics.parquet",
+      "sha256": "4bf5b7b1b68bac594a1aab6b0b47119dfd7ccf7b48eca89f26c0f095a1ebc2cd",
+      "n_rows": 1407,
+      "description": "Tabela esparsa para a instância de 150; pares ausentes têm métricas zero.",
+      "columns": {
+        "s_territorial": "interseção dos buffers dividida pela menor área",
+        "t_terminal": "1 quando existe terminal compartilhado",
+        "i_integration": "1 para terminal compartilhado, parada compartilhada ou paradas a até 400 m",
+        "o_market": "Jaccard ponderado dos mercados O-D potenciais"
+      }
+    }
+  }
+}

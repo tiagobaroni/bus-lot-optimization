@@ -13,6 +13,8 @@ env/
 .ipynb_checkpoints/
 .idea/
 .vscode/
+_temp/
+superpowers/
 
 # Generated experiment outputs
 results/**/*.csv

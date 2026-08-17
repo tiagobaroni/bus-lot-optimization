@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "name": "artesp_rmsp_20",
+  "n_units": 20,
+  "seed": 20260816,
+  "unit_ids": [
+    "459_ida",
+    "124_ida",
+    "374_ida",
+    "280_ida",
+    "201_volta",
+    "448_ida",
+    "049_ida",
+    "280BI1_volta",
+    "053_ida",
+    "034_ida",
+    "121_volta",
+    "293_ida",
+    "199_volta",
+    "860_volta",
+    "467_ida",
+    "816_ida",
+    "153_volta",
+    "404_volta",
+    "115_volta",
+    "497_ida"
+  ]
+}

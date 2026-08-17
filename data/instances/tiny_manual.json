@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0.0",
+  "name": "tiny_manual",
+  "description": "Instância sintética verificável manualmente: A-B e C-D formam duas duplas.",
+  "k": 2,
+  "units": [
+    {
+      "unit_id": "A",
+      "passengers_day": 10.0,
+      "pu_km_day": 100.0
+    },
+    {
+      "unit_id": "B",
+      "passengers_day": 10.0,
+      "pu_km_day": 100.0
+    },
+    {
+      "unit_id": "C",
+      "passengers_day": 10.0,
+      "pu_km_day": 100.0
+    },
+    {
+      "unit_id": "D",
+      "passengers_day": 10.0,
+      "pu_km_day": 100.0
+    }
+  ],
+  "pair_metrics": [
+    {
+      "unit_id_a": "A",
+      "unit_id_b": "B",
+      "s_territorial": 1.0,
+      "t_terminal": 1.0,
+      "i_integration": 1.0,
+      "o_market": 1.0
+    },
+    {
+      "unit_id_a": "C",
+      "unit_id_b": "D",
+      "s_territorial": 1.0,
+      "t_terminal": 1.0,
+      "i_integration": 1.0,
+      "o_market": 1.0
+    }
+  ],
+  "absent_pair_rule": "pares ausentes têm S, T, I e O iguais a zero",
+  "expected_optimum": {
+    "canonical_solution": [
+      0,
+      0,
+      1,
+      1
+    ],
+    "unit_order": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "cost": 0.0,
+    "justification": "Os lotes têm demanda e PU.km iguais e nenhuma relação positiva é cortada."
+  }
+}

@@ -89,6 +89,19 @@ P_i=\text{PU·km da unidade }i.
 
 O PU·km representa capacidade ofertada multiplicada pela distância produzida e será usado como principal critério de equilíbrio operacional.
 
+A programação é interpretada segundo o funcionamento cadastral informado para
+o sistema da ARTESP: um registro de programação é atualizado quando o serviço
+sofre alteração, e a programação anterior continua válida enquanto não houver
+nova alteração. Portanto, o campo `programacao_vigente_na_data` é apenas um
+indicador de coincidência formal entre o período registrado e a data de
+referência. O valor `False` não caracteriza serviço inativo e não constitui
+critério de exclusão. Essa interpretação é corroborada, para o universo deste
+projeto, pela existência de passageiros observados nas 894 unidades do pacote.
+
+Consequentemente, `pu_km_day` será tratado como produção programada corrente. A
+ausência de vigência formal na data de referência não será apresentada como
+falha de cobertura nem como desalinhamento temporal da oferta.
+
 A quantidade de **assentos ofertados por dia** será mantida como indicador auxiliar, mas não será componente principal da função objetivo no baseline.
 
 ---
@@ -170,6 +183,9 @@ CV_D=\frac{\sigma(D_1,\ldots,D_K)}
 {\mu(D_1,\ldots,D_K)}.
 \]
 
+O desvio padrão é populacional, com divisor \(K\) (`ddof=0`), pois os lotes
+constituem a totalidade da partição avaliada e não uma amostra para inferência.
+
 Para limitar o componente ao intervalo \([0,1)\), será aplicada a transformação:
 
 \[
@@ -195,6 +211,8 @@ CV_P=\frac{\sigma(P_1,\ldots,P_K)}
 {\mu(P_1,\ldots,P_K)}.
 \]
 
+Também neste componente é usado o desvio padrão populacional (`ddof=0`).
+
 O componente normalizado será:
 
 \[
@@ -219,13 +237,41 @@ onde valores maiores indicam maior sobreposição ou proximidade territorial ent
 
 ### 8.1. Construção de \(S_{ij}\)
 
-O baseline utilizará a **sobreposição de trechos/corredores normalizada pela extensão das duas linhas**.
+O baseline utilizará o **coeficiente de sobreposição entre os buffers dos
+itinerários**. Seja \(B_i\) o buffer de 200 m ao redor da geometria do itinerário
+da unidade \(i\). Define-se:
 
-A fórmula operacional exata poderá depender do formato final dos dados geoespaciais, mas deverá respeitar:
+\[
+S_{ij}=
+\frac{
+\operatorname{área}(B_i\cap B_j)
+}{
+\min\!\left(\operatorname{área}(B_i),\operatorname{área}(B_j)\right)
+}.
+\]
+
+Operacionalmente, a medida será calculada a partir de
+`s_overlap_long.parquet`:
+
+\[
+S_{ij}=
+\frac{
+\texttt{intersection\_area\_m2}_{ij}
+}{
+\min\!\left(\texttt{area\_i\_m2}_{ij},\texttt{area\_j\_m2}_{ij}\right)
+}.
+\]
+
+Pares ausentes da tabela esparsa recebem \(S_{ij}=0\). Essa definição garante:
 
 - \(S_{ij}=0\) para ausência de relação espacial relevante;
-- \(S_{ij}=1\) para sobreposição espacial máxima segundo a métrica adotada;
+- \(S_{ij}=1\) quando o buffer menor está integralmente contido no maior;
 - simetria: \(S_{ij}=S_{ji}\).
+
+O coeficiente foi preferido ao índice de Jaccard porque o Jaccard divide a
+interseção pela união e pode atribuir valor baixo quando o corredor de uma linha
+curta está contido no corredor de uma linha longa. A contenção é considerada
+evidência territorial relevante para a formação dos lotes.
 
 ### 8.2. Penalidade territorial
 
@@ -285,15 +331,51 @@ T_{ij}=
 
 ### 9.2. Integração funcional
 
+Como premissa operacional do projeto, considera-se que as linhas de transporte
+público da RMSP possuem integração tarifária entre si. Portanto, no baseline, a
+integração funcional relevante entre duas unidades é limitada pela viabilidade
+espacial da transferência, e não pela existência de um acordo tarifário
+específico entre as linhas.
+
 \[
 I_{ij}=
 \begin{cases}
-1,&\text{se existir integração funcional relevante entre }i\text{ e }j\\
+1,&\text{se existir ao menos uma oportunidade espacial de transferência entre }i\text{ e }j\\
 0,&\text{caso contrário.}
 \end{cases}
 \]
 
-A definição empírica de "integração funcional relevante" deverá ser documentada quando os dados forem preparados.
+Considera-se que existe uma oportunidade espacial de transferência quando ao
+menos uma destas condições for satisfeita:
+
+1. as unidades compartilham um terminal;
+2. as unidades compartilham uma parada cadastrada;
+3. existe ao menos um par de paradas distintas, uma de cada unidade, com
+   distância de até 400 m.
+
+Operacionalmente, a regra será calculada a partir de
+`functional_links.parquet`:
+
+\[
+I_{ij}=\mathbf{1}\!\left(
+\texttt{shared\_terminal\_count}_{ij}>0
+\;\lor\;
+\texttt{shared\_stop\_count}_{ij}>0
+\;\lor\;
+\texttt{nearby\_stop\_pair\_count}_{ij}>0
+\right).
+\]
+
+Pares ausentes da tabela esparsa recebem \(I_{ij}=0\). O raio de 400 m é uma
+hipótese metodológica do baseline e deverá ser mantido igual para todos os
+algoritmos.
+
+Essa variável representa uma **oportunidade física potencial de transferência**,
+e não uma transferência efetivamente realizada. A bilhetagem disponível valida
+somente o embarque e não possui identificador de cartão que permita encadear
+pernas de uma mesma viagem. Portanto, não é possível observar diretamente a
+quantidade de transferências entre cada par de linhas nem validar empiricamente
+se as oportunidades espaciais identificadas são utilizadas pelos passageiros.
 
 ### 9.3. Similaridade de mercados origem-destino
 
@@ -343,6 +425,19 @@ Assim:
 
 O raio de 400 m será tratado como hipótese metodológica do baseline e poderá ser objeto de análise de sensibilidade futura.
 
+A matriz O-D utilizada não é integralmente observada. Aproximadamente 64,1% de
+sua massa possui destino estimado por modelo gravitacional nos pares sem amostra
+da pesquisa domiciliar. Portanto, \(O_{ij}\) representa similaridade entre
+mercados potenciais construídos a partir de uma matriz que combina informação
+observada e modelada. Ele não deve ser interpretado como similaridade baseada
+exclusivamente em fluxos observados de passageiros.
+
+Essa limitação é aceita no baseline porque a matriz preserva informação sobre a
+estrutura dos mercados atendidos que seria perdida com a retirada completa do
+componente. Uma análise de sensibilidade futura poderá recalcular a afinidade
+funcional sem \(O_{ij}\), renormalizando os componentes restantes, para avaliar
+quanto essa fonte modelada influencia as conclusões.
+
 ### 9.4. Penalidade de afinidade funcional
 
 A mesma lógica usada no componente territorial será aplicada:
@@ -358,6 +453,9 @@ W_{ij}\,\mathbf{1}(x_i\neq x_j)
 \]
 
 Valores menores indicam maior preservação das relações funcionais dentro dos mesmos lotes.
+
+Se o denominador de \(C_T\) ou \(C_A\) for zero, o componente correspondente é
+definido como zero, pois não existe relação positiva que possa ser cortada.
 
 ---
 
@@ -484,10 +582,10 @@ A formulação inicial assume explicitamente:
 7. **Produção:** equilíbrio medido principalmente por PU·km.
 8. **Assentos ofertados:** indicador auxiliar, não componente principal do baseline.
 9. **Equilíbrio:** coeficiente de variação transformado por \(CV/(1+CV)\).
-10. **Territorialidade:** baseada em sobreposição/proximidade de itinerários.
+10. **Territorialidade:** coeficiente de sobreposição entre buffers de 200 m dos itinerários, normalizado pela menor área.
 11. **Afinidade funcional:** média simples entre terminal compartilhado, integração funcional e similaridade OD.
 12. **Terminal compartilhado:** variável binária.
-13. **Integração funcional:** variável binária.
+13. **Integração funcional:** variável binária de oportunidade espacial, igual a 1 para terminal compartilhado, parada compartilhada ou par de paradas a até 400 m.
 14. **Similaridade OD:** Jaccard ponderado entre mercados OD potencialmente atendidos.
 15. **Raio de acesso:** 400 m entre origem/destino e pontos de parada.
 16. **Sentido do itinerário:** a ordem das paradas deve ser respeitada na identificação de atendimento OD.
@@ -499,18 +597,26 @@ Essas hipóteses são decisões metodológicas do baseline e poderão ser revist
 
 ---
 
-## 15. Pontos ainda a detalhar durante a implementação
+## 15. Decisões fechadas após a preparação dos dados
 
-A formulação conceitual está fechada, mas alguns detalhes operacionais dependem dos dados reais e deverão ser documentados antes dos experimentos principais:
+Os detalhes que dependiam dos dados reais foram resolvidos da seguinte forma:
 
-1. fórmula geoespacial exata para \(S_{ij}\);
-2. regra empírica para classificar uma integração funcional como relevante;
-3. tratamento de linhas com dados incompletos por sentido/variante;
-4. estratégia de desagregação quando passageiros/dia ou PU·km estiverem disponíveis apenas de forma agregada;
-5. regras de consistência topológica e ordenação dos pontos de parada;
-6. pré-processamento da matriz OD para avaliar atendimento potencial;
-7. tratamento de pares OD sem atendimento por nenhuma linha;
-8. definição exata do desvio padrão usado no coeficiente de variação, que deve ser consistente em todas as implementações.
+1. unidades sem PU·km são excluídas antes da seleção das instâncias;
+2. passageiros/dia já estão desagregados por linha e sentido, sem rateio;
+3. a capacidade veicular é observada no nível da linha e herdada pelos sentidos,
+   enquanto viagens programadas e extensão permanecem específicas da unidade;
+4. quando existem variantes cadastrais para a mesma linha e sentido, usa-se a
+   rota com início de operação mais recente, com desempate pelo maior ID;
+5. as paradas são ordenadas pela sequência do itinerário, preservando o sentido
+   para a identificação dos mercados O-D atendidos;
+6. uma zona O-D é alcançável quando seu polígono intersecta o buffer de 400 m
+   das paradas, e um par é servível quando a origem antecede o destino;
+7. pares ausentes das tabelas esparsas recebem valor zero;
+8. a integração funcional representa oportunidade espacial potencial, conforme
+   a regra definida na Seção 9.2.
+
+O núcleo implementado usa o desvio padrão populacional (`ddof=0`) de forma
+idêntica para demanda e PU·km.
 
 ---
 
@@ -520,6 +626,7 @@ Após a implementação e validação do baseline, poderão ser estudadas:
 
 - pesos não uniformes na função objetivo;
 - sensibilidade ao raio de acesso de 400 m;
+- sensibilidade da afinidade funcional à retirada do componente O-D modelado;
 - intensidade contínua de integração funcional;
 - importância relativa de terminais;
 - limites mínimos/máximos de porte;

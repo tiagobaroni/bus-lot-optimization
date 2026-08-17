@@ -1,1 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bus-lot-optimization"
+version = "0.1.0"
+description = "Formação de lotes operacionais de linhas de ônibus com metaheurísticas"
 requires-python = ">=3.14,<3.15"
+dependencies = [
+    "geopandas>=1.1",
+    "numpy>=2.3",
+    "pandas>=3.0",
+    "pyarrow>=23.0",
+    "pyogrio>=0.12",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/metaheuristica"]
