@@ -6,19 +6,13 @@ import numpy as np
 import pytest
 
 from metaheuristica import (
-    AcoConfig,
     FitnessEvaluator,
     OptimizationContext,
-    PsoConfig,
     RunConfig,
-    TabuConfig,
     evaluate_solution,
     execute_optimizer,
     load_artesp_instance,
-    run_aco,
     run_greedy,
-    run_pso,
-    run_tabu,
 )
 
 
@@ -91,63 +85,3 @@ def test_common_optimizer_contract_runs_on_artesp_instance() -> None:
     assert len(result.checkpoints) == 100
     assert len(set(result.solution)) == 3
     assert np.isfinite(result.evaluation.total_cost)
-
-
-@pytest.mark.parametrize("size", [20, 60, 150])
-def test_tabu_runs_for_every_artesp_k_with_common_contract(size: int) -> None:
-    instance = load_artesp_instance(INSTANCES_DIR, size)
-    config = TabuConfig(tabu_tenure=5, neighborhood_size=20, stagnation_limit=50)
-    for k in range(3, 9):
-        result = run_tabu(
-            instance,
-            RunConfig(k=k, seed=20260817, budget=100),
-            config,
-        )
-        assert result.evaluations == 100
-        assert len(result.checkpoints) == 100
-        assert len(set(result.solution)) == k
-        assert np.isfinite(result.evaluation.total_cost)
-        assert result.diagnostics["iterations_completed"] == (
-            result.diagnostics["accepted_moves"] + result.diagnostics["restarts"]
-        )
-
-
-@pytest.mark.parametrize("size", [20, 60, 150])
-def test_aco_runs_for_every_artesp_k_with_common_contract(size: int) -> None:
-    instance = load_artesp_instance(INSTANCES_DIR, size)
-    config = AcoConfig(alpha=1.0, beta=1.0, rho=0.1, n_ants=20)
-    for k in range(3, 9):
-        result = run_aco(
-            instance,
-            RunConfig(k=k, seed=20260817, budget=100),
-            config,
-        )
-        assert result.evaluations == 100
-        assert len(result.checkpoints) == 100
-        assert len(set(result.solution)) == k
-        assert np.isfinite(result.evaluation.total_cost)
-        assert result.diagnostics["ants_evaluated"] == 100
-        assert result.diagnostics["generations_completed"] == 5
-        assert result.diagnostics["pheromone_updates"] == 5
-        assert result.diagnostics["forced_assignments"] + result.diagnostics[
-            "probabilistic_assignments"
-        ] == 100 * size
-
-
-@pytest.mark.parametrize("size", [20, 60, 150])
-def test_pso_runs_for_every_artesp_k_with_common_contract(size: int) -> None:
-    instance = load_artesp_instance(INSTANCES_DIR, size)
-    config = PsoConfig(n_particles=20, inertia=0.7, cognitive=1.5, social=1.5)
-    for k in range(3, 9):
-        result = run_pso(
-            instance,
-            RunConfig(k=k, seed=20260817, budget=100),
-            config,
-        )
-        assert result.evaluations == 100
-        assert len(result.checkpoints) == 100
-        assert len(set(result.solution)) == k
-        assert np.isfinite(result.evaluation.total_cost)
-        assert result.diagnostics["particles_evaluated"] + result.diagnostics[
-            "repair_evaluations"
-        ] == 100

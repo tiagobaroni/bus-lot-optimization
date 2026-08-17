@@ -970,6 +970,29 @@ O importante é manter separação entre:
 
 ## 29. Verificações antes do benchmark final
 
+Antes do tuning, uma validação cruzada diagnóstica submete TS, ACO e PSO ao
+mesmo validador de resultado. Ela possui duas camadas:
+
+1. na instância minúscula, cada método usa `K=2`, orçamento 100 e seeds
+   `{0,1,2}` e deve alcançar o ótimo conhecido de custo zero;
+2. nas instâncias ARTESP, cada método percorre os 18 cenários formados pelos
+   tamanhos `{20,60,150}` e valores de `K` de 3 a 8, com seed `20260817` e
+   orçamento 100.
+
+As configurações dessa etapa são somente diagnósticas e não antecipam o tuning.
+O validador exige orçamento exato, 100 checkpoints, incumbente não crescente,
+solução canônica e viável, reavaliação pela função objetivo comum, serialização
+JSON e cache inativo. Os cenários `(20,3)`, `(60,5)` e `(150,8)` são repetidos
+para cada método depois de uma execução intermediária.
+
+A validação também confirma que o RNG global, as configurações e as instâncias
+permanecem inalterados e que a ordem dos algoritmos não afeta os resultados.
+Não se fixa limite absoluto de RAM nessa suíte, pois ele seria dependente da
+máquina. A medição quantitativa pertence ao piloto em ambiente controlado.
+
+Nenhuma tabela experimental é persistida nesta etapa. Persistência, retomada e
+consolidação pertencem à automação experimental.
+
 Antes das 1.620 execuções principais, deverá ser realizado um piloto curto para verificar:
 
 1. todas as soluções respeitam \(K\) lotes não vazios;

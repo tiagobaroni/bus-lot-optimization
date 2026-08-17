@@ -9,11 +9,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 17/08/2026
 - **Bloco ativo:** nenhum
-- **Fase do bloco ativo:** bloco B6 concluído
-- **Último bloco concluído:** B6 - PSO com Random Keys
-- **Próxima ação atômica:** iniciar o brainstorming da B7 quando solicitado.
+- **Fase do bloco ativo:** bloco B7 concluído
+- **Último bloco concluído:** B7 - Validação cruzada dos métodos
+- **Próxima ação atômica:** iniciar o brainstorming da B8 quando solicitado.
 - **Bloqueios conhecidos:** nenhum.
-- **Última verificação:** `uv run pytest -q`, com 69 testes aprovados.
+- **Última verificação:** `uv run pytest -q`, com 201 testes aprovados.
 
 > **Aviso:** todos os blocos devem seguir o fluxo obrigatório definido na Seção
 > 12.1 de `AGENTS.md`: brainstorming, especificação, aprovação, plano, aprovação
@@ -450,7 +450,7 @@ válidas e passa nos testes comuns dos otimizadores.
 
 ## B7 - Validação cruzada dos métodos
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDO`
 
 **Depende de:** B4, B5 e B6.
 
@@ -458,15 +458,80 @@ válidas e passa nos testes comuns dos otimizadores.
 
 **Tarefas:**
 
-- [ ] Executar os três métodos sobre a instância minúscula.
-- [ ] Confirmar a mesma função objetivo e decomposição de custos.
-- [ ] Confirmar o mesmo orçamento de avaliações.
-- [ ] Confirmar formato idêntico de resultados e checkpoints.
-- [ ] Testar todas as combinações de tamanho e `K` com orçamento curto.
-- [ ] Verificar memória, tempo e ausência de estado global.
+- [x] Executar os três métodos sobre a instância minúscula.
+- [x] Confirmar a mesma função objetivo e decomposição de custos.
+- [x] Confirmar o mesmo orçamento de avaliações.
+- [x] Confirmar formato idêntico de resultados e checkpoints.
+- [x] Testar todas as combinações de tamanho e `K` com orçamento curto.
+- [x] Verificar memória, tempo e ausência de estado global.
 
 **Critério de saída:** nenhum algoritmo possui caminho próprio de cálculo do
 custo, e todos passam pelo piloto curto sem violar invariantes.
+
+**Checkpoint:**
+
+- brainstorming iniciado após a conclusão e o push da B6 no commit `5b6fd4c`;
+- a validação será separada em duas camadas: a instância minúscula verificará
+  custo conhecido e decomposição recalculada externamente; as instâncias ARTESP
+  verificarão contrato, orçamento, checkpoints, viabilidade, reprodutibilidade
+  e escalabilidade curta, sem exigir ótimo conhecido;
+- na instância minúscula, cada método será executado com `K=2`, orçamento de
+  100 avaliações e seeds diagnósticas `{0,1,2}`; cada algoritmo usará uma
+  configuração fixa válida, sem que essa escolha seja tratada como tuning;
+- todas essas execuções deverão alcançar o ótimo conhecido de custo zero;
+- cada solução minúscula será reavaliada diretamente pela função objetivo comum;
+  custo total, quatro componentes e dois coeficientes de variação deverão
+  coincidir com tolerâncias absoluta e relativa de `1e-12`;
+- a solução deverá ser canônica, viável e ter custo zero, mas algoritmos
+  diferentes não precisarão devolver o mesmo vetor quando houver ótimos
+  equivalentes ou múltiplos;
+- o piloto ARTESP executará os três algoritmos nos 18 cenários formados por
+  tamanhos `{20,60,150}` e `K` de 3 a 8, com seed `20260817` e orçamento de 100
+  avaliações;
+- a reprodutibilidade será verificada repetindo integralmente os cenários
+  `(20,3)`, `(60,5)` e `(150,8)` e comparando todos os campos determinísticos,
+  com exclusão apenas do tempo;
+- as configurações diagnósticas serão TS `(5,20,50)`, ACO
+  `(alpha=1.0,beta=1.0,rho=0.1,n_ants=20)` e PSO
+  `(n_particles=20,inertia=0.7,cognitive=1.5,social=1.5)`;
+- essas configurações não antecipam nem influenciam o tuning da B9;
+- um validador comum exigirá orçamento exato, término por orçamento, 100
+  checkpoints nos limiares previstos, custos acumulados não crescentes, último
+  checkpoint igual ao resultado final, eco correto da configuração, solução
+  canônica e viável, serialização JSON e zero acertos de cache quando
+  desabilitado;
+- diagnósticos específicos continuarão validados separadamente;
+- na B7, memória será tratada como isolamento de estado: RNG global inalterado,
+  reprodução após execuções intermediárias e imutabilidade de configurações e
+  instâncias; o tempo deverá ser finito e não negativo;
+- limites quantitativos de RAM ficam para a escalabilidade em ambiente
+  controlado, pois limites absolutos seriam dependentes da máquina;
+- o experimento de GPU foi organizado como B11A, depois do benchmark CPU e
+  antes da análise, sem bloquear o baseline obrigatório;
+- a B7 adicionará somente validadores, testes cruzados e documentação; não
+  alterará algoritmos, representação nem função objetivo;
+- se a validação revelar defeito, a B7 será interrompida para apresentar e
+  decidir a correção antes de qualquer mudança no código de produção;
+- os testes cruzados ficarão em `tests/test_cross_validation.py`; verificações
+  equivalentes serão migradas de `test_core_integration.py` para evitar
+  duplicação, enquanto testes específicos continuarão em seus módulos;
+- o protocolo será registrado em `docs/experiments.md`, sem persistir tabelas
+  experimentais, cuja automação pertence à B8;
+- brainstorming encerrado e especificação escrita em
+  `superpowers/B7_spec.md`;
+- especificação aprovada pelo usuário;
+- plano de implementação escrito em `superpowers/B7_plan.md`;
+- plano aprovado pelo usuário e implementação executada sem alteração em
+  `src/metaheuristica`;
+- as nove execuções minúsculas alcançaram custo zero e passaram pela reavaliação
+  comum;
+- os três métodos passaram nos 18 cenários ARTESP, totalizando 54 execuções;
+- reprodutibilidade representativa, isolamento do RNG global, imutabilidade e
+  independência da ordem de execução foram validados;
+- protocolo registrado em `docs/experiments.md`, sem persistir resultados;
+- verificação final: 201 testes aprovados e `git diff --check` sem erros;
+- próxima ação: iniciar o brainstorming da B8 quando solicitado;
+- bloqueio: nenhum.
 
 ---
 
@@ -562,11 +627,39 @@ lacunas.
 
 ---
 
+## B11A - Experimento adicional com GPU
+
+**Estado:** `PENDENTE - ADICIONAL`
+
+**Depende de:** B11.
+
+**Objetivo:** avaliar se uma implementação em GPU produz aceleração relevante
+sem alterar o baseline normativo em CPU.
+
+**Tarefas:**
+
+- [ ] Selecionar os algoritmos e operações tecnicamente adequados à GPU.
+- [ ] Manter o caminho CPU com NumPy e `float64` como referência normativa.
+- [ ] Implementar o caminho GPU separadamente, sem alterar resultados já
+  congelados.
+- [ ] Definir e testar equivalência numérica, de orçamento e de convergência.
+- [ ] Registrar GPU, CPU, software, precisão numérica e ambiente de execução.
+- [ ] Medir tempo total, tempo computacional relevante e custos de transferência.
+- [ ] Calcular speedup por tamanho e cenário.
+- [ ] Documentar divergências, limitações e casos em que a GPU não compensa.
+
+**Critério de saída:** comparação CPU e GPU auditável, ou limitação explícita
+registrada caso o experimento adicional não possa ser executado. A
+indisponibilidade de GPU não invalida nem bloqueia o baseline obrigatório.
+
+---
+
 ## B12 - Análise e visualização
 
 **Estado:** `PENDENTE`
 
-**Depende de:** B11.
+**Depende de:** B11. Incorpora B11A somente se o experimento adicional for
+executado.
 
 **Objetivo:** transformar resultados brutos em evidências comparativas.
 
@@ -639,7 +732,6 @@ informação adicional dos autores.
 
 Estes blocos não podem atrasar o baseline obrigatório:
 
-- [ ] GPU para algoritmos em que a paralelização seja tecnicamente coerente.
 - [ ] Sensibilidade ao raio de 400 m.
 - [ ] Sensibilidade sem (O_{ij}).
 - [ ] Peso não uniforme dos componentes.
