@@ -524,10 +524,18 @@ Estado registrado em 18/08/2026:
   barreiras e consolidação testados;
 - a B11-E permanece sem resultados oficiais e aguarda autorização explícita
   para uma janela com carga e temperatura controladas;
+- a B11A-I implementa em subprojeto isolado CuPy/CUDA 12 as variantes híbridas
+  de ACO e PSO; a Busca Tabu foi deferida por seu caminho sequencial atual;
+- a B11A-E contém 60 cenários GPU, depende da conclusão da B11-E e não está
+  autorizada;
+- a B11A-I está concluída, com ambiente isolado, conformidade, manifesto,
+  roteiro, proteção térmica e automação testados; nenhum resultado GPU oficial
+  foi produzido;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
-Os detalhes de dados, formulação, automação experimental e tuning estão
-consolidados. Permanece pendente a execução do benchmark principal.
+Os detalhes de dados, formulação, automação experimental, tuning e
+infraestrutura GPU estão consolidados. Permanecem pendentes as execuções B11-E
+e, depois dela, B11A-E.
 
 Próximo objetivo recomendado:
 

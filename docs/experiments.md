@@ -1146,6 +1146,32 @@ contém resultados científicos.
 
 ---
 
+## 29.1. Infraestrutura GPU da B11A
+
+O estudo adicional mantém ACO e PSO híbridos: controle, RNG, construção,
+reparo e estado ficam na CPU; somente avaliações independentes da função
+objetivo são agrupadas em CuPy com `float64`. A função CPU permanece normativa.
+A Busca Tabu foi deferida porque a atualização do incumbente após cada
+movimento torna seu caminho atual sequencial; uma versão GPU futura dependerá
+de profiling que demonstre ganho na avaliação paralela da vizinhança.
+
+A campanha contém 60 cenários, ACO e PSO em `N=150`, `K=5`, seeds 10 a 39 e
+150.000 avaliações. Ela é sequencial, usa namespace próprio e só pode começar
+depois da B11-E. A conformidade exige tolerâncias absoluta e relativa de
+`1e-12`, igualdade de orçamento e checkpoints, arbitragem CPU de quase empates
+e confirmação CPU da solução final.
+
+O tempo oficial inclui transferências, sincronizações e arbitragens ocorridas
+durante a otimização. Contexto, compilação e aquecimento prévios são registrados
+separadamente. O speedup é pareado com a execução CPU oficial de mesmo
+algoritmo, instância, `K` e seed. Microbenchmark de kernel é apenas diagnóstico.
+
+A execução requer exclusividade da placa, preflight ocioso de 60 segundos e
+monitoramento térmico contínuo. Interrupções de segurança preservam sessão e
+telemetria e não publicam resultado parcial.
+
+---
+
 ## 30. Princípio de congelamento experimental
 
 Após o início do benchmark principal:

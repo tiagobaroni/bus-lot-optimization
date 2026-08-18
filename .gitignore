@@ -20,6 +20,11 @@ superpowers/
 results/raw/
 results/failures/
 results/operational/
+results/gpu/raw/
+results/gpu/telemetry/
+results/gpu/sessions/
+results/gpu/operational/
+results/gpu/diagnostic/
 results/**/*.tmp
 
 # Local environment files

@@ -1,0 +1,30 @@
+schema_version = 1
+name = "gpu_diagnostic"
+purpose = "gpu_diagnostic"
+output_root = "results/gpu/diagnostic"
+instance = "tiny_manual"
+instance_size = 4
+k = 2
+budget = 100
+seeds = [0, 1]
+algorithms = ["aco", "pso"]
+backend = "cupy_cuda12"
+precision = "float64"
+
+[weights]
+demand = 0.25
+production = 0.25
+territorial = 0.25
+affinity = 0.25
+
+[aco]
+alpha = 1.0
+beta = 2.0
+rho = 0.1
+n_ants = 40
+
+[pso]
+n_particles = 40
+inertia = 0.4
+cognitive = 2.0
+social = 1.5

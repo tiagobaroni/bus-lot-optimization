@@ -8,11 +8,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 18/08/2026
-- **Bloco ativo:** B11-E - Execução do benchmark principal
-- **Fase do bloco ativo:** pronta, aguardando autorização explícita
+- **Bloco ativo:** B11A-I - Infraestrutura do experimento adicional com GPU
+- **Fase do bloco ativo:** implementação
 - **Último bloco concluído:** B11-I - Infraestrutura do benchmark principal
-- **Próxima ação atômica:** quando autorizado pelo usuário, executar o primeiro
-  subgrupo do lote 1 conforme o roteiro congelado.
+- **Próxima ação atômica:** criar o subprojeto GPU isolado, gerar seu lock e
+  validar o preflight sem alterar o ambiente da B11-E.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q` aprovado, `git diff --check` sem
   erros e auditoria dos sete artefatos concluída em 17/08/2026.
@@ -930,6 +930,16 @@ lacunas.
 - interrupções externas não contam como falha: na retomada, resultados válidos
   são ignorados e somente IDs incompletos retornam à fila;
 - conjunto de decisões do brainstorming pronto para aprovação de encerramento.
+- brainstorming encerrado com aprovação explícita do usuário;
+- especificação escrita em `superpowers/B11A_I_spec.md` e aguardando aprovação;
+- implementação e execução oficial ainda não autorizadas.
+- especificação aprovada explicitamente pelo usuário; pedido de implementação
+  não substitui a aprovação obrigatória do plano ainda inexistente;
+- plano de implementação em elaboração.
+- plano escrito em `superpowers/B11A_I_plan.md` e aguardando aprovação
+  explícita; implementação ainda não autorizada.
+- plano aprovado explicitamente e implementação autorizada pelo usuário em
+  18/08/2026; a B11A-E permanece sem autorização.
 - divisão aprovada: a B11-I entrega somente a infraestrutura integralmente
   pronta; a B11-E executa posteriormente a campanha oficial;
 - prontidão da B11-I significa que o início da B11-E não exigirá criação ou
@@ -969,7 +979,7 @@ lacunas.
 
 ## B11A - Experimento adicional com GPU
 
-**Estado:** `PENDENTE - ADICIONAL`
+**Estado:** `B11A-I CONCLUÍDA - B11A-E AGUARDA B11-E E AUTORIZAÇÃO`
 
 **Dependências internas:** a B11A-I poderá começar depois da conclusão da
 B11-I; a B11A-E somente poderá começar depois da conclusão da B11-E e de
@@ -984,19 +994,110 @@ sem alterar o baseline normativo em CPU.
 
 **Tarefas:**
 
-- [ ] Selecionar os algoritmos e operações tecnicamente adequados à GPU.
-- [ ] Manter o caminho CPU com NumPy e `float64` como referência normativa.
-- [ ] Implementar o caminho GPU separadamente, sem alterar resultados já
+- [x] Selecionar os algoritmos e operações tecnicamente adequados à GPU.
+- [x] Manter o caminho CPU com NumPy e `float64` como referência normativa.
+- [x] Implementar o caminho GPU separadamente, sem alterar resultados já
   congelados.
-- [ ] Definir e testar equivalência numérica, de orçamento e de convergência.
-- [ ] Registrar GPU, CPU, software, precisão numérica e ambiente de execução.
-- [ ] Medir tempo total, tempo computacional relevante e custos de transferência.
-- [ ] Calcular speedup por tamanho e cenário.
-- [ ] Documentar divergências, limitações e casos em que a GPU não compensa.
+- [x] Definir e testar equivalência numérica, de orçamento e de convergência.
+- [x] Registrar GPU, CPU, software, precisão numérica e ambiente de execução.
+- [x] Medir tempo total, tempo computacional relevante e custos de transferência.
+- [x] Preparar cálculo pareado de speedup por cenário.
+- [x] Documentar divergências, limitações e casos em que a GPU não compensa.
 
 **Critério de saída:** comparação CPU e GPU auditável, ou limitação explícita
 registrada caso o experimento adicional não possa ser executado. A
 indisponibilidade de GPU não invalida nem bloqueia o baseline obrigatório.
+
+**Checkpoint de retomada:**
+
+- B11A-I iniciada em 18/08/2026 após a conclusão e o push da B11-I no commit
+  `a6857d0`;
+- a B11-E permanece pronta, congelada e sem resultados oficiais;
+- primeira decisão pendente: algoritmos incluídos na infraestrutura GPU.
+- escopo aprovado: preparar caminhos GPU adicionais para ACO e PSO; manter a
+  Busca Tabu exclusivamente no baseline CPU nesta etapa;
+- TS foi deferida porque sua trajetória depende sequencialmente do incumbente e
+  da atualização após cada movimento, enquanto a vizinhança já é amostrada;
+  não há paralelismo independente demonstrado que justifique agora o custo de
+  transferência, sincronização, nova dependência e validação numérica;
+- o deferimento não afirma impossibilidade de aceleração: uma futura TS em GPU
+  exigirá experimento próprio de avaliação paralela de vizinhança, caso o
+  profiling posterior identifique esse cálculo como gargalo relevante;
+- decisão atual: backend GPU de ACO e PSO.
+- backend aprovado: CuPy 14 para NVIDIA CUDA, instalado em ambiente GPU
+  separado do ambiente CPU normativo da B11-E;
+- a escolha é compatível com Python 3.14 e com a RTX 3060 de 12 GB, compute
+  capability 8.6; nenhuma dependência GPU está atualmente instalada;
+- o ambiente isolado deverá ter lock, verificação de driver/runtime e
+  proveniência próprios, sem alterar o lock ou o congelamento da B11-E;
+- decisão atual: fronteira entre operações CPU e GPU.
+- fronteira aprovada: CuPy calculará somente a função objetivo em lotes de
+  candidatos; RNG `PCG64`, construção, reparo, estado e transições de ACO e PSO
+  permanecerão na CPU;
+- ACO agrupará avaliações das formigas de uma geração e PSO, das partículas de
+  uma iteração, preservando ordem individual de consumo do orçamento;
+- a solução final será reavaliada pela função CPU normativa e transferências
+  CPU-GPU integrarão o tempo da variante GPU;
+- decisão atual: contrato de equivalência numérica e desempate.
+- contrato aprovado: GPU em `float64`, com `abs_tol=1e-12` e
+  `rel_tol=1e-12` para custo total e componentes;
+- orçamento, ordem, checkpoints, viabilidade e canonicalização deverão
+  coincidir exatamente; candidatos quase empatados terão arbitragem CPU sem
+  consumir nova avaliação lógica;
+- solução final e casos determinísticos de conformidade deverão coincidir
+  exatamente; divergência fora da tolerância bloqueará a B11A-E sem fallback
+  silencioso;
+- decisão atual: cobertura experimental e referência temporal CPU.
+- cobertura aprovada: ACO e PSO em `N=150`, `K=5`, seeds de 10 a 39 e orçamento
+  150.000, totalizando 60 execuções GPU sem concorrência na mesma placa;
+- o speedup fim a fim usará os tempos CPU oficiais correspondentes da B11-E,
+  sem repetir 60 execuções CPU completas;
+- a B11A-I também preparará microbenchmark diagnóstico da avaliação em lote
+  para separar kernel, transferências e custo total, sem substituir o speedup
+  principal;
+- decisão atual: contrato de medição temporal GPU.
+- medição aprovada: aquecimento fixo fora do tempo oficial, contexto e
+  compilação inicial registrados separadamente e sincronização antes e depois
+  da otimização;
+- o tempo oficial GPU incluirá transferências, arbitragem CPU e sincronizações
+  recorrentes; kernels, transferências, arbitragem e tempo frio também serão
+  registrados separadamente para diagnóstico;
+- o speedup principal será `runtime_seconds` oficial da B11-E dividido pelo
+  tempo oficial GPU correspondente;
+- decisão atual: política térmica e de exclusividade da GPU.
+- política aprovada: autorização explícita, uma execução GPU por vez, preflight
+  ocioso de 60 s, início com até 50 °C e utilização média de até 5%;
+- monitorar a cada segundo temperatura, utilização, memória, potência, clocks
+  e throttling; interromper com 80 °C por 10 s, throttling térmico ou outro
+  processo computacional na GPU;
+- exigir cooldown até 55 °C; interrupção térmica não conta como falha e os logs
+  ficam vinculados ao ID;
+- resolução sem instalação confirmou `cupy-cuda12x 14.1.1` com runtime CUDA
+  12.9 e compatibilidade de dependências com o NumPy 2.5.2 atual;
+- decisão atual: empacotamento e lock do ambiente GPU.
+- ambiente aprovado: subprojeto isolado `gpu/`, Python 3.14, dependência local
+  do projeto, versões compartilhadas alinhadas, `cupy-cuda12x[ctk]` série 14,
+  runtime CUDA 12 e `gpu/uv.lock` próprio;
+- comandos usarão `uv run --project gpu` e registrarão driver, runtime, CuPy,
+  NumPy, GPU e compute capability; `pyproject.toml`, `uv.lock` e ambiente da
+  B11-E não serão alterados;
+- conjunto de decisões do brainstorming pronto para aprovação de encerramento.
+- brainstorming, especificação e plano aprovados explicitamente;
+- implementação autorizada em 18/08/2026; B11A-E não autorizada;
+- ambiente CuPy/CUDA 12 isolado, avaliação em lote, ACO e PSO híbridos,
+  orçamento, conformidade, telemetria, persistência e CLI implementados;
+- suíte GPU integral aprovada com 262 testes antes das verificações finais;
+- próxima ação atômica: executar conformidade diagnóstica, congelar o manifesto
+  GPU e verificar a prontidão final em worktree limpa.
+- preflight real aprovado com 60 amostras, máximo de 38 °C e utilização média
+  de 0%; conformidade diagnóstica aprovada nas instâncias de 20, 60 e 150
+  unidades e em execuções reduzidas de ACO e PSO;
+- suíte CPU aprovada com 254 testes e suíte GPU aprovada com 17 testes;
+- manifesto e roteiro determinísticos gerados para exatamente 60 IDs, sem
+  resultados oficiais CPU ou GPU;
+- B11A-I concluída; próxima ação atômica é executar B11-E somente após nova
+  autorização explícita do usuário. A B11A-E permanece bloqueada até a
+  conclusão da B11-E e sua própria autorização explícita.
 
 ---
 

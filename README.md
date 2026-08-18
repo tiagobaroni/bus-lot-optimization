@@ -410,6 +410,34 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 2. Gerar tabelas, gráficos e análises estatísticas.
 3. Produzir o relatório final e o vídeo resumo.
 
+## Experimento adicional com GPU
+
+A infraestrutura isolada da B11A usa CuPy 14, CUDA 12 e Python 3.14, sem
+alterar o ambiente CPU. A Busca Tabu não foi portada: sua trajetória é
+sequencial e ainda não há profiling que justifique um experimento GPU próprio.
+
+```bash
+uv sync --project gpu --dev
+uv run --project gpu python -m metaheuristica_gpu.run readiness
+```
+
+O `readiness` deve indicar `infrastructure_ready=true` e, até a conclusão da
+B11-E, `waiting_for_b11e=true`. Depois da B11-E e de autorização explícita,
+um único ID poderá ser executado por vez:
+
+```bash
+uv run --project gpu python -m metaheuristica_gpu.run plan
+uv run --project gpu python -m metaheuristica_gpu.run execute --scenario-id ID
+uv run --project gpu python -m metaheuristica_gpu.run validate --scenario-id ID
+uv run --project gpu python -m metaheuristica_gpu.run consolidate
+```
+
+Cada execução exige 60 segundos de GPU ociosa, até 50 °C e utilização média
+de até 5%. A telemetria interrompe a execução diante de aquecimento sustentado,
+throttling, concorrência ou perda de acesso ao driver. `resume` reaproveita o
+mesmo ID e ignora resultados já completos. Os 60 resultados GPU ficam em
+`results/gpu/` e não se misturam ao benchmark CPU.
+
 ## Licença
 
 Este projeto é distribuído sob a licença MIT. Consulte o arquivo [`LICENSE`](LICENSE).
