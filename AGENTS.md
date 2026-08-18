@@ -462,7 +462,7 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
-Estado registrado em 17/08/2026:
+Estado registrado em 18/08/2026:
 
 - a B5 foi incorporada à branch `main` e enviada ao remoto
   `https://github.com/tiagobaroni/bus-lot-optimization.git` no commit `ee9026c`;
@@ -508,6 +508,17 @@ Estado registrado em 17/08/2026:
 - os artefatos consolidados, o ranking, os efeitos marginais descritivos e a
   seleção auditável estão em `results/tables/`; qualquer alteração dos
   parâmetros congelados exige novo ciclo de tuning;
+- a B10 implementou configuração oficial do piloto e do benchmark, validação
+  dos parâmetros congelados, interrupção auditável, monitoramento por `/proc`,
+  reprodução exata, figuras preliminares e manifesto de congelamento;
+- o piloto oficial da B10 completou 18 execuções e 1.800 checkpoints no commit
+  `5a9b805`, com zero falhas, retomada correta de 8 resultados preservados e 10
+  pendentes, três reproduções exatas e critérios de recursos aprovados;
+- o benchmark está configurado com seeds de 10 a 39 e expande exatamente 1.620
+  cenários; sua execução é recusada se o manifesto de congelamento divergir;
+- o ACO grande dominou o tempo do piloto, chegando a 10.971,45 s em
+  `(N=150,K=8)`; isso afeta o planejamento operacional da B11, mas não altera o
+  protocolo ou os parâmetros congelados;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
 Os detalhes de dados, formulação, automação experimental e tuning estão
@@ -516,6 +527,6 @@ principal.
 
 Próximo objetivo recomendado:
 
-1. executar o fluxo de brainstorming, especificação e plano da B10;
-2. executar o piloto pré-benchmark com os parâmetros congelados;
-3. somente depois executar o benchmark principal.
+1. executar o fluxo de brainstorming, especificação e plano da B11;
+2. planejar o escalonamento da campanha considerando a duração observada do ACO;
+3. executar o benchmark principal sem alterar os itens congelados.

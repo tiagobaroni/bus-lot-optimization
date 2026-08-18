@@ -12,6 +12,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 import numpy as np
 import pandas as pd
 
@@ -58,7 +59,7 @@ def _instance_size(value: str) -> int:
 
 
 def _convergence_figure(checkpoints: pd.DataFrame) -> plt.Figure:
-    figure, axes = plt.subplots(2, 3, figsize=(13, 7), sharex=True)
+    figure, axes = plt.subplots(2, 3, figsize=(13, 7), sharex=False)
     for row, k in enumerate((3, 8)):
         for column, size in enumerate((20, 60, 150)):
             axis = axes[row, column]
@@ -74,13 +75,20 @@ def _convergence_figure(checkpoints: pd.DataFrame) -> plt.Figure:
                 )
             axis.set_title(f"N={size}, K={k}")
             axis.grid(alpha=0.25)
+            axis.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+            axis.xaxis.set_major_formatter(
+                FuncFormatter(lambda value, position: f"{value / 1000:g}")
+            )
             if row == 1:
-                axis.set_xlabel("Avaliações")
+                axis.set_xlabel("Avaliações (mil)")
             if column == 0:
                 axis.set_ylabel("Melhor custo")
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    figure.legend(handles, labels, loc="upper center", ncol=3)
-    figure.suptitle("Convergência preliminar do piloto", y=1.02)
+    figure.legend(
+        handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.955), ncol=3
+    )
+    figure.suptitle("Convergência preliminar do piloto", y=0.995)
+    figure.subplots_adjust(top=0.84, hspace=0.30, wspace=0.20)
     return figure
 
 
@@ -106,6 +114,7 @@ def _time_figure(runs: pd.DataFrame) -> plt.Figure:
         )
     axis.set_xticks(x, [f"N={size}\nK={k}" for size, k in scenarios])
     axis.set_ylabel("Tempo de otimização (s)")
+    axis.set_yscale("log")
     axis.set_title("Tempo preliminar do piloto")
     axis.grid(axis="y", alpha=0.25)
     axis.legend()

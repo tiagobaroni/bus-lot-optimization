@@ -1097,6 +1097,24 @@ Depois da aprovação do piloto, um manifesto registra hashes do código,
 automação, instâncias, configurações, dependências e artefatos. A execução do
 benchmark é recusada se qualquer item protegido ou o ambiente divergir.
 
+### 29.1. Resultado do piloto oficial
+
+O piloto foi executado em 18/08/2026 no commit `5a9b805`, com 16 workers, e
+concluiu as 18 execuções e os 1.800 checkpoints sem falhas. A interrupção
+planejada ocorreu depois de 8 conclusões; a retomada preservou essas execuções e
+processou somente as 10 pendentes.
+
+O monitor registrou pico agregado de 2,34 GiB de RSS e 1.635% de CPU. A menor
+memória disponível foi 35,0 GiB, o swap permaneceu sem uso e cada otimizador
+teve no máximo uma thread computacional ativa. As três reproduções selecionadas
+coincidiram integralmente nos campos determinísticos.
+
+O tempo revelou forte assimetria operacional. No ACO, `(150,3)` consumiu
+6.389,35 s e `(150,8)` consumiu 10.971,45 s, enquanto os máximos observados de
+TS e PSO foram 68,96 s e 91,20 s. Esses valores são descritivos de uma única
+seed e não sustentam conclusão estatística, mas devem orientar o escalonamento
+da B11.
+
 ---
 
 ## 30. Princípio de congelamento experimental

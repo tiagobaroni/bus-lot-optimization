@@ -98,6 +98,12 @@ automaticamente e congelados são:
 
 Os resultados consolidados e a seleção auditável estão em `results/tables/`.
 
+O piloto pré-benchmark completou 18 execuções oficiais e 1.800 checkpoints no
+commit `5a9b805`. A interrupção e a retomada, os limites de recursos e três
+reproduções exatas foram aprovados. Os artefatos preliminares estão em
+`results/tables/` e `results/figures/`, e o manifesto de congelamento bloqueia a
+execução do benchmark se algum insumo protegido divergir.
+
 O estado detalhado e as pendências metodológicas estão em [`AGENTS.md`](AGENTS.md), [`docs/formulation.md`](docs/formulation.md) e [`docs/experiments.md`](docs/experiments.md).
 
 ## Estrutura atual e planejada
@@ -350,9 +356,9 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Executar o piloto pré-benchmark com os parâmetros congelados.
-2. Executar o benchmark principal.
-3. Gerar tabelas, gráficos, análises estatísticas e o relatório final.
+1. Executar o benchmark principal.
+2. Gerar tabelas, gráficos e análises estatísticas.
+3. Produzir o relatório final e o vídeo resumo.
 
 ## Licença
 

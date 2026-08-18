@@ -8,11 +8,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** B10 - Piloto pré-benchmark
-- **Fase do bloco ativo:** implementação concluída, verificações pré-piloto
-- **Último bloco concluído:** B9 - Tuning
-- **Próxima ação atômica:** revisar o diff e criar o commit limpo da
-  infraestrutura B10 antes do piloto oficial.
+- **Bloco ativo:** nenhum
+- **Fase do bloco ativo:** B10 concluída, aguardando início da B11
+- **Último bloco concluído:** B10 - Piloto pré-benchmark
+- **Próxima ação atômica:** iniciar o fluxo de brainstorming da B11 quando
+  solicitado.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q` aprovado, `git diff --check` sem
   erros e auditoria dos sete artefatos concluída em 17/08/2026.
@@ -718,7 +718,7 @@ o piloto final.
 
 ## B10 - Piloto pré-benchmark
 
-**Estado:** `EM ANDAMENTO - IMPLEMENTAÇÃO`
+**Estado:** `CONCLUÍDO`
 
 **Depende de:** B9.
 
@@ -726,11 +726,11 @@ o piloto final.
 
 **Tarefas:**
 
-- [ ] Executar subconjunto representativo de cenários.
-- [ ] Verificar orçamento, checkpoints, CPU e memória.
-- [ ] Verificar retomada após interrupção simulada.
-- [ ] Validar tabelas e gráficos preliminares.
-- [ ] Congelar código, instâncias, parâmetros e ambiente do benchmark.
+- [x] Executar subconjunto representativo de cenários.
+- [x] Verificar orçamento, checkpoints, CPU e memória.
+- [x] Verificar retomada após interrupção simulada.
+- [x] Validar tabelas e gráficos preliminares.
+- [x] Congelar código, instâncias, parâmetros e ambiente do benchmark.
 
 **Critério de saída:** piloto sem erro e congelamento registrado por commit.
 
@@ -831,8 +831,27 @@ o piloto final.
   temporários ou processos órfãos, e preservou os resultados anteriores;
 - verificação da implementação: 239 testes aprovados em 108,86 s e
   `git diff --check` sem erros;
-- próxima ação: revisar o diff e criar o commit limpo da infraestrutura B10
-  antes de qualquer execução oficial.
+- infraestrutura commitada antes do piloto em `5a9b805`, com worktree limpa;
+- a interrupção oficial preservou 8 resultados completos, deixou 10 pendentes,
+  zero falhas, zero temporários e nenhum processo órfão; a retomada executou os
+  10 pendentes e ignorou os 8 válidos;
+- as 18 execuções oficiais e os 1.800 checkpoints foram consolidados com
+  proveniência uniforme no commit `5a9b805`;
+- o pico agregado foi 2,34 GiB de RSS e 1.635% de CPU, a menor memória
+  disponível foi 35,0 GiB, o swap permaneceu zerado e cada otimizador teve no
+  máximo uma thread computacional ativa;
+- as reproduções de TS `(20,3)`, ACO `(60,8)` e PSO `(150,3)` coincidiram em
+  todos os campos determinísticos;
+- tabela e figuras preliminares foram geradas em CSV, PNG e PDF e inspecionadas
+  visualmente; ajustes posteriores afetaram somente apresentação e não os
+  resultados experimentais;
+- o ACO foi o principal custo temporal do piloto: 6.389,35 s em `(150,3)` e
+  10.971,45 s em `(150,8)`, fato a considerar no planejamento operacional da
+  B11, sem alterar o protocolo congelado;
+- `benchmark_freeze_manifest.json` foi gerado e verificado com 16 workers,
+  protegendo código, automação, instâncias, configurações, dependências,
+  ambiente e artefatos do piloto;
+- B10 concluída; próxima ação: iniciar o brainstorming da B11 quando solicitado.
 
 ---
 
