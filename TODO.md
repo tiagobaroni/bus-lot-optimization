@@ -8,10 +8,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 17/08/2026
-- **Bloco ativo:** nenhum
-- **Fase do bloco ativo:** B9 concluída, aguardando início da B10
+- **Bloco ativo:** B10 - Piloto pré-benchmark
+- **Fase do bloco ativo:** implementação concluída, verificações pré-piloto
 - **Último bloco concluído:** B9 - Tuning
-- **Próxima ação atômica:** iniciar o brainstorming interativo da B10 quando solicitado.
+- **Próxima ação atômica:** revisar o diff e criar o commit limpo da
+  infraestrutura B10 antes do piloto oficial.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q` aprovado, `git diff --check` sem
   erros e auditoria dos sete artefatos concluída em 17/08/2026.
@@ -717,7 +718,7 @@ o piloto final.
 
 ## B10 - Piloto pré-benchmark
 
-**Estado:** `PENDENTE`
+**Estado:** `EM ANDAMENTO - IMPLEMENTAÇÃO`
 
 **Depende de:** B9.
 
@@ -732,6 +733,106 @@ o piloto final.
 - [ ] Congelar código, instâncias, parâmetros e ambiente do benchmark.
 
 **Critério de saída:** piloto sem erro e congelamento registrado por commit.
+
+**Checkpoint:**
+
+- brainstorming iniciado em 18/08/2026 após a conclusão da B9;
+- cobertura aprovada para o piloto oficial: 18 execuções, combinando os três
+  algoritmos, as instâncias de 20, 60 e 150 unidades, `K` nos extremos
+  `{3, 8}` e uma seed exclusiva do piloto;
+- cada tamanho usará seu orçamento oficial de 20.000, 60.000 ou 150.000
+  avaliações e os hiperparâmetros congelados na B9;
+- o conjunto permite ocupar os 16 workers e observar os extremos de tamanho e
+  de quantidade de lotes sem transformar o piloto em campanha extensa;
+- o `pilot.toml` existente foi identificado preliminarmente como configuração
+  diagnóstica anterior ao tuning, com orçamento de 100 avaliações;
+- o `pilot.toml` diagnóstico será preservado como `pilot_diagnostic.toml`, com
+  atualização de seus testes e referências documentais; o novo `pilot.toml`
+  representará o piloto oficial da B10;
+- a seed exclusiva do piloto oficial será `20260818`, aplicada igualmente aos
+  18 cenários e reservada fora do tuning e do futuro benchmark principal;
+- o piloto será planejado para confirmar 18 IDs e iniciado com 16 workers; após
+  ao menos uma conclusão e enquanto houver processos ativos, receberá uma
+  interrupção normal por `Ctrl+C`;
+- o estado intermediário será auditado para preservar resultados completos,
+  rejeitar parciais e não registrar como falhas os cenários interrompidos; a
+  mesma campanha será retomada com 16 workers, ignorando somente resultados
+  válidos, e consolidada após as 18 conclusões;
+- a campanha será monitorada a cada segundo por uma ferramenta Linux leve,
+  baseada em `/proc` e sem dependência adicional, registrando CSV bruto e
+  resumo JSON com RSS agregado, memória disponível, swap, CPU, processos e
+  threads;
+- o tempo oficial continuará sendo `optimization_time`; o monitor será somente
+  diagnóstico;
+- os critérios de recursos serão ausência de OOM, swap causado pela campanha e
+  crescimento persistente de memória, uma thread por execução, uso agregado
+  compatível com até 16 workers e memória disponível sempre igual ou superior
+  ao maior valor entre 10% da RAM total e 2 GiB;
+- se os critérios falharem, a quantidade de workers será reduzida e o piloto
+  repetido antes do congelamento;
+- a B10 produzirá uma tabela das 18 execuções, figura de convergência em seis
+  painéis, figura de tempo, figura diagnóstica de recursos e resumo JSON dos
+  critérios de aceitação, todos explicitamente preliminares;
+- a análise preliminar não fará inferências sobre média, variabilidade ou
+  significância com uma única seed;
+- `matplotlib` será adicionado como dependência direta para as figuras da B10 e
+  da futura B12;
+- a reprodução exata repetirá, em saída temporária isolada, TS com `(20,3)`,
+  ACO com `(60,8)` e PSO com `(150,3)`, sempre com orçamento completo;
+- solução, custos, avaliações, checkpoints, diagnósticos e motivo de parada
+  deverão ser exatamente iguais; somente tempo, timestamps e campos derivados
+  do momento da execução serão excluídos;
+- as três repetições não integrarão os 18 resultados oficiais, mas seu resumo
+  será preservado na validação da B10;
+- o benchmark principal usará as 30 seeds inteiras de `10` a `39`, aplicadas
+  igualmente a todos os algoritmos, tamanhos e valores de `K`;
+- esse conjunto é disjunto das seeds do tuning, da validação diagnóstica e do
+  piloto oficial e não foi escolhido em função de desempenho;
+- um manifesto versionado de congelamento registrará hashes SHA-256 do código,
+  automação, instâncias, configurações, parâmetros congelados, `pyproject.toml`
+  e `uv.lock`, além do esquema, commit limpo do piloto e ambiente;
+- a automação da B11 recusará divergência em qualquer item protegido; mudanças
+  somente documentais não invalidarão o congelamento;
+- a implementação, configurações e testes serão commitados antes do piloto; os
+  artefatos aprovados e o manifesto serão commitados ao concluir a B10, e
+  qualquer alteração posterior em item protegido exigirá novo piloto;
+- `pilot.toml` e `benchmark.toml` declararão explicitamente uma única
+  configuração por algoritmo e serão validados por igualdade exata contra
+  `frozen_parameters.toml` antes da expansão ou execução;
+- resultados registrarão o hash dos parâmetros congelados, e qualquer
+  algoritmo ausente, valor divergente ou grade com múltiplas opções será erro;
+- `benchmark.template.toml` será substituído pelo `benchmark.toml` executável,
+  com as seeds de `10` a `39` e expansão exata para 1.620 cenários;
+- serão versionados os Parquet e manifesto consolidados do piloto, amostras e
+  resumo de recursos, validação JSON, tabela CSV, figuras PNG e PDF e manifesto
+  de congelamento;
+- permanecerão ignorados os JSON individuais, temporários, resíduos da
+  interrupção, repetições isoladas e logs completos; o resultado da auditoria
+  de reprodução ficará no JSON de validação;
+- a B10 somente será aprovada com 18 execuções válidas, retomada correta, três
+  reproduções exatas, critérios de recursos satisfeitos, consolidação completa,
+  figuras geradas e manifesto de congelamento validado;
+- falhas funcionais ou de reprodutibilidade exigirão correção e repetição dos
+  resultados afetados; falha apenas de recursos exigirá reduzir workers e
+  repetir o piloto; diferenças de qualidade não autorizam retuning;
+- brainstorming encerrado e especificação escrita em
+  `superpowers/B10_spec.md`;
+- especificação aprovada explicitamente pelo usuário;
+- plano de implementação escrito em `superpowers/B10_plan.md`;
+- plano aprovado explicitamente pelo usuário e implementação autorizada;
+- configurações oficiais, parâmetros congelados, auditoria de interrupção,
+  monitor de recursos, validação, reprodução, figuras e barreira de
+  congelamento implementados;
+- o piloto expande 18 IDs, o benchmark 1.620 e o diagnóstico preservado 54;
+- preflight diagnóstico com dois workers confirmou ausência de swap, margem de
+  memória, cerca de dois núcleos usados e uma thread computacional ativa por
+  otimizador; threads auxiliares ociosas são registradas separadamente;
+- interrupção diagnóstica por `Ctrl+C` terminou com código 130, sem falhas,
+  temporários ou processos órfãos, e preservou os resultados anteriores;
+- verificação da implementação: 239 testes aprovados em 108,86 s e
+  `git diff --check` sem erros;
+- próxima ação: revisar o diff e criar o commit limpo da infraestrutura B10
+  antes de qualquer execução oficial.
 
 ---
 

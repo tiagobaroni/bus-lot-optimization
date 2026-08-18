@@ -10,6 +10,7 @@ import pytest
 from experiments.config import load_campaign
 from experiments.consolidation import consolidate_campaign
 from experiments.execution import build_plan, execute_campaign
+from experiments.execution import _write_interruption_report
 from experiments.scenarios import expand_scenarios, file_sha256
 from experiments.storage import artifact_paths
 from metaheuristica.errors import ConfigurationError
@@ -176,3 +177,19 @@ def test_failure_continues_and_is_retried(tmp_path: Path, monkeypatch) -> None:
     failure = artifact_paths(tmp_path / "out", "pilot", scenario).failure
     assert failure.exists()
     assert json.loads(failure.read_text())["attempts"][0]["message"] == "injected failure"
+
+
+def test_interruption_report_describes_resumable_state(tmp_path: Path) -> None:
+    config = _campaign(tmp_path, seeds="[1, 2]")
+    assert execute_campaign(
+        config, max_runs=1, allow_unversioned=True
+    ).succeeded == 1
+    _write_interruption_report(config, workers=2)
+    path = tmp_path / "out/operational/tiny_test/interruption.json"
+    report = json.loads(path.read_text(encoding="utf-8"))
+    assert report["expected"] == 2
+    assert report["completed"] == 1
+    assert report["pending"] == 1
+    assert report["failed"] == 0
+    assert set(report["states"].values()) == {"completed", "pending"}
+    assert report["temporary_files"] == []

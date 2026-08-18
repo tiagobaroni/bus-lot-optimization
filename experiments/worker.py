@@ -5,13 +5,19 @@ from __future__ import annotations
 import os
 
 for _thread_variable in (
-    "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"
+    "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS",
+    "BLIS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "ARROW_NUM_THREADS",
 ):
     os.environ[_thread_variable] = "1"
 
 from pathlib import Path
 import re
 from typing import Any
+
+import pyarrow as pa
+
+pa.set_cpu_count(1)
+pa.set_io_thread_count(1)
 
 from metaheuristica import (
     AcoConfig, ObjectiveWeights, PsoConfig, RunConfig, TabuConfig,
@@ -63,7 +69,8 @@ def run_scenario(scenario: Scenario, repository_root: str) -> dict[str, Any]:
             name: os.environ.get(name)
             for name in (
                 "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-                "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS",
+                "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS", "BLIS_NUM_THREADS",
+                "VECLIB_MAXIMUM_THREADS", "ARROW_NUM_THREADS",
             )
         },
     }

@@ -14,7 +14,9 @@ ROOT = Path(__file__).parents[1]
 def test_versioned_pilot_is_strict_and_expands_known_dimensions() -> None:
     config = load_campaign(ROOT / "experiments/configs/pilot.toml")
     assert config.purpose == "pilot"
-    assert config.seeds == (20260817,)
+    assert config.name == "pilot_prebenchmark"
+    assert config.seeds == (20260818,)
+    assert config.frozen_parameters_sha256 is not None
     assert len(config.instances) == 3
     assert set(config.algorithms) == {"tabu", "aco", "pso"}
 
@@ -35,6 +37,6 @@ def test_unknown_root_field_is_rejected(tmp_path: Path) -> None:
 def test_duplicate_seed_is_rejected(tmp_path: Path) -> None:
     text = (ROOT / "experiments/configs/pilot.toml").read_text()
     target = tmp_path / "invalid.toml"
-    target.write_text(text.replace("[20260817]", "[1, 1]", 1), encoding="utf-8")
+    target.write_text(text.replace("[20260818]", "[1, 1]", 1), encoding="utf-8")
     with pytest.raises(ConfigurationError, match="duplicados"):
         load_campaign(target)

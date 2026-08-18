@@ -176,19 +176,28 @@ metaheurísticas podem ser verificados com:
 uv run pytest -q
 ```
 
-O piloto diagnóstico versionado pode ser inspecionado sem executar cenários:
+O piloto diagnóstico anterior ao tuning pode ser inspecionado sem executar
+cenários:
+
+```bash
+uv run python -m experiments.run \
+  --config experiments/configs/pilot_diagnostic.toml plan
+```
+
+O piloto oficial pré-benchmark contém 18 cenários com os parâmetros congelados,
+os orçamentos finais e a seed `20260818`:
 
 ```bash
 uv run python -m experiments.run \
   --config experiments/configs/pilot.toml plan
 ```
 
-Para executar ou retomar uma campanha limpa:
+Para executar ou retomar o piloto com o monitor Linux de recursos:
 
 ```bash
 uv run python -m experiments.run \
   --config experiments/configs/pilot.toml \
-  --workers 1 execute
+  --workers 16 --monitor-resources execute
 ```
 
 Uma quantidade maior de workers deve ser escolhida explicitamente. Cada worker
@@ -202,6 +211,28 @@ Depois que todos os cenários terminarem:
 uv run python -m experiments.run \
   --config experiments/configs/pilot.toml consolidate
 ```
+
+A validação reavalia as soluções, audita interrupção e retomada, verifica os
+recursos e repete três cenários em saída isolada:
+
+```bash
+uv run python -m experiments.validate_pilot \
+  --config experiments/configs/pilot.toml
+uv run python -m experiments.analyze_pilot \
+  --config experiments/configs/pilot.toml
+uv run python -m experiments.freeze_benchmark generate \
+  --config experiments/configs/pilot.toml --workers 16
+```
+
+O benchmark principal pode ser inventariado sem executá-lo:
+
+```bash
+uv run python -m experiments.run \
+  --config experiments/configs/benchmark.toml plan
+```
+
+Sua execução exige um manifesto de congelamento válido e recusa alterações em
+código, automação, instâncias, parâmetros, configuração ou ambiente protegido.
 
 Os JSON individuais ficam em `results/raw/` e não entram no Git. As tabelas
 Parquet e o manifesto em `results/tables/` são os artefatos consolidados. Um
@@ -251,8 +282,8 @@ result = run_greedy(instance, k=3)
 print(result.solution, result.evaluation.total_cost, result.evaluations)
 ```
 
-O ACO também exige configuração explícita. Estes valores são ilustrativos e
-ainda serão submetidos ao tuning:
+O ACO também exige configuração explícita. O exemplo usa os parâmetros
+congelados:
 
 ```python
 from metaheuristica import AcoConfig, RunConfig, load_artesp_instance, run_aco
@@ -261,13 +292,13 @@ instance = load_artesp_instance("data/instances", 20)
 result = run_aco(
     instance,
     RunConfig(k=3, seed=20260817, budget=20_000),
-    AcoConfig(alpha=1.0, beta=2.0, rho=0.1, n_ants=20),
+    AcoConfig(alpha=1.0, beta=2.0, rho=0.1, n_ants=40),
 )
 print(result.solution, result.evaluation.total_cost, result.evaluations)
 ```
 
-O PSO exige os quatro hiperparâmetros explícitos. Os valores são ilustrativos e
-serão submetidos ao tuning:
+O PSO exige os quatro hiperparâmetros explícitos. O exemplo usa os parâmetros
+congelados:
 
 ```python
 from metaheuristica import PsoConfig, RunConfig, load_artesp_instance, run_pso
@@ -276,13 +307,12 @@ instance = load_artesp_instance("data/instances", 20)
 result = run_pso(
     instance,
     RunConfig(k=3, seed=20260817, budget=20_000),
-    PsoConfig(n_particles=20, inertia=0.7, cognitive=1.5, social=1.5),
+    PsoConfig(n_particles=40, inertia=0.4, cognitive=2.0, social=1.5),
 )
 print(result.solution, result.evaluation.total_cost, result.evaluations)
 ```
 
-A Busca Tabu pode ser executada com configuração explícita. Os valores abaixo
-são apenas um exemplo e não substituem o tuning planejado:
+A Busca Tabu pode ser executada com a configuração congelada:
 
 ```python
 from metaheuristica import RunConfig, TabuConfig, load_artesp_instance, run_tabu
@@ -291,7 +321,7 @@ instance = load_artesp_instance("data/instances", 20)
 result = run_tabu(
     instance,
     RunConfig(k=3, seed=20260817, budget=20_000),
-    TabuConfig(tabu_tenure=10, neighborhood_size=50, stagnation_limit=100),
+    TabuConfig(tabu_tenure=10, neighborhood_size=20, stagnation_limit=100),
 )
 print(result.solution, result.evaluation.total_cost, result.evaluations)
 ```

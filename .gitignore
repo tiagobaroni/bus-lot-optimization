@@ -19,6 +19,7 @@ superpowers/
 # Operational experiment outputs
 results/raw/
 results/failures/
+results/operational/
 results/**/*.tmp
 
 # Local environment files

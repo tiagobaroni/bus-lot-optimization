@@ -1056,7 +1056,27 @@ máquina. A medição quantitativa pertence ao piloto em ambiente controlado.
 Nenhuma tabela experimental é persistida nesta etapa. Persistência, retomada e
 consolidação pertencem à automação experimental.
 
-Antes das 1.620 execuções principais, deverá ser realizado um piloto curto para verificar:
+O piloto pré-benchmark da B10 usa a seed `20260818`, os parâmetros congelados e
+os orçamentos oficiais. Ele combina os três algoritmos, as instâncias de 20, 60
+e 150 unidades e `K` em `{3,8}`, totalizando 18 execuções.
+
+A campanha começa com 16 workers e monitoramento por `/proc`. Depois de ao
+menos uma conclusão, uma interrupção por `Ctrl+C` verifica a preservação de
+resultados atômicos e a retomada dos cenários pendentes. O monitor registra CPU,
+RSS agregado, memória disponível, swap, processos e threads a cada segundo.
+
+Os critérios operacionais são ausência de OOM e consumo de swap, uma thread
+computacional ativa por execução, CPU compatível com até 16 workers, ausência
+de otimizadores persistentes e memória disponível igual ou superior ao maior
+valor entre 10% da RAM e 2 GiB. Threads auxiliares ociosas do alocador ou da
+leitura Parquet são registradas separadamente e não contam como paralelismo
+computacional do otimizador.
+Falha exclusivamente de recursos reduz os workers e exige repetição integral.
+
+Três execuções completas são repetidas em saída isolada: TS em `(20,3)`, ACO em
+`(60,8)` e PSO em `(150,3)`. Todos os campos determinísticos devem coincidir.
+
+O piloto verifica:
 
 1. todas as soluções respeitam \(K\) lotes não vazios;
 2. canonicalização funciona corretamente;
@@ -1068,6 +1088,14 @@ Antes das 1.620 execuções principais, deverá ser realizado um piloto curto pa
 8. não há paralelismo interno acidental;
 9. o tuning foi congelado;
 10. nenhuma alteração de algoritmo ocorre durante os experimentos principais.
+
+As seeds do benchmark principal são os inteiros de `10` a `39`, usados de forma
+pareada em todos os métodos e disjuntos do tuning e do piloto. A configuração
+`experiments/configs/benchmark.toml` expande exatamente 1.620 cenários.
+
+Depois da aprovação do piloto, um manifesto registra hashes do código,
+automação, instâncias, configurações, dependências e artefatos. A execução do
+benchmark é recusada se qualquer item protegido ou o ambiente divergir.
 
 ---
 

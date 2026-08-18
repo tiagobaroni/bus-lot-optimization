@@ -17,7 +17,8 @@ from experiments.scenarios import canonical_json, file_sha256
 
 
 THREAD_VARIABLES = (
-    "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"
+    "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS",
+    "BLIS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "ARROW_NUM_THREADS",
 )
 
 
@@ -81,7 +82,9 @@ def capture_provenance(
         reasons.append("unversioned")
 
     packages = {}
-    for package in ("numpy", "pandas", "pyarrow", "bus-lot-optimization"):
+    for package in (
+        "numpy", "pandas", "pyarrow", "matplotlib", "bus-lot-optimization"
+    ):
         try:
             packages[package] = version(package)
         except PackageNotFoundError:

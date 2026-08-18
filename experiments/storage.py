@@ -79,6 +79,11 @@ def validate_document(document: Any, scenario: Scenario) -> dict[str, Any]:
         raise ConfigurationError("resultado deve conter 100 checkpoints")
     if not isinstance(document.get("provenance"), dict):
         raise ConfigurationError("proveniência ausente")
+    frozen_hash = scenario.payload.get("frozen_parameters_sha256")
+    if frozen_hash is not None and document["provenance"].get(
+        "frozen_parameters_sha256"
+    ) != frozen_hash:
+        raise ConfigurationError("hash dos parâmetros congelados divergente")
     canonical_json(document)
     return document
 

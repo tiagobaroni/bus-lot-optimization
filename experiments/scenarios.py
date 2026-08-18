@@ -88,6 +88,10 @@ def expand_scenarios(config: CampaignConfig) -> tuple[Scenario, ...]:
                             },
                             "cache_enabled": config.cache_enabled,
                         }
+                        if config.frozen_parameters_sha256 is not None:
+                            payload["frozen_parameters_sha256"] = (
+                                config.frozen_parameters_sha256
+                            )
                         identifier = sha256(canonical_json(payload)).hexdigest()
                         filename = (
                             f"{algorithm}_{_safe_name(instance.name)}_k{k}_s{seed}_"

@@ -1,8 +1,8 @@
 schema_version = 1
-name = "pilot_prebenchmark"
+name = "pilot_diagnostic"
 purpose = "pilot"
-output_root = "results"
-seeds = [20260818]
+output_root = "_temp/pilot_diagnostic"
+seeds = [20260817]
 cache_enabled = false
 
 [weights]
@@ -14,34 +14,34 @@ affinity = 0.25
 [[instances]]
 name = "artesp_rmsp_20"
 path = "data/instances/artesp_rmsp_20.json"
-budget = 20000
-k_values = [3, 8]
+budget = 100
+k_values = [3, 4, 5, 6, 7, 8]
 
 [[instances]]
 name = "artesp_rmsp_60"
 path = "data/instances/artesp_rmsp_60.json"
-budget = 60000
-k_values = [3, 8]
+budget = 100
+k_values = [3, 4, 5, 6, 7, 8]
 
 [[instances]]
 name = "artesp_rmsp_150"
 path = "data/instances/artesp_rmsp_150.json"
-budget = 150000
-k_values = [3, 8]
+budget = 100
+k_values = [3, 4, 5, 6, 7, 8]
 
 [algorithms.tabu]
-tabu_tenure = [10]
+tabu_tenure = [5]
 neighborhood_size = [20]
-stagnation_limit = [100]
+stagnation_limit = [50]
 
 [algorithms.aco]
 alpha = [1.0]
-beta = [2.0]
+beta = [1.0]
 rho = [0.1]
-n_ants = [40]
+n_ants = [20]
 
 [algorithms.pso]
-n_particles = [40]
-inertia = [0.4]
-cognitive = [2.0]
+n_particles = [20]
+inertia = [0.7]
+cognitive = [1.5]
 social = [1.5]

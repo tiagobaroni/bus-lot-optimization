@@ -1,8 +1,12 @@
 schema_version = 1
-name = "pilot_prebenchmark"
-purpose = "pilot"
+name = "benchmark_main"
+purpose = "benchmark"
 output_root = "results"
-seeds = [20260818]
+seeds = [
+  10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+  20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+  30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+]
 cache_enabled = false
 
 [weights]
@@ -15,19 +19,19 @@ affinity = 0.25
 name = "artesp_rmsp_20"
 path = "data/instances/artesp_rmsp_20.json"
 budget = 20000
-k_values = [3, 8]
+k_values = [3, 4, 5, 6, 7, 8]
 
 [[instances]]
 name = "artesp_rmsp_60"
 path = "data/instances/artesp_rmsp_60.json"
 budget = 60000
-k_values = [3, 8]
+k_values = [3, 4, 5, 6, 7, 8]
 
 [[instances]]
 name = "artesp_rmsp_150"
 path = "data/instances/artesp_rmsp_150.json"
 budget = 150000
-k_values = [3, 8]
+k_values = [3, 4, 5, 6, 7, 8]
 
 [algorithms.tabu]
 tabu_tenure = [10]

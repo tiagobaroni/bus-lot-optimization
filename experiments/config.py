@@ -41,6 +41,7 @@ class CampaignConfig:
     cache_enabled: bool
     instances: tuple[InstanceConfig, ...]
     algorithms: Mapping[str, Mapping[str, tuple[Any, ...]]]
+    frozen_parameters_sha256: str | None
     source_path: Path
     repository_root: Path
 
@@ -191,7 +192,12 @@ def load_campaign(path: str | Path, *, repository_root: Path | None = None) -> C
                 )
         algorithms[algorithm] = MappingProxyType(parsed_grid)
 
+    from experiments.frozen_parameters import validate_frozen_parameters
+
+    frozen_hash = validate_frozen_parameters(
+        campaign_name=name, algorithms=algorithms, repository_root=root
+    )
     return CampaignConfig(
         1, name, purpose, output_root, seeds, weights, data["cache_enabled"],
-        tuple(instances), MappingProxyType(algorithms), source, root,
+        tuple(instances), MappingProxyType(algorithms), frozen_hash, source, root,
     )

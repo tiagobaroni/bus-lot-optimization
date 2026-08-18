@@ -17,6 +17,7 @@ from experiments.storage import (
     ScenarioState, artifact_paths, atomic_write_json, build_result_document,
     classify, record_failure,
 )
+from experiments.provenance import utc_now
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +100,10 @@ def _publish_success(
 ) -> None:
     combined_provenance = dict(provenance)
     combined_provenance["thread_limits"] = worker_output["thread_limits"]
+    if config.frozen_parameters_sha256 is not None:
+        combined_provenance["frozen_parameters_sha256"] = (
+            config.frozen_parameters_sha256
+        )
     document = build_result_document(
         scenario, worker_output["result"], combined_provenance,
         started_at=worker_output["started_at"],
@@ -108,6 +113,43 @@ def _publish_success(
         config.repository_root / config.output_root, config.purpose, scenario
     )
     atomic_write_json(paths.result, document)
+
+
+def _write_interruption_report(config: CampaignConfig, *, workers: int) -> None:
+    plan = build_plan(config)
+    output_root = config.repository_root / config.output_root
+    temporary_files = sorted(
+        str(path.relative_to(config.repository_root))
+        for directory in (
+            output_root / "raw" / config.purpose,
+            output_root / "failures" / config.purpose,
+        )
+        if directory.exists()
+        for path in directory.glob("*.tmp")
+    )
+    scenarios = expand_scenarios(config)
+    states = {
+        scenario.scenario_id: classify(
+            artifact_paths(output_root, config.purpose, scenario), scenario
+        ).value
+        for scenario in scenarios
+    }
+    atomic_write_json(
+        output_root / "operational" / config.name / "interruption.json",
+        {
+            "schema_version": 1,
+            "campaign": config.name,
+            "purpose": config.purpose,
+            "at": utc_now(),
+            "workers": workers,
+            "expected": plan.expected,
+            "completed": plan.completed,
+            "failed": plan.failed,
+            "pending": plan.pending,
+            "states": states,
+            "temporary_files": temporary_files,
+        },
+    )
 
 
 def execute_campaign(
@@ -141,6 +183,7 @@ def execute_campaign(
                 _publish_success(config, scenario, output, provenance)
                 succeeded += 1
             except KeyboardInterrupt:
+                _write_interruption_report(config, workers=workers)
                 return ExecutionSummary(
                     plan.expected, len(plan.selected), plan.completed,
                     succeeded, failures, True,
@@ -155,7 +198,9 @@ def execute_campaign(
     else:
         context = multiprocessing.get_context("spawn")
         from experiments.worker import run_scenario
-        with ProcessPoolExecutor(max_workers=workers, mp_context=context) as executor:
+        executor = ProcessPoolExecutor(max_workers=workers, mp_context=context)
+        interrupted = False
+        try:
             futures: dict[Future[dict[str, Any]], Scenario] = {
                 executor.submit(run_scenario, scenario, str(config.repository_root)): scenario
                 for scenario in plan.selected
@@ -177,12 +222,22 @@ def execute_campaign(
                                 pending.cancel()
                             break
             except KeyboardInterrupt:
+                interrupted = True
                 for future in futures:
                     future.cancel()
+                terminate = getattr(executor, "terminate_workers", None)
+                if terminate is not None:
+                    terminate()
+                else:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                _write_interruption_report(config, workers=workers)
                 return ExecutionSummary(
                     plan.expected, len(plan.selected), plan.completed,
                     succeeded, failures, True,
                 )
+        finally:
+            if not interrupted:
+                executor.shutdown(wait=True, cancel_futures=False)
     return ExecutionSummary(
         plan.expected, len(plan.selected), plan.completed,
         succeeded, failures, False,
