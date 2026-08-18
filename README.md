@@ -104,6 +104,11 @@ reproduções exatas foram aprovados. Os artefatos preliminares estão em
 `results/tables/` e `results/figures/`, e o manifesto de congelamento bloqueia a
 execução do benchmark se algum insumo protegido divergir.
 
+A infraestrutura da B11-I está concluída e testada. Os cinco lotes, 270
+subgrupos, escalonamento, retomada, tentativa única, monitoramento, barreiras e
+consolidação estão prontos. A B11-E não foi iniciada e aguarda autorização
+explícita para uma janela com carga e temperatura controladas.
+
 O estado detalhado e as pendências metodológicas estão em [`AGENTS.md`](AGENTS.md), [`docs/formulation.md`](docs/formulation.md) e [`docs/experiments.md`](docs/experiments.md).
 
 ## Estrutura atual e planejada
@@ -230,15 +235,60 @@ uv run python -m experiments.freeze_benchmark generate \
   --config experiments/configs/pilot.toml --workers 16
 ```
 
-O benchmark principal pode ser inventariado sem executá-lo:
+O benchmark principal é separado em infraestrutura (B11-I) e execução oficial
+(B11-E). O preflight integral é somente leitura:
 
 ```bash
-uv run python -m experiments.run \
-  --config experiments/configs/benchmark.toml plan
+uv run python -m experiments.run_benchmark readiness
 ```
 
-Sua execução exige um manifesto de congelamento válido e recusa alterações em
-código, automação, instâncias, parâmetros, configuração ou ambiente protegido.
+O roteiro estático contém cinco lotes de 324 execuções. Cada lote possui 54
+subgrupos de seis seeds, ordenados pela duração estimada no piloto:
+
+```bash
+uv run python -m experiments.run_benchmark schedule
+```
+
+Um subgrupo pode ser planejado sem executar nada:
+
+```bash
+uv run python -m experiments.run_benchmark plan --batch 1 \
+  --algorithm aco --instance artesp_rmsp_150 --k 8
+```
+
+Quando a B11-E for explicitamente autorizada, o mesmo subgrupo será executado
+e monitorado por:
+
+```bash
+uv run python -m experiments.run_benchmark execute --batch 1 \
+  --algorithm aco --instance artesp_rmsp_150 --k 8
+```
+
+O comando pode ser interrompido por `Ctrl+C` e retomado. Resultados válidos são
+ignorados, cenários interrompidos retornam à fila e falhas aguardam o fim da
+rodada inicial do lote. Depois dos 54 subgrupos, uma única nova tentativa e a
+barreira são executadas por:
+
+```bash
+uv run python -m experiments.run_benchmark retry --batch 1
+uv run python -m experiments.run_benchmark barrier --batch 1
+```
+
+`retry` só deve ser chamado se houver falhas elegíveis. Se não houver, segue-se
+diretamente para `barrier`. Depois das cinco barreiras:
+
+```bash
+uv run python -m experiments.run_benchmark finalize
+```
+
+A campanha usa exatamente 16 workers, uma thread computacional por execução e
+recusa alterações em código, automação, instâncias, parâmetros, configuração
+ou ambiente protegido. A estimativa atual é de 35 a 40 horas no total, ou 6,5
+a 8 horas por lote. É seguro pausar entre subgrupos para controlar carga e
+temperatura.
+
+Uma repetição integral deve usar uma cópia da configuração com outro
+`output_root`; não se apagam nem sobrescrevem resultados oficiais válidos.
 
 Os JSON individuais ficam em `results/raw/` e não entram no Git. As tabelas
 Parquet e o manifesto em `results/tables/` são os artefatos consolidados. Um

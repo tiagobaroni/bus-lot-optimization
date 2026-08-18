@@ -39,6 +39,7 @@ FIXED_PROTECTED = (
     "experiments/configs/pilot.toml",
     "experiments/configs/benchmark.toml",
     "experiments/configs/frozen_parameters.toml",
+    "results/tables/benchmark_execution_schedule.json",
     "pyproject.toml",
     "uv.lock",
 )

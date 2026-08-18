@@ -1115,6 +1115,35 @@ TS e PSO foram 68,96 s e 91,20 s. Esses valores são descritivos de uma única
 seed e não sustentam conclusão estatística, mas devem orientar o escalonamento
 da B11.
 
+### 29.2. Infraestrutura e execução da B11
+
+A B11 foi separada em dois marcos. A B11-I implementa e testa integralmente a
+infraestrutura, sem produzir resultados oficiais. A B11-E começa somente por
+autorização explícita, em uma janela na qual carga e temperatura da máquina
+possam ser controladas.
+
+As 30 seeds formam cinco lotes disjuntos de seis seeds. Cada lote contém 324
+execuções e é dividido em 54 subgrupos definidos por algoritmo, instância e
+`K`. Um subgrupo contém seis execuções e pode ser interrompido e retomado
+isoladamente. A barreira de auditoria continua pertencendo ao lote completo.
+
+Os subgrupos são ordenados antes da B11-E pela duração estimada com os tempos do
+piloto. Para cada algoritmo e instância, `K=3` e `K=8` são âncoras e os valores
+intermediários usam interpolação linear. Tempos da própria B11-E não alteram a
+fila. A estimativa resultante é de aproximadamente 33 horas ideais e de 35 a 40
+horas com margem operacional, cerca de 6,5 a 8 horas por lote.
+
+Depois que os 54 subgrupos de um lote recebem a rodada inicial, cada ID falho
+pode ser repetido uma única vez. Uma segunda falha bloqueia a campanha. Uma
+interrupção externa não conta como falha. O lote seguinte só é liberado após a
+barreira confirmar 324 resultados, 32.400 checkpoints, proveniência,
+congelamento, recursos, ausência de lacunas, duplicatas e temporários.
+
+Os comandos operacionais definitivos estão documentados no `README.md`. O
+preflight `experiments.run_benchmark readiness` é somente leitura. O roteiro
+estático fica em `results/tables/benchmark_execution_schedule.json` e não
+contém resultados científicos.
+
 ---
 
 ## 30. Princípio de congelamento experimental

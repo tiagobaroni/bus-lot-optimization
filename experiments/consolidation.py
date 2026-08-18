@@ -39,47 +39,10 @@ def _atomic_parquet(path: Path, frame: pd.DataFrame) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def consolidate_campaign(
-    config: CampaignConfig,
-    *,
-    allow_incomplete: bool = False,
-    allow_dirty: bool = False,
-    allow_unversioned: bool = False,
-) -> dict[str, Any]:
-    from experiments.storage import atomic_write_json
-
-    scenarios = expand_scenarios(config)
-    output_root = config.repository_root / config.output_root
-    expected_ids = {scenario.scenario_id for scenario in scenarios}
-    raw_directory = output_root / "raw" / config.purpose
-    if raw_directory.exists():
-        expected_names = {scenario.filename for scenario in scenarios}
-        unexpected = sorted(
-            path.name for path in raw_directory.glob("*.json")
-            if path.name not in expected_names
-        )
-        if unexpected:
-            raise ConfigurationError(f"resultados inesperados: {unexpected}")
-
-    documents: list[dict[str, Any]] = []
-    missing: list[str] = []
-    failures = 0
-    for scenario in scenarios:
-        paths = artifact_paths(output_root, config.purpose, scenario)
-        if paths.failure.exists():
-            failures += 1
-        if not paths.result.exists():
-            missing.append(scenario.scenario_id)
-            continue
-        documents.append(validate_document(read_json(paths.result), scenario))
-    if missing and not allow_incomplete:
-        raise ConfigurationError(
-            f"campanha incompleta: {len(missing)} de {len(scenarios)} resultados ausentes"
-        )
-    included_ids = {document["scenario_id"] for document in documents}
-    if len(included_ids) != len(documents) or not included_ids <= expected_ids:
-        raise ConfigurationError("IDs duplicados ou inesperados na consolidação")
-
+def documents_to_frames(
+    documents: list[dict[str, Any]],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Converte documentos já validados em tabelas determinísticas."""
     run_rows: list[dict[str, Any]] = []
     checkpoint_rows: list[dict[str, Any]] = []
     for document in documents:
@@ -135,8 +98,51 @@ def consolidate_campaign(
         row["algorithm"], row["instance"], row["k"], row["seed"],
         row["parameters_json"], row["scenario_id"], row["index"],
     ))
-    runs = pd.DataFrame(run_rows)
-    checkpoints = pd.DataFrame(checkpoint_rows)
+    return pd.DataFrame(run_rows), pd.DataFrame(checkpoint_rows)
+
+
+def consolidate_campaign(
+    config: CampaignConfig,
+    *,
+    allow_incomplete: bool = False,
+    allow_dirty: bool = False,
+    allow_unversioned: bool = False,
+) -> dict[str, Any]:
+    from experiments.storage import atomic_write_json
+
+    scenarios = expand_scenarios(config)
+    output_root = config.repository_root / config.output_root
+    expected_ids = {scenario.scenario_id for scenario in scenarios}
+    raw_directory = output_root / "raw" / config.purpose
+    if raw_directory.exists():
+        expected_names = {scenario.filename for scenario in scenarios}
+        unexpected = sorted(
+            path.name for path in raw_directory.glob("*.json")
+            if path.name not in expected_names
+        )
+        if unexpected:
+            raise ConfigurationError(f"resultados inesperados: {unexpected}")
+
+    documents: list[dict[str, Any]] = []
+    missing: list[str] = []
+    failures = 0
+    for scenario in scenarios:
+        paths = artifact_paths(output_root, config.purpose, scenario)
+        if paths.failure.exists():
+            failures += 1
+        if not paths.result.exists():
+            missing.append(scenario.scenario_id)
+            continue
+        documents.append(validate_document(read_json(paths.result), scenario))
+    if missing and not allow_incomplete:
+        raise ConfigurationError(
+            f"campanha incompleta: {len(missing)} de {len(scenarios)} resultados ausentes"
+        )
+    included_ids = {document["scenario_id"] for document in documents}
+    if len(included_ids) != len(documents) or not included_ids <= expected_ids:
+        raise ConfigurationError("IDs duplicados ou inesperados na consolidação")
+
+    runs, checkpoints = documents_to_frames(documents)
     tables = output_root / "tables"
     runs_path = tables / f"{config.purpose}_runs.parquet"
     checkpoints_path = tables / f"{config.purpose}_checkpoints.parquet"

@@ -193,3 +193,14 @@ def test_interruption_report_describes_resumable_state(tmp_path: Path) -> None:
     assert report["failed"] == 0
     assert set(report["states"].values()) == {"completed", "pending"}
     assert report["temporary_files"] == []
+
+
+def test_explicit_ordered_selection_is_preserved(tmp_path: Path) -> None:
+    config = _campaign(tmp_path, seeds="[1, 2]")
+    scenarios = expand_scenarios(config)
+    plan = build_plan(config, selected_scenarios=tuple(reversed(scenarios)))
+    assert [item.scenario_id for item in plan.selected] == [
+        item.scenario_id for item in reversed(scenarios)
+    ]
+    with pytest.raises(ConfigurationError, match="incompatíveis"):
+        build_plan(config, scenario_id=scenarios[0].scenario_id, selected_scenarios=scenarios)

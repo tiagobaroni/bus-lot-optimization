@@ -47,14 +47,25 @@ def build_plan(
     *,
     scenario_id: str | None = None,
     max_runs: int | None = None,
+    selected_scenarios: tuple[Scenario, ...] | None = None,
 ) -> CampaignPlan:
     if max_runs is not None and (
         isinstance(max_runs, bool) or not isinstance(max_runs, int) or max_runs <= 0
     ):
         raise ConfigurationError("max-runs deve ser inteiro positivo")
     scenarios = expand_scenarios(config)
+    if scenario_id is not None and selected_scenarios is not None:
+        raise ConfigurationError("scenario-id e seleção explícita são incompatíveis")
     if scenario_id is not None:
         selected_scope = (select_scenario(scenarios, scenario_id),)
+    elif selected_scenarios is not None:
+        known = {item.scenario_id: item for item in scenarios}
+        identifiers = [item.scenario_id for item in selected_scenarios]
+        if len(identifiers) != len(set(identifiers)):
+            raise ConfigurationError("seleção explícita contém IDs duplicados")
+        if any(identifier not in known for identifier in identifiers):
+            raise ConfigurationError("seleção explícita contém cenário desconhecido")
+        selected_scope = tuple(known[identifier] for identifier in identifiers)
     else:
         selected_scope = scenarios
     output_root = config.repository_root / config.output_root
@@ -158,13 +169,17 @@ def execute_campaign(
     workers: int = 1,
     scenario_id: str | None = None,
     max_runs: int | None = None,
+    selected_scenarios: tuple[Scenario, ...] | None = None,
     fail_fast: bool = False,
     allow_dirty: bool = False,
     allow_unversioned: bool = False,
 ) -> ExecutionSummary:
     if isinstance(workers, bool) or not isinstance(workers, int) or workers <= 0:
         raise ConfigurationError("workers deve ser inteiro positivo")
-    plan = build_plan(config, scenario_id=scenario_id, max_runs=max_runs)
+    plan = build_plan(
+        config, scenario_id=scenario_id, max_runs=max_runs,
+        selected_scenarios=selected_scenarios,
+    )
     provenance = capture_provenance(
         config.repository_root,
         allow_dirty=allow_dirty,

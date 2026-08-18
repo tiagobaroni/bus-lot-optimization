@@ -7,12 +7,12 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 17/08/2026
-- **Bloco ativo:** nenhum
-- **Fase do bloco ativo:** B10 concluída, aguardando início da B11
-- **Último bloco concluído:** B10 - Piloto pré-benchmark
-- **Próxima ação atômica:** iniciar o fluxo de brainstorming da B11 quando
-  solicitado.
+- **Atualizado em:** 18/08/2026
+- **Bloco ativo:** B11-E - Execução do benchmark principal
+- **Fase do bloco ativo:** pronta, aguardando autorização explícita
+- **Último bloco concluído:** B11-I - Infraestrutura do benchmark principal
+- **Próxima ação atômica:** quando autorizado pelo usuário, executar o primeiro
+  subgrupo do lote 1 conforme o roteiro congelado.
 - **Bloqueios conhecidos:** nenhum.
 - **Última verificação:** `uv run pytest -q` aprovado, `git diff --check` sem
   erros e auditoria dos sete artefatos concluída em 17/08/2026.
@@ -857,16 +857,35 @@ o piloto final.
 
 ## B11 - Benchmark principal
 
-**Estado:** `PENDENTE`
+**Estado:** `B11-I CONCLUÍDA - B11-E AGUARDANDO AUTORIZAÇÃO`
 
 **Depende de:** B10.
 
-**Objetivo:** executar os cenários principais em Linux nativo, uma thread por
-execução.
+**Objetivo geral:** preparar e executar os cenários principais em Linux nativo,
+uma thread por execução.
+
+### B11-I - Infraestrutura
+
+**Estado:** `CONCLUÍDA`
+
+**Objetivo:** deixar toda a campanha CPU criada, revisada, testada e pronta para
+execução, sem disparar os 1.620 cenários oficiais.
+
+**Critério de saída:** quando o usuário decidir iniciar a B11-E, nada precisará
+ser criado ou revisado; bastará executar os comandos documentados e acompanhar
+as barreiras já testadas.
+
+### B11-E - Execução
+
+**Estado:** `PRONTA - AGUARDANDO AUTORIZAÇÃO`
+
+**Depende de:** B11-I e autorização explícita do usuário em momento com carga e
+temperatura adequadas.
 
 **Tarefas:**
 
-- [ ] Registrar ambiente computacional.
+- [ ] Concluir e validar toda a infraestrutura da B11-I.
+- [ ] Registrar o ambiente computacional no início da B11-E.
 - [ ] Executar 3 algoritmos, 3 tamanhos, 6 valores de `K` e 30 seeds.
 - [ ] Monitorar completude sem alterar configurações congeladas.
 - [ ] Reexecutar somente falhas identificadas pelo ID do cenário.
@@ -876,13 +895,89 @@ execução.
 **Critério de saída:** todos os cenários válidos e auditáveis, sem duplicatas ou
 lacunas.
 
+**Checkpoint de retomada:**
+
+- brainstorming iniciado em 18/08/2026, após o envio da B10 ao remoto no
+  commit `b83ea43`;
+- permanecem congelados os 1.620 cenários, as seeds de 10 a 39, os parâmetros,
+  os orçamentos, os 16 workers e os IDs definidos por conteúdo;
+- primeira decisão concluída: particionamento operacional da campanha, sem
+  modificar o protocolo experimental nem a identidade dos cenários;
+- particionamento aprovado: cinco lotes de 324 execuções, cada um contendo
+  todas as combinações de algoritmo, tamanho e `K`, para as seeds `10-15`,
+  `16-21`, `22-27`, `28-33` e `34-39`;
+- os lotes são apenas unidades operacionais de execução, auditoria e retomada;
+  não alteram IDs, resultados, parâmetros ou análise estatística;
+- segunda decisão concluída: ordem de submissão dos cenários dentro de cada
+  lote;
+- ordenação aprovada: prioridade determinística por duração estimada a partir
+  do piloto, da maior para a menor, com desempate estável pelo ID do cenário;
+- a prioridade é exclusivamente operacional e não depende de resultados
+  parciais nem altera qualquer elemento congelado;
+- terceira decisão concluída: política de validação e liberação entre lotes;
+- barreira aprovada: o lote seguinte somente será liberado após validação
+  automática dos 324 resultados únicos, ausência de falhas, lacunas e
+  temporários, compatibilidade com o congelamento e consolidação incremental
+  reproduzível;
+- falhas serão tratadas exclusivamente pelos IDs afetados antes da liberação
+  do lote seguinte, sem necessidade de aprovação manual quando a barreira for
+  satisfeita;
+- quarta decisão concluída: limite e comportamento das novas tentativas;
+- política aprovada: uma única nova tentativa automática por ID após o término
+  da execução inicial do lote;
+- uma segunda falha do mesmo ID interrompe a campanha antes do lote seguinte e
+  preserva artefatos e logs para diagnóstico;
+- interrupções externas não contam como falha: na retomada, resultados válidos
+  são ignorados e somente IDs incompletos retornam à fila;
+- conjunto de decisões do brainstorming pronto para aprovação de encerramento.
+- divisão aprovada: a B11-I entrega somente a infraestrutura integralmente
+  pronta; a B11-E executa posteriormente a campanha oficial;
+- prontidão da B11-I significa que o início da B11-E não exigirá criação ou
+  revisão de código, configuração, testes, validações ou instruções;
+- a B11-E será autorizada separadamente pelo usuário, considerando carga e
+  temperatura do computador.
+- granularidade aprovada para a B11-E: cada lote de 324 poderá ser executado em
+  54 subgrupos de seis IDs, definidos por algoritmo, instância, `K` e pelas
+  seis seeds do lote;
+- cada subgrupo poderá ser executado e retomado separadamente para permitir
+  controle de carga e temperatura, mas a barreira continuará pertencendo ao
+  lote completo;
+- a especificação revisada da B11-I está pronta para aprovação formal.
+- especificação da B11-I aprovada explicitamente pelo usuário em 18/08/2026;
+- plano de implementação em elaboração; implementação ainda não autorizada.
+- plano escrito em `superpowers/B11_plan.md` e aguardando aprovação explícita;
+- a renovação controlada do manifesto ao final da B11-I registrará a nova
+  automação, preservando código científico, configuração, instâncias,
+  parâmetros, IDs e artefatos do piloto.
+- plano aprovado explicitamente pelo usuário e implementação autorizada em
+  18/08/2026;
+- nenhuma execução oficial da B11-E foi autorizada.
+- B11-I implementada com cinco lotes, 270 subgrupos, prioridade derivada do
+  piloto, diário operacional, retomada, tentativa única, monitoramento,
+  barreiras, consolidação isolada, CLI e preflight;
+- roteiro determinístico protegido em
+  `results/tables/benchmark_execution_schedule.json`;
+- ensaios reduzidos usaram somente diretórios temporários e
+  `results/raw/benchmark` permaneceu ausente;
+- 254 testes coletados, suíte completa aprovada e `git diff --check` sem erros;
+- manifesto de congelamento renovado com 16 workers e sem mudança nos 1.620
+  IDs, configurações, instâncias, hiperparâmetros ou artefatos do piloto;
+- comandos definitivos documentados; a B11-E não exige criação ou revisão
+  adicional e aguarda somente autorização do usuário.
+
 ---
 
 ## B11A - Experimento adicional com GPU
 
 **Estado:** `PENDENTE - ADICIONAL`
 
-**Depende de:** B11.
+**Dependências internas:** a B11A-I poderá começar depois da conclusão da
+B11-I; a B11A-E somente poderá começar depois da conclusão da B11-E e de
+autorização explícita do usuário.
+
+**Critério de prontidão da B11A-I:** quando o usuário decidir iniciar a B11A-E,
+nada precisará ser criado ou revisado; toda a infraestrutura GPU estará testada
+e pronta para executar.
 
 **Objetivo:** avaliar se uma implementação em GPU produz aceleração relevante
 sem alterar o baseline normativo em CPU.

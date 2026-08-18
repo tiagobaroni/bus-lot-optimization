@@ -519,14 +519,18 @@ Estado registrado em 18/08/2026:
 - o ACO grande dominou o tempo do piloto, chegando a 10.971,45 s em
   `(N=150,K=8)`; isso afeta o planejamento operacional da B11, mas não altera o
   protocolo ou os parâmetros congelados;
+- a B11-I concluiu a infraestrutura do benchmark com cinco lotes, 270
+  subgrupos, prioridade pelo piloto, retomada, tentativa única, monitoramento,
+  barreiras e consolidação testados;
+- a B11-E permanece sem resultados oficiais e aguarda autorização explícita
+  para uma janela com carga e temperatura controladas;
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
 Os detalhes de dados, formulação, automação experimental e tuning estão
-consolidados. Permanecem pendentes o piloto pré-benchmark e o benchmark
-principal.
+consolidados. Permanece pendente a execução do benchmark principal.
 
 Próximo objetivo recomendado:
 
-1. executar o fluxo de brainstorming, especificação e plano da B11;
-2. planejar o escalonamento da campanha considerando a duração observada do ACO;
-3. executar o benchmark principal sem alterar os itens congelados.
+1. iniciar a B11-E somente após autorização explícita do usuário;
+2. executar os subgrupos na ordem congelada e nas janelas térmicas disponíveis;
+3. validar cada lote antes de avançar para o seguinte.
