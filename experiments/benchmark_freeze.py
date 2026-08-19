@@ -8,6 +8,7 @@ from typing import Any
 from metaheuristica.errors import ConfigurationError
 
 from experiments.config import CampaignConfig
+from experiments.pilot_validation import _load_official_documents, _validate_result
 from experiments.provenance import capture_provenance, utc_now
 from experiments.scenarios import file_sha256
 from experiments.storage import atomic_write_json, read_json
@@ -74,6 +75,30 @@ def _environment(provenance: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _revalidate_pilot_behaviour(
+    config: CampaignConfig, validation: dict[str, Any]
+) -> None:
+    """Reavalia artefatos reais do piloto antes de assinar o congelamento.
+
+    O veredito gravado em ``pilot_validation.json`` atesta o passado. Só a
+    reexecução de ``_validate_result`` contra os documentos oficiais atesta que o
+    código presente ainda reproduz o comportamento que o piloto aprovou, e é essa
+    reavaliação que detecta alteração semântica da função objetivo.
+    """
+
+    documents = _load_official_documents(config)
+    if not documents:
+        raise ConfigurationError("piloto sem documento oficial para revalidar")
+    commits = {document["provenance"].get("git_commit") for _, document in documents}
+    if commits != {validation.get("campaign_commit")}:
+        raise ConfigurationError(
+            "proveniência dos artefatos do piloto diverge do veredito: "
+            f"{sorted(commit or '' for commit in commits)}"
+        )
+    for scenario, document in documents:
+        _validate_result(config, scenario, document)
+
+
 def generate_freeze_manifest(config: CampaignConfig, *, workers: int) -> dict[str, Any]:
     if config.name != "pilot_prebenchmark":
         raise ConfigurationError("congelamento exige o piloto oficial da B10")
@@ -82,12 +107,19 @@ def generate_freeze_manifest(config: CampaignConfig, *, workers: int) -> dict[st
     if validation.get("passed") is not True or validation.get("reproduction_passed") is not True:
         raise ConfigurationError("piloto ainda não foi integralmente aprovado")
     artifact_hashes = _hash_files(root, PILOT_ARTIFACTS)
-    provenance = capture_provenance(root, allow_dirty=True)
+    provenance = capture_provenance(root, allow_dirty=False)
+    pilot_commit = validation.get("campaign_commit")
+    if pilot_commit != provenance["git_commit"]:
+        raise ConfigurationError(
+            "commit do piloto diverge do HEAD: "
+            f"{pilot_commit} contra {provenance['git_commit']}"
+        )
+    _revalidate_pilot_behaviour(config, validation)
     manifest = {
         "schema_version": 1,
         "created_at": utc_now(),
         "pilot_campaign": config.name,
-        "pilot_commit": validation["campaign_commit"],
+        "pilot_commit": pilot_commit,
         "approved_workers": workers,
         "frozen_parameters_sha256": config.frozen_parameters_sha256,
         "protected_files": _hash_files(root, protected_paths(root)),
@@ -114,7 +146,11 @@ def verify_freeze_manifest(
     expected_protected = manifest.get("protected_files")
     if not isinstance(expected_protected, dict):
         raise ConfigurationError("arquivos protegidos ausentes do congelamento")
-    current_protected = _hash_files(root, tuple(sorted(expected_protected)))
+    current_scope = protected_paths(root)
+    if current_scope != tuple(sorted(expected_protected)):
+        divergent = sorted(set(current_scope) ^ set(expected_protected))
+        raise ConfigurationError(f"escopo protegido divergente: {divergent}")
+    current_protected = _hash_files(root, current_scope)
     if current_protected != expected_protected:
         changed = sorted(
             path for path in set(current_protected) | set(expected_protected)

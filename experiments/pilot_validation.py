@@ -6,6 +6,7 @@ from dataclasses import asdict, replace
 import json
 from pathlib import Path
 import tempfile
+from time import perf_counter
 from typing import Any
 
 import numpy as np
@@ -24,7 +25,7 @@ from experiments.scenarios import Scenario, expand_scenarios, file_sha256
 from experiments.storage import (
     artifact_paths, atomic_write_json, read_json, validate_document,
 )
-from experiments.worker import _load_instance
+from experiments.worker import _load_instance, run_scenario
 
 
 EVALUATION_FIELDS = (
@@ -36,6 +37,10 @@ REPRODUCTION_CASES = (
     ("aco", "artesp_rmsp_60", 8),
     ("pso", "artesp_rmsp_150", 3),
 )
+TIMING_PROBE_CASE = ("tabu", "artesp_rmsp_150", 3)
+TIMING_PROBE_BUDGET = 100
+TIMING_PROBE_REPEATS = 5
+TIMING_LOAD_FRACTION_LIMIT = 0.05
 
 
 def _require(condition: bool, message: str) -> None:
@@ -103,6 +108,87 @@ def _validate_result(config: CampaignConfig, scenario: Scenario, document: dict[
     )
     limits = document["provenance"].get("thread_limits", {})
     _require(limits and set(limits.values()) == {"1"}, "limites de threads divergentes")
+
+
+def _timing_window_report(
+    *, load_seconds: float, window_seconds: float, total_seconds: float
+) -> dict[str, Any]:
+    """Verificação 7 do piloto: o tempo medido exclui pré-processamento.
+
+    A janela cronometrada é comparada com o tempo total da execução do cenário.
+    O carregamento da instância que **não** aparece fora da janela é atribuído a
+    ela, e a fração atribuída fica sujeita a uma cota superior.
+    """
+
+    _require(load_seconds > 0.0, "sonda de tempo não mediu o carregamento da instância")
+    _require(window_seconds > 0.0, "sonda de tempo não mediu a janela cronometrada")
+    _require(
+        total_seconds >= window_seconds,
+        "janela cronometrada maior que o tempo total da execução",
+    )
+    _require(
+        load_seconds > TIMING_LOAD_FRACTION_LIMIT * window_seconds,
+        "sonda de tempo sem sensibilidade para detectar pré-processamento na janela",
+    )
+    excluded_seconds = total_seconds - window_seconds
+    attributed_seconds = max(0.0, load_seconds - excluded_seconds)
+    load_fraction = attributed_seconds / window_seconds
+    _require(
+        load_fraction <= TIMING_LOAD_FRACTION_LIMIT,
+        "janela cronometrada inclui pré-processamento: fração "
+        f"{load_fraction:.6f} acima da cota {TIMING_LOAD_FRACTION_LIMIT}",
+    )
+    return {
+        "passed": True,
+        "load_seconds": load_seconds,
+        "window_seconds": window_seconds,
+        "total_seconds": total_seconds,
+        "excluded_seconds": excluded_seconds,
+        "attributed_load_seconds": attributed_seconds,
+        "load_fraction": load_fraction,
+        "load_fraction_limit": TIMING_LOAD_FRACTION_LIMIT,
+    }
+
+
+def _probe_timing_window(config: CampaignConfig) -> dict[str, Any]:
+    """Instrumenta a fronteira da janela cronometrada no caminho de produção."""
+
+    algorithm, instance_name, k = TIMING_PROBE_CASE
+    scenario = next(
+        item for item in expand_scenarios(config)
+        if item.payload["algorithm"] == algorithm
+        and item.payload["instance"]["name"] == instance_name
+        and item.payload["k"] == k
+    )
+    payload = dict(scenario.payload)
+    payload["budget"] = TIMING_PROBE_BUDGET
+    probe = Scenario(payload, scenario.scenario_id, scenario.filename)
+    instance_path = config.repository_root / payload["instance"]["path"]
+
+    _load_instance(instance_path)
+    measurements: list[float] = []
+    for _ in range(TIMING_PROBE_REPEATS):
+        start = perf_counter()
+        _load_instance(instance_path)
+        measurements.append(perf_counter() - start)
+    load_seconds = min(measurements)
+
+    start = perf_counter()
+    produced = run_scenario(probe, str(config.repository_root))
+    total_seconds = perf_counter() - start
+
+    report = _timing_window_report(
+        load_seconds=load_seconds,
+        window_seconds=float(produced["result"]["runtime_seconds"]),
+        total_seconds=total_seconds,
+    )
+    return {
+        **report,
+        "algorithm": algorithm,
+        "instance": instance_name,
+        "k": k,
+        "budget": TIMING_PROBE_BUDGET,
+    }
 
 
 def _validate_consolidation(config: CampaignConfig) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
@@ -218,6 +304,7 @@ def validate_pilot(config: CampaignConfig, *, reproduce: bool = True) -> dict[st
     _require(len(commits) == 1 and None not in commits, "proveniência não uniforme")
     for scenario, document in documents:
         _validate_result(config, scenario, document)
+    timing_window = _probe_timing_window(config)
     runs, checkpoints, manifest = _validate_consolidation(config)
     interruption = _validate_interruption(config)
 
@@ -251,6 +338,7 @@ def validate_pilot(config: CampaignConfig, *, reproduce: bool = True) -> dict[st
         "reproductions": reproductions,
         "reproduction_passed": len(reproductions) == 3 if reproduce else None,
         "functional_checks": {"passed": True, "documents": len(documents)},
+        "timing_window": timing_window,
     }
     atomic_write_json(tables / "pilot_validation.json", validation)
     return validation

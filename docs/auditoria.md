@@ -719,8 +719,23 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   `src/metaheuristica/objective.py` no meio da campanha passaria sem recusa.
 - **Onda:** B, na onda dos defeitos associados F6-02 e F6-03, que são os defeitos
   reais do mesmo mecanismo de congelamento. Ver a conexão 6 da seção 5.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com dezessete testes novos, no commit do pacote B1.
+  `tests/test_benchmark_freeze.py` passou a construir, por fixture, um repositório
+  Git em miniatura com o escopo protegido inteiro, o manifesto montado pelos
+  próprios utilitários do módulo e nenhum `monkeypatch` sobre o verificador. Um
+  caso negativo por recusa: `schema_version` incompatível, `approved_workers`
+  divergente, `protected_files` ausente do manifesto, arquivo protegido
+  modificado, arquivo protegido removido, `pilot_artifacts` ausente do manifesto,
+  artefato do piloto divergente e ambiente divergente, mais o controle positivo de
+  que a verificação aceita o repositório que congelou. As recusas novas trazidas
+  por F6-03 e F6-02 estão nos mesmos arquivos e são listadas nas entradas
+  correspondentes. **Detecção da remoção da própria guarda:** com a mutação `E7`,
+  `return manifest` inserido logo após a leitura do manifesto, a suíte passou de
+  `296 passed` para `11 failed, 285 passed`, com as onze falhas concentradas nas
+  recusas da verificação; a mutação foi revertida em seguida. É a mesma mutação
+  que antes devolvia `254 passed`.
+- **Impressão digital:** zero, conforme previsto. O pacote vive em `experiments/`
+  e em `tests/`, fora do caminho científico executado pelo oráculo.
 
 #### F2-05. A barreira de auditoria por lote sobrevive a cinco enfraquecimentos independentes
 
@@ -2292,8 +2307,25 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   contra ao menos um artefato do piloto antes de assinar o manifesto.
 - **Onda:** B, com prioridade, junto de F6-03 e de F2-04, que é a cobertura ausente
   do mesmo mecanismo.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com correção de código e quatro testes novos, no commit do
+  pacote B1. As três correções estão no mesmo bloco de `generate_freeze_manifest`,
+  antes da montagem e da escrita do manifesto, de modo que a recusa acontece sem
+  assinar nada: a proveniência passou a ser capturada com `allow_dirty=False`; o
+  `campaign_commit` do veredito é confrontado com o `git_commit` do `HEAD` e a
+  divergência recusa com "commit do piloto diverge do HEAD"; e
+  `_revalidate_pilot_behaviour`, função nova no mesmo módulo, carrega os
+  documentos oficiais do piloto, exige que a proveniência deles seja uniforme e
+  igual ao `campaign_commit` gravado, e reexecuta `_validate_result` de
+  `experiments/pilot_validation.py` contra os dezoito artefatos reais, em cerca de
+  0,5 s. O campo `pilot_commit`, antes escrito e nunca lido, passou a ser a
+  variável confrontada. Testes: recusa sobre worktree suja, recusa por
+  `pilot_commit` divergente do `HEAD` e recusa quando a revalidação não encontra
+  artefato do piloto, os três com asserção de que o manifesto **não** foi escrito;
+  mais a cadeia demonstrada pela auditoria, com `evaluate_solution` substituída por
+  variante que dobra `weights.affinity * c_affinity`, sobre os artefatos reais do
+  repositório, que recusa com "reavaliação divergente" e cujo controle positivo,
+  sem a substituição, aceita.
+- **Impressão digital:** zero, conforme previsto.
 
 #### F6-03. A verificação do congelamento não recalcula o escopo protegido e não vê arquivo novo
 
@@ -2328,8 +2360,31 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   arquivos são idênticos**, e isso precisa constar do relatório final se o
   congelamento for citado como garantia.
 - **Onda:** B, com prioridade, junto de F6-02.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com correção de código e três testes novos, no commit do
+  pacote B1. `verify_freeze_manifest` passou a chamar `protected_paths(root)` e a
+  comparar a composição do escopo corrente com as chaves gravadas antes de
+  qualquer hash, recusando com "escopo protegido divergente" e nomeando a
+  diferença simétrica; o cotejo de hashes passou a correr sobre o escopo
+  recalculado. Testes: arquivo `.py` novo sob `experiments/`, módulo `.py` novo sob
+  `src/metaheuristica/` e módulo removido do escopo dinâmico, os três recusados
+  com o caminho nomeado na mensagem. Antes da correção os três devolviam "DID NOT
+  RAISE". A remoção de arquivo da lista fixa continua recusando por "arquivo
+  protegido ausente", porque `FIXED_PROTECTED` pertence ao escopo exista ou não em
+  disco, e essa distinção está fixada por teste próprio.
+- **Impressão digital:** zero, conforme previsto.
+- **Confirmação empírica no repositório íntegro, portão de revisão do pacote B1:**
+  `uv run python -m experiments.freeze_benchmark verify --workers 16` passou a
+  recusar com saída 2 e mensagem `erro: escopo protegido divergente:
+  ['experiments/audit_fingerprint.py']`. O arquivo é legítimo, criado por esta
+  auditoria, e a recusa é o comportamento correto do mecanismo corrigido: **é a
+  primeira vez que a verificação enxerga um arquivo novo dentro do escopo
+  protegido**, o que confirma a segunda hipótese da frente F6 sobre o repositório
+  real e não apenas em fixture. A recusa de composição precede a de conteúdo, de
+  modo que a divergência de hashes preexistente, medida no mesmo estado como
+  `congelamento divergente: ['experiments/benchmark_freeze.py',
+  'experiments/pilot_validation.py', 'src/metaheuristica/pso.py']`, deixa de ser a
+  mensagem apresentada. O manifesto **não** foi regenerado; a renovação é da
+  Tarefa 20.
 - **Nota de anexação de evidência futura:** o Passo 9 da Tarefa 14 é uma sonda
   cujo resultado se anexa a **este** achado, e não a F6-02. O ruling de preflight
   registrado no diário nomeou "F6-2", mas por conteúdo a hipótese de que arquivo
@@ -3012,8 +3067,26 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   fração do tempo atribuível a carregamento, ou instrumentando a fronteira da
   janela.
 - **Onda:** B, junto de F6-02, porque as duas correções tocam a validação do piloto.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com implementação e cinco testes novos, no commit do pacote
+  B1. A verificação 7 passou a existir como item próprio do relatório do piloto,
+  no campo `timing_window` de `pilot_validation.json`, e é composta de duas partes.
+  `_probe_timing_window` instrumenta a fronteira no **caminho de produção**:
+  executa `experiments/worker.py:run_scenario` sobre um cenário de sonda,
+  `tabu`, `artesp_rmsp_150`, `K=3`, orçamento 100, medindo o tempo total por fora e
+  colhendo a janela de `runtime_seconds`, e mede à parte o custo de
+  `_load_instance` como mínimo de cinco repetições depois de um aquecimento, isto é
+  como cota inferior do carregamento. `_timing_window_report` é a regra pura:
+  atribui à janela o carregamento que **não** aparece fora dela,
+  `max(0, carga - (total - janela))`, e impõe cota superior de 5% sobre a fração
+  resultante, recusando também sonda sem sensibilidade, em que a carga é pequena
+  demais para que a inclusão fosse detectável. Medição no repositório íntegro:
+  carga 0,034 s, janela 0,046 s, tempo excluído da janela 0,035 s, fração
+  atribuída **0,0**. O cenário do achado, mover `_load_instance` para dentro da
+  janela, levaria a fração a cerca de 0,43, isto é a oito vezes a cota. Testes:
+  aceitação com carregamento fora da janela, recusa com carregamento integralmente
+  dentro, recusa com carregamento parcialmente dentro, recusa de sonda sem
+  sensibilidade e execução da sonda real contra a árvore.
+- **Impressão digital:** zero, conforme previsto.
 
 #### F7-9. `root_pid` do monitor é capturado na importação do módulo, não na instanciação
 
