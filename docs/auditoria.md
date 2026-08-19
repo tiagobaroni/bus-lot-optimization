@@ -865,8 +865,27 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   população em que o melhor global muda no meio da iteração.
 - **Onda:** A, junto de A1, A10 e F2-10, porque toca a mesma região de `pso.py` e a
   correção de A1 precisa dessa cobertura nova para não reintroduzir a assimetria.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com dois testes novos, no commit do pacote A1, e com uma
+  ressalva sobre a mutação citada no campo de evidência.
+  `test_trial_state_depends_on_which_global_best_it_receives` fixa que a tentativa
+  muda quando muda o melhor global recebido, sem o que o instantâneo não teria
+  efeito algum, e `test_pso_uses_a_single_global_best_snapshot_per_iteration` espia
+  `_trial_state` ao longo de `run_pso` e assevera que todas as partículas de uma
+  mesma iteração recebem o mesmo vetor, exigindo ainda que exista iteração em que o
+  melhor global mude por causa de uma partícula que não é a última, sem o que o
+  cenário não discriminaria. **Ressalva de evidência:** a mutação `M36`, que remove
+  `gbest_snapshot` e passa `gbest.position` à mesma list comprehension, é **inerte**
+  sob a estrutura atual do laço, porque todas as tentativas da iteração são
+  construídas antes de qualquer avaliação; conferido por medição, com
+  `reproducible_data()` idêntico entre a árvore e o mutante, e a suíte inteira
+  passando contra ele. O mutante que discrimina é o de laço intercalado, que calcula
+  a tentativa de cada partícula logo antes da avaliação dela; rodado fora da árvore,
+  com `pytest -o "pythonpath=..."` e canário de marcador que confirma qual árvore foi
+  carregada, o teste novo é o único da suíte do PSO que falha. Os dois testes passam
+  antes e depois da correção de A1, porque o comportamento já estava correto; a
+  falsificação deles é a execução contra o mutante, não uma falha prévia na árvore.
+- **Impressão digital:** sem efeito próprio, porque a alteração é restrita a
+  `tests/`.
 
 #### F2-10. A limitação de velocidade durante a busca do PSO não é testada
 
@@ -895,8 +914,18 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   que a divergência de A1 tivesse sido detectada pela suíte.
 - **Onda:** A, junto de A1, e não na Onda C. É a cobertura do único `D1` da
   auditoria.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com dois testes novos, no commit do pacote A1.
+  `test_trial_state_limits_the_step_during_the_search` usa o cenário discriminante
+  do verificador, `x=0,10` com `pbest=gbest=1,0`, `v=0,5`, `r1=r2=1` e pesos
+  congelados, e assevera o passo por coordenada, a faixa da velocidade guardada,
+  `velocity_clips`, que não era asseverado em arquivo algum, e o rótulo
+  decodificado, 3 sob a ordem prescrita contra 4 sob a defeituosa.
+  `test_search_loop_keeps_every_coordinate_step_within_the_velocity_limit` espia
+  `_trial_state` ao longo de uma execução inteira de `run_pso` e cobre a limitação
+  **durante a busca**, que era a lacuna do achado. Os dois falham antes da
+  correção, com passo máximo 0,9 e 0,9529 respectivamente.
+- **Impressão digital:** sem efeito próprio, porque a alteração é restrita a
+  `tests/`.
 
 #### F2-11. A igualdade entre avaliação final e último checkpoint não tem teste negativo
 
@@ -1175,10 +1204,32 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   pela formulação sobre em qual lado escrever a emenda, código ou documento; ela
   não altera a classe, mas decide se o tuning do PSO precisa ser refeito.
 - **Onda:** A. É o único achado da Onda A.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado **não** zero: muda 10 de 10
-  resultados. Este é o achado que dispara o ramo alterado da cascata se for
-  corrigido no código.
+- **Situação:** fechado com correção de código, no commit do pacote A1. A decisão 1
+  do usuário, de 19 de agosto de 2026, escreveu a emenda no código e não no
+  documento: `_trial_state`, em `src/metaheuristica/pso.py:162-193`, satura a
+  velocidade antes de somá-la à posição. `velocity_clips` continua contado sobre
+  `raw_velocity`, que é a definição existente; `position_clips` passa a ser contado
+  sobre um `raw_position` já derivado do passo saturado, e essa mudança de valor é
+  legítima e prevista. Medição de fechamento com a instrumentação do verificador,
+  configuração congelada, `artesp_rmsp_60`, `K=5`, orçamento 60.000, seeds 0 a 9:
+  antes, máximo do passo **1,0** e 1.886.548 de 34.380.000 coordenadas acima de
+  0,5, isto é 5,4873%, reproduzindo o número do verificador; depois, **zero**
+  violações em 34.336.800 coordenadas e máximo **exatamente 0,5**
+  (`0x1.0000000000000p-1`). A média das dez seeds passou de 0,274437411389966 para
+  0,280568556706720, com `float.hex()` alterado em 10 de 10 seeds, isto é a
+  correção **piora** a média, como previsto, e se justifica apenas por
+  conformidade com a seção 16 de `docs/formulation.md`.
+- **Impressão digital:** diff **não zero**, confinado ao escopo previsto. Divergiram
+  exatamente os **11 cenários `pso:*`** e **nenhum** cenário `tabu:*`, `aco:*` ou
+  `greedy:*`, em 7.325 diferenças de campo mais o `content_sha256` do documento. Os
+  campos divergentes são `solution`, os sete de `evaluation`, os 100 `checkpoints`
+  e os diagnósticos `position_clips`, `velocity_clips`, `personal_best_updates`,
+  `global_best_updates` e `strict_global_improvements`, todos dentro da previsão do
+  pacote. Linha de base regravada: o `content_sha256` passa de
+  `a2d820eba10c4793f6612dbb6f53eebd8e26395e6374bc5ceb1d441ddf4e6b48` para
+  `8b4fbfb31f64917e78cdfadcdea0b48cf71f7b95457a14ea04d17ec4388e1e35`. **O ramo 3 da
+  cascata está confirmado por medição**: o tuning e o piloto oficiais precisam ser
+  refeitos.
 
 #### A3. Avaliações de reparo são viáveis mas ficam inelegíveis para o incumbente
 
@@ -1489,8 +1540,18 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   faltava para que o único `D1` da auditoria tivesse sido detectado pela suíte, e o
   defeito atravessou o tuning oficial de 440 execuções sem sinal.
 - **Onda:** A, junto de A1.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com teste novo, no commit do pacote A1.
+  `test_trial_state_reproduces_the_formula_and_both_counters`, em
+  `tests/test_pso.py`, exercita `_trial_state` diretamente e fixa a fórmula inteira
+  contra valores calculados à mão: os dois sorteios de `PCG64(2026)`, as quatro
+  velocidades, as quatro posições e os dois contadores. O teste falha sob a ordem
+  defeituosa, que produz posições `1,0` e `0,0` no lugar de `0,6` e `0,4` e
+  `position_clips` 2 em vez de 0. O vetor sugerido no campo de evidência, com
+  `x=0,5`, **não** foi usado, porque produz o mesmo passo sob as duas ordens; o
+  vetor do teste tem coordenadas em `0,10` e `0,90`, que discriminam.
+- **Impressão digital:** sem efeito próprio, porque a alteração é restrita a
+  `tests/`. O diff não zero registrado em A1 é do mesmo commit e vem inteiro da
+  correção de A1.
 
 ### 3.4. Frente F4 - ACO
 
@@ -4485,6 +4546,15 @@ melhor global também não é testado na região que a correção reescreve.
 **Consequência canônica, conforme o briefing:** ramo alterado, com **3 h 43 min de
 relógio de retuning** com 16 workers, mais as **18 execuções do piloto**, mais
 revalidação do piloto, regeração do roteiro e novo manifesto, nessa ordem.
+
+**Ramo 3 confirmado por medição, e não mais por previsão.** O pacote A1 da Onda A
+corrigiu a ordem de saturação no código e a impressão digital foi comparada contra a
+linha de base `a2d820eb...` antes de qualquer regravação. Divergiram exatamente os
+**11 cenários `pso:*`** e **nenhum** cenário `tabu:*`, `aco:*` ou `greedy:*`, o que
+confirma o escopo previsto e descarta vazamento da correção para fora do PSO. A linha
+de base foi regravada em seguida, com `content_sha256` igual a `8b4fbfb3...`. O tuning
+e o piloto oficiais estão, portanto, invalidados por medição, e precisam ser refeitos
+na tarefa de fechamento, depois das três ondas. O detalhe numérico está no achado A1.
 
 **Consequência revisada, e ela é separada de propósito.** Se o ganho de 3,58x do ACO
 de F4-1 entrar **antes** do retuning, o próprio retuning fica muito mais barato,

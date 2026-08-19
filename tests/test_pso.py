@@ -3,18 +3,23 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 from inspect import signature
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
 
 from metaheuristica import PsoConfig, RunConfig, run_pso
+from metaheuristica import pso as pso_module
 from metaheuristica.errors import ConfigurationError, SolutionValidationError
 from metaheuristica.instances import load_tiny_instance
 from metaheuristica.pso import (
+    VELOCITY_LIMIT,
     _Best,
     _best_comparison,
     _initial_particle,
+    _Particle,
     _project_position,
+    _trial_state,
     decode_position,
 )
 from metaheuristica.problem import EvaluationResult
@@ -144,3 +149,204 @@ def test_population_cannot_exceed_budget() -> None:
             RunConfig(k=2, seed=1, budget=100),
             PsoConfig(101, 0.7, 1.5, 1.5),
         )
+
+
+class _ConstantRng:
+    """Gerador substituto que devolve `r1` e `r2` iguais a 1.
+
+    Serve ao cenário exato registrado na auditoria, em que os coeficientes
+    aleatórios são fixados em 1 para que a aritmética do passo seja conferível à
+    mão.
+    """
+
+    def random(self, shape: Any) -> np.ndarray:
+        return np.ones(shape, dtype=np.float64)
+
+
+def particle_with_pbest(
+    position: list[float], velocity: list[float], pbest_position: list[float]
+) -> _Particle:
+    particle = _Particle(
+        np.array(position, dtype=np.float64), np.array(velocity, dtype=np.float64)
+    )
+    particle.pbest = _Best(
+        np.array(pbest_position, dtype=np.float64),
+        np.zeros(len(position), dtype=np.int64),
+        evaluation(1.0),
+    )
+    return particle
+
+
+def test_trial_state_limits_the_step_during_the_search() -> None:
+    """O limite de velocidade precisa bornar o deslocamento, não só o estado guardado.
+
+    Cenário discriminante da verificação adversarial do achado A1: com
+    `x = 0,10`, `pbest = gbest = 1,0`, `v = 0,5`, `r1 = r2 = 1` e os pesos
+    congelados, a velocidade bruta vale 3,35. Aplicar a velocidade bruta à
+    posição dá passo 0,9 e rótulo 4; saturar a velocidade antes dá passo 0,5 e
+    rótulo 3. Um cenário com `x = 0,50` não serve, porque produz o mesmo passo
+    sob as duas ordens.
+    """
+
+    particle = particle_with_pbest(
+        [0.10, 0.30, 0.50, 0.70, 0.90], [0.5] * 5, [1.0] * 5
+    )
+    trial = _trial_state(
+        particle,
+        np.ones(5, dtype=np.float64),
+        PsoConfig(5, 0.4, 2.0, 1.5),
+        _ConstantRng(),  # type: ignore[arg-type]
+    )
+    step = np.abs(trial.position - particle.position)
+    assert step.max() <= VELOCITY_LIMIT
+    assert np.all(
+        (-VELOCITY_LIMIT <= trial.velocity) & (trial.velocity <= VELOCITY_LIMIT)
+    )
+    assert trial.velocity_clips == 5
+    assert decode_position(trial.position, n_units=5, k=5).tolist() == [3, 4, 4, 4, 4]
+
+
+def test_search_loop_keeps_every_coordinate_step_within_the_velocity_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """O limite de passo vale em toda a busca, não apenas na população inicial."""
+
+    original = pso_module._trial_state
+    steps: list[float] = []
+
+    def spy(particle: Any, gbest_position: Any, config: Any, rng: Any) -> Any:
+        trial = original(particle, gbest_position, config, rng)
+        steps.append(float(np.abs(trial.position - particle.position).max()))
+        return trial
+
+    monkeypatch.setattr(pso_module, "_trial_state", spy)
+    result = run_pso(
+        TINY,
+        RunConfig(k=2, seed=3, budget=100),
+        PsoConfig(4, 0.4, 2.0, 1.5),
+    )
+    assert len(steps) >= 20
+    # A saturação da posição soma no máximo um erro de arredondamento ao passo,
+    # por isso a folga de 1e-12 em cima do limite prescrito.
+    assert max(steps) <= VELOCITY_LIMIT + 1e-12
+    assert result.diagnostics["velocity_clips"] > 0
+
+
+def test_trial_state_reproduces_the_formula_and_both_counters() -> None:
+    """Fixa a fórmula inteira de `_trial_state`, com sorteios e contadores.
+
+    Os valores esperados vêm dos dois sorteios de `PCG64(2026)` combinados com os
+    pesos congelados. A primeira e a terceira coordenadas saturam a velocidade em
+    `+0,5` e `-0,5`; sob a ordem defeituosa elas dariam passo `+0,9` e `-0,9` e
+    dois recortes de posição.
+    """
+
+    expected_r1 = np.array(
+        [
+            0.17893481367543618,
+            0.6399131657151546,
+            0.4672684011434851,
+            0.37050052710804804,
+        ]
+    )
+    expected_r2 = np.array(
+        [
+            0.3549173343096512,
+            0.790518245853265,
+            0.9051438366771739,
+            0.17735319182304865,
+        ]
+    )
+    draws = np.random.Generator(np.random.PCG64(2026))
+    assert np.array_equal(draws.random(4), expected_r1)
+    assert np.array_equal(draws.random(4), expected_r2)
+
+    particle = particle_with_pbest(
+        [0.10, 0.50, 0.90, 0.30], [0.50, -0.10, -0.50, 0.05], [1.00, 0.40, 0.00, 0.35]
+    )
+    trial = _trial_state(
+        particle,
+        np.array([1.00, 0.45, 0.00, 0.32]),
+        PsoConfig(4, 0.4, 2.0, 1.5),
+        np.random.Generator(np.random.PCG64(2026)),
+    )
+    expected_velocity = np.array(
+        [0.5, -0.22727150158202575, -0.5, 0.06237064846549627]
+    )
+    expected_position = np.array(
+        [0.6, 0.27272849841797425, 0.4, 0.36237064846549627]
+    )
+    assert np.allclose(trial.velocity, expected_velocity, rtol=0.0, atol=1e-15)
+    assert np.allclose(trial.position, expected_position, rtol=0.0, atol=1e-15)
+    assert np.abs(trial.position - particle.position).max() <= VELOCITY_LIMIT
+    assert trial.velocity_clips == 2
+    assert trial.position_clips == 0
+
+
+def test_trial_state_depends_on_which_global_best_it_receives() -> None:
+    """Sem esta divergência, o instantâneo do melhor global não teria efeito algum."""
+
+    particle = particle_with_pbest([0.30, 0.60], [0.10, -0.10], [0.35, 0.65])
+    config = PsoConfig(2, 0.4, 2.0, 1.5)
+    synchronous = _trial_state(
+        particle,
+        np.array([0.80, 0.20]),
+        config,
+        np.random.Generator(np.random.PCG64(11)),
+    )
+    asynchronous = _trial_state(
+        particle,
+        np.array([0.20, 0.90]),
+        config,
+        np.random.Generator(np.random.PCG64(11)),
+    )
+    assert not np.array_equal(synchronous.position, asynchronous.position)
+    assert not np.array_equal(synchronous.velocity, asynchronous.velocity)
+
+
+def test_pso_uses_a_single_global_best_snapshot_per_iteration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Todas as partículas de uma iteração enxergam o mesmo melhor global.
+
+    A atualização assíncrona, que consultaria o melhor global já atualizado
+    dentro da própria iteração, faria as partículas seguintes de uma iteração
+    receberem outro vetor.
+    """
+
+    n_particles = 4
+    original = pso_module._trial_state
+    records: list[tuple[np.ndarray, np.ndarray]] = []
+
+    def spy(particle: Any, gbest_position: Any, config: Any, rng: Any) -> Any:
+        records.append((particle.position.copy(), gbest_position.copy()))
+        return original(particle, gbest_position, config, rng)
+
+    monkeypatch.setattr(pso_module, "_trial_state", spy)
+    run_pso(
+        TINY,
+        RunConfig(k=2, seed=0, budget=100),
+        PsoConfig(n_particles, 0.4, 2.0, 1.5),
+    )
+    assert len(records) % n_particles == 0
+    blocks = [
+        records[index : index + n_particles]
+        for index in range(0, len(records), n_particles)
+    ]
+    assert len(blocks) >= 2
+    for block in blocks:
+        for _, seen in block:
+            assert np.array_equal(seen, block[0][1])
+    # O cenário só discrimina se em alguma iteração o melhor global mudar por
+    # causa de uma partícula que não é a última: a posição comprometida por essa
+    # partícula reaparece como instantâneo da iteração seguinte, e mesmo assim as
+    # partículas posteriores da iteração em que a mudança ocorreu continuaram com
+    # o instantâneo antigo, conforme a asserção acima.
+    mid_iteration_updates = [
+        (index, order)
+        for index in range(len(blocks) - 1)
+        if not np.array_equal(blocks[index][0][1], blocks[index + 1][0][1])
+        for order, (committed, _) in enumerate(blocks[index + 1][:-1])
+        if np.array_equal(committed, blocks[index + 1][0][1])
+    ]
+    assert mid_iteration_updates
