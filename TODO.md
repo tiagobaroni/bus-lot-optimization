@@ -877,7 +877,7 @@ as barreiras já testadas.
 
 ### B11-E - Execução
 
-**Estado:** `PRONTA - AGUARDANDO AUTORIZAÇÃO`
+**Estado:** `INFRAESTRUTURA PRONTA - BLOQUEADA PELA B11B - DEPOIS AGUARDANDO AUTORIZAÇÃO`
 
 **Depende de:** B11-I e autorização explícita do usuário em momento com carga e
 temperatura adequadas.
@@ -973,13 +973,14 @@ lacunas.
 - manifesto de congelamento renovado com 16 workers e sem mudança nos 1.620
   IDs, configurações, instâncias, hiperparâmetros ou artefatos do piloto;
 - comandos definitivos documentados; a B11-E não exige criação ou revisão
-  adicional e aguarda somente autorização do usuário.
+  adicional e aguarda a conclusão da B11B e, depois dela, a autorização do
+  usuário.
 
 ---
 
 ## B11A - Experimento adicional com GPU
 
-**Estado:** `B11A-I CONCLUÍDA - B11A-E AGUARDA B11-E E AUTORIZAÇÃO`
+**Estado:** `B11A-I CONCLUÍDA - B11A-E BLOQUEADA PELA B11B, DEPOIS AGUARDA B11-E E AUTORIZAÇÃO`
 
 **Dependências internas:** a B11A-I poderá começar depois da conclusão da
 B11-I; a B11A-E somente poderá começar depois da conclusão da B11-E e de
