@@ -137,10 +137,15 @@ Cada achado traz doze campos, na ordem fixa abaixo.
    verificação corrigiu. `nenhuma` quando o verificador reproduziu tudo.
 9. **Decisão** - o que fazer.
 10. **Onda** - A, B, C ou registro apenas.
-11. **Situação** - `aberto`, `aberto com lacuna declarada`, `fechado sem ação` ou
-    `refutado`.
-12. **Impressão digital** - `pendente` em todos, porque o oráculo dos 42 cenários
-    ainda não existe nesta tarefa.
+11. **Situação** - `aberto`, `aberto com lacuna declarada`, `fechado sem ação`,
+    `refutado` ou, a partir da Onda A, `fechado com correção de código` e `fechado
+    com teste novo`, sempre com o pacote que fechou o achado.
+12. **Impressão digital** - era `pendente` em todos na fase de diagnóstico, porque o
+    oráculo dos 42 cenários ainda não existia. O oráculo passou a existir na Tarefa
+    14, em `experiments/audit_fingerprint.py`, e desde o pacote A1 as entradas já
+    fechadas trazem o resultado observado no lugar de `pendente`: o escopo de
+    cenários e de campos que divergiu, ou a declaração de que a alteração não tem
+    efeito próprio por ser restrita a `tests/`.
 
 **Convenção de fonte de premissa, obrigatória.** Toda citação de premissa declara
 sua fonte, em uma de duas categorias:
@@ -1219,13 +1224,36 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   0,280568556706720, com `float.hex()` alterado em 10 de 10 seeds, isto é a
   correção **piora** a média, como previsto, e se justifica apenas por
   conformidade com a seção 16 de `docs/formulation.md`.
+  **Nota de escopo da medição.** As zero violações em 34.336.800 coordenadas valem
+  para o passo da **tentativa**, `trial.position - posição_anterior`, que é a
+  grandeza do achado. O deslocamento efetivamente comprometido na partícula ainda
+  excede 0,5 em 938.817 coordenadas, isto é 2,73%, com máximo `0,9999192982105172`,
+  contra 1.966.457 coordenadas e máximo `1,0` antes da correção. Esse excedente vem
+  do reparo de lotes vazios e da projeção de volta ao espaço contínuo, que a seção
+  16 sanciona expressamente, logo **não é violação nem defeito** e não é objeto de
+  A1. A frase sobre zero violações não deve ser lida como afirmação sobre o
+  movimento total da partícula.
+  **Divergência conhecida com o espelho GPU, aberta por esta correção.**
+  `gpu/src/metaheuristica_gpu/pso.py:83-101` mantém a ordem antiga, com
+  `raw_position = particle.position + raw_velocity` e saturação da velocidade só na
+  saída, isto é conserva o defeito que a CPU deixou de ter. Antes da correção os
+  dois lados coincidiam bit a bit; depois, divergem em **5,16e-2** de custo total,
+  contra a régua normativa de `1e-12`. Não tocar em `gpu/` foi conformidade com a
+  lista de arquivos do pacote A1. O espelhamento do PSO foi **realocado para o
+  pacote B5**, que já é o dono do espelhamento do ACO. Enquanto B5 não fechar, fica
+  **proibido renovar o manifesto de congelamento**: a exposição só abriria nesse
+  momento, porque `_cpu_readiness()` em `gpu/src/metaheuristica_gpu/run.py:186`
+  reexecuta a verificação antes de todo cenário GPU e o manifesto hoje já diverge, o
+  que mantém o alarme armado.
 - **Impressão digital:** diff **não zero**, confinado ao escopo previsto. Divergiram
   exatamente os **11 cenários `pso:*`** e **nenhum** cenário `tabu:*`, `aco:*` ou
   `greedy:*`, em 7.325 diferenças de campo mais o `content_sha256` do documento. Os
   campos divergentes são `solution`, os sete de `evaluation`, os 100 `checkpoints`
-  e os diagnósticos `position_clips`, `velocity_clips`, `personal_best_updates`,
-  `global_best_updates` e `strict_global_improvements`, todos dentro da previsão do
-  pacote. Linha de base regravada: o `content_sha256` passa de
+  e **os dez campos de `diagnostics`**, todos dentro da previsão do pacote:
+  `position_clips`, `velocity_clips` e `personal_best_updates` em 11 cenários cada,
+  `global_best_updates` e `strict_global_improvements` em 10 cada, e
+  `iterations_completed`, `particles_evaluated`, `repair_attempts`,
+  `repair_evaluations` e `repairs_completed` em 6 cada. Linha de base regravada: o `content_sha256` passa de
   `a2d820eba10c4793f6612dbb6f53eebd8e26395e6374bc5ceb1d441ddf4e6b48` para
   `8b4fbfb31f64917e78cdfadcdea0b48cf71f7b95457a14ea04d17ec4388e1e35`. **O ramo 3 da
   cascata está confirmado por medição**: o tuning e o piloto oficiais precisam ser

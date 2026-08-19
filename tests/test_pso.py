@@ -226,9 +226,12 @@ def test_search_loop_keeps_every_coordinate_step_within_the_velocity_limit(
         PsoConfig(4, 0.4, 2.0, 1.5),
     )
     assert len(steps) >= 20
-    # A saturação da posição soma no máximo um erro de arredondamento ao passo,
-    # por isso a folga de 1e-12 em cima do limite prescrito.
-    assert max(steps) <= VELOCITY_LIMIT + 1e-12
+    # A saturação da posição nunca aumenta o passo: com posição em [0, 1] e
+    # velocidade em [-0,5, 0,5], recortar a soma em [0, 1] só pode mover o
+    # resultado na direção da posição de partida. A única folga concebível é o
+    # arredondamento da própria soma, de cerca de um ULP, e a medição da campanha
+    # nem chega a exercê-la, com máximo exatamente 0x1.0000000000000p-1.
+    assert max(steps) <= VELOCITY_LIMIT
     assert result.diagnostics["velocity_clips"] > 0
 
 
