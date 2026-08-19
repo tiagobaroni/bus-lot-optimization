@@ -7,15 +7,15 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 18/08/2026
-- **Bloco ativo:** B11A-I - Infraestrutura do experimento adicional com GPU
-- **Fase do bloco ativo:** implementação
-- **Último bloco concluído:** B11-I - Infraestrutura do benchmark principal
-- **Próxima ação atômica:** criar o subprojeto GPU isolado, gerar seu lock e
-  validar o preflight sem alterar o ambiente da B11-E.
-- **Bloqueios conhecidos:** nenhum.
-- **Última verificação:** `uv run pytest -q` aprovado, `git diff --check` sem
-  erros e auditoria dos sete artefatos concluída em 17/08/2026.
+- **Atualizado em:** 19/08/2026
+- **Bloco ativo:** B11B - Auditoria técnica pré-execução
+- **Fase do bloco ativo:** Fase 1, diagnóstico
+- **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
+- **Próxima ação atômica:** despachar os auditores independentes das frentes F1 a
+  F5 em modo somente leitura.
+- **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B.
+- **Última verificação:** `experiments.run_benchmark readiness` retornou
+  `ready: true` e `git_dirty: false` no commit `ca5b81f`.
 
 > **Aviso:** todos os blocos devem seguir o fluxo obrigatório definido na Seção
 > 12.1 de `AGENTS.md`: brainstorming, especificação, aprovação, plano, aprovação
@@ -1098,6 +1098,79 @@ indisponibilidade de GPU não invalida nem bloqueia o baseline obrigatório.
 - B11A-I concluída; próxima ação atômica é executar B11-E somente após nova
   autorização explícita do usuário. A B11A-E permanece bloqueada até a
   conclusão da B11-E e sua própria autorização explícita.
+
+---
+
+## B11B - Auditoria técnica pré-execução
+
+**Estado:** `EM ANDAMENTO`
+
+**Depende de:** B11A-I.
+
+**Objetivo:** submeter as premissas e o código-fonte do projeto a uma auditoria
+técnica completa antes de iniciar as 1.620 execuções oficiais da B11-E e, na
+sequência, as 60 execuções GPU da B11A-E, confrontando o que foi construído com
+o que estava planejado.
+
+**Tarefas:**
+
+- [ ] F1 - Mecanismo geral.
+- [ ] F2 - Testes.
+- [ ] F3 - PSO.
+- [ ] F4 - ACO.
+- [ ] F5 - Busca Tabu.
+- [ ] F6 - Benchmark.
+- [ ] F7 - CPU.
+- [ ] F8 - GPU.
+- [ ] F9 - Resultados.
+
+**Critério de saída:**
+
+1. As nove frentes auditadas, cada uma com relatório e veredito.
+2. Todo achado submetido à verificação adversarial.
+3. `docs/auditoria.md` completo, incluindo achados refutados e limitações
+   metodológicas.
+4. Toda correção aprovada aplicada, e toda correção em caminho não coberto pela
+   impressão digital acompanhada de teste que falha antes e passa depois.
+5. Impressão digital regravada, comparada, com a classificação final de cada
+   correção registrada.
+6. Suíte de CPU integralmente aprovada, com no mínimo os 254 testes atuais mais
+   os acrescentados pela auditoria.
+7. Suíte de GPU integralmente aprovada, com no mínimo os 17 testes atuais mais
+   os acrescentados.
+8. Portão dos 18 cenários executado e conferido.
+9. Roteiro do benchmark regenerado e conferido.
+10. Manifesto de congelamento renovado, com `readiness` retornando
+    `ready: true` e `git_dirty: false`.
+11. `TODO.md` com o checkpoint da B11B e com o cabeçalho "Estado de retomada"
+    corrigido.
+12. `AGENTS.md` seção 14 e `README.md` atualizados quanto ao estado real.
+13. Todos os commits com autoria e assinatura exclusivas do usuário.
+
+**Checkpoint de retomada:**
+
+- commit auditado `ca5b81f`, com a B11A-I como último bloco concluído; a B11-E
+  e a B11A-E aguardam a conclusão da B11B;
+- brainstorming encerrado com seis decisões aprovadas pelo usuário;
+- primeira decisão, alcance: todo defeito real é corrigido, aceitando desde já
+  o custo de refazer o tuning e o piloto caso a correção altere resultados;
+- segunda decisão, profundidade das premissas: conformidade mais solidez
+  interna; verifica-se que o código faz o que os documentos afirmam e que cada
+  premissa é bem definida e entrega o que promete; não se reabrem escolhas de
+  desenho defensáveis;
+- terceira decisão, execução: auditores independentes por frente, sem receber
+  justificativa do autor do código, seguidos de verificação adversarial com
+  instrução de refutar por padrão;
+- quarta decisão, oráculo de regressão: impressão digital determinística
+  rápida após cada correção, mais portão final de reprodução dos 18 cenários
+  do piloto contra `results/tables/pilot_runs.parquet`;
+- quinta decisão, registro: documento versionado `docs/auditoria.md`;
+  especificação e plano permanecem em `superpowers/`, fora do Git, conforme a
+  Seção 12.1 do `AGENTS.md`;
+- sexta decisão, melhorias: todas são aplicadas, inclusive legibilidade e
+  refatoração em arquivos protegidos pelo congelamento;
+- rótulo do bloco aprovado: B11B - Auditoria técnica pré-execução;
+- especificação e plano aprovados explicitamente pelo usuário em 19/08/2026.
 
 ---
 

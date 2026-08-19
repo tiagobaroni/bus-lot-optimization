@@ -15,6 +15,7 @@ env/
 .vscode/
 _temp/
 superpowers/
+.superpowers/
 
 # Operational experiment outputs
 results/raw/
