@@ -235,6 +235,24 @@ uv run python -m experiments.freeze_benchmark generate \
   --config experiments/configs/pilot.toml --workers 16
 ```
 
+O escopo protegido do congelamento é recalculado a cada verificação, percorrendo
+o sistema de arquivos e **não** o índice do Git. Qualquer `.py` novo sob
+`experiments/` ou sob `src/metaheuristica/` faz a verificação recusar com
+`escopo protegido divergente`, inclusive arquivo não rastreado, ignorado pelo
+`.gitignore` ou deixado como rascunho. Durante a campanha isso derruba o portão
+e, como a causa não é óbvia na mensagem, o diagnóstico é comparar o escopo com o
+que o Git conhece:
+
+```bash
+uv run python -m experiments.freeze_benchmark verify --workers 16
+git status --porcelain --untracked-files=all -- experiments src/metaheuristica
+git ls-files --others -- experiments src/metaheuristica
+```
+
+Se o caminho nomeado pela recusa aparecer como não rastreado, é rascunho e deve
+sair da árvore. Se estiver versionado, a recusa é legítima e exige renovação do
+congelamento, que é operação de fechamento e não de campanha.
+
 O benchmark principal é separado em infraestrutura (B11-I) e execução oficial
 (B11-E). O preflight integral é somente leitura:
 

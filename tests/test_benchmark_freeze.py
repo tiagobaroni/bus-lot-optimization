@@ -165,6 +165,39 @@ def test_verify_rejects_removed_module_inside_the_dynamic_scope(
     assert "experiments/rotina.py" in str(error.value)
 
 
+def test_verify_rejects_pilot_artifact_dropped_from_the_manifest(
+    frozen_repository: Path,
+) -> None:
+    """A composição dos artefatos do piloto também é recalculada, e não reidratada."""
+
+    manifest = read_json(frozen_repository / FREEZE_PATH)
+    artifacts = dict(manifest["pilot_artifacts"])
+    del artifacts["results/tables/pilot_validation.json"]
+    _mutate_manifest(frozen_repository, pilot_artifacts=artifacts)
+    _write(
+        frozen_repository,
+        "results/tables/pilot_validation.json",
+        "veredito adulterado\n",
+    )
+    with pytest.raises(
+        ConfigurationError, match="escopo de artefatos do piloto divergente"
+    ) as error:
+        verify_freeze_manifest(frozen_repository, workers=16)
+    assert "results/tables/pilot_validation.json" in str(error.value)
+
+
+def test_scope_message_names_every_cause_at_once(frozen_repository: Path) -> None:
+    """Duas causas simultâneas precisam aparecer na mesma recusa."""
+
+    (frozen_repository / "pyproject.toml").unlink()
+    _write(frozen_repository, "experiments/sonda.py", "print('sonda')\n")
+    with pytest.raises(ConfigurationError, match="escopo protegido divergente") as error:
+        verify_freeze_manifest(frozen_repository, workers=16)
+    message = str(error.value)
+    assert "experiments/sonda.py" in message
+    assert "pyproject.toml" in message
+
+
 def test_verify_rejects_manifest_without_pilot_artifacts(
     frozen_repository: Path,
 ) -> None:

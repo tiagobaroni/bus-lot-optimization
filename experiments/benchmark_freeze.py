@@ -87,8 +87,6 @@ def _revalidate_pilot_behaviour(
     """
 
     documents = _load_official_documents(config)
-    if not documents:
-        raise ConfigurationError("piloto sem documento oficial para revalidar")
     commits = {document["provenance"].get("git_commit") for _, document in documents}
     if commits != {validation.get("campaign_commit")}:
         raise ConfigurationError(
@@ -147,9 +145,16 @@ def verify_freeze_manifest(
     if not isinstance(expected_protected, dict):
         raise ConfigurationError("arquivos protegidos ausentes do congelamento")
     current_scope = protected_paths(root)
-    if current_scope != tuple(sorted(expected_protected)):
-        divergent = sorted(set(current_scope) ^ set(expected_protected))
-        raise ConfigurationError(f"escopo protegido divergente: {divergent}")
+    divergent = set(current_scope) ^ set(expected_protected)
+    if divergent:
+        # A lista fixa pertence ao escopo exista ou não em disco, de modo que a
+        # sua ausência não aparece na diferença simétrica. Sem acumulá-la aqui, a
+        # mensagem nomearia apenas uma das causas quando houvesse duas.
+        divergent.update(
+            relative for relative in FIXED_PROTECTED
+            if not (root / relative).is_file()
+        )
+        raise ConfigurationError(f"escopo protegido divergente: {sorted(divergent)}")
     current_protected = _hash_files(root, current_scope)
     if current_protected != expected_protected:
         changed = sorted(
@@ -160,7 +165,13 @@ def verify_freeze_manifest(
     expected_artifacts = manifest.get("pilot_artifacts")
     if not isinstance(expected_artifacts, dict):
         raise ConfigurationError("artefatos do piloto ausentes do congelamento")
-    if _hash_files(root, tuple(sorted(expected_artifacts))) != expected_artifacts:
+    artifact_scope = tuple(sorted(PILOT_ARTIFACTS))
+    if artifact_scope != tuple(sorted(expected_artifacts)):
+        divergent = sorted(set(PILOT_ARTIFACTS) ^ set(expected_artifacts))
+        raise ConfigurationError(
+            f"escopo de artefatos do piloto divergente: {divergent}"
+        )
+    if _hash_files(root, artifact_scope) != expected_artifacts:
         raise ConfigurationError("artefato do piloto diverge do congelamento")
     if check_environment:
         current_environment = _environment(capture_provenance(root, allow_dirty=True))

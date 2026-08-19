@@ -7,6 +7,7 @@ import pytest
 from experiments import pilot_validation
 from experiments.config import load_campaign
 from experiments.pilot_validation import _deterministic_result
+from experiments.scenarios import expand_scenarios
 from metaheuristica.errors import ConfigurationError
 
 
@@ -66,3 +67,15 @@ def test_timing_probe_measures_the_real_boundary_of_the_timed_window() -> None:
     assert report["load_seconds"] > 0.0
     assert report["window_seconds"] > 0.0
     assert report["excluded_seconds"] >= 0.0
+
+
+def test_timing_probe_scenario_has_its_own_identity() -> None:
+    """A sonda não pode herdar a identidade do cenário oficial de que deriva."""
+
+    config = load_campaign(REPOSITORY_ROOT / "experiments/configs/pilot.toml")
+    probe = pilot_validation._timing_probe_scenario(config)
+    official = expand_scenarios(config)
+    assert probe.payload["budget"] == pilot_validation.TIMING_PROBE_BUDGET
+    assert probe.scenario_id not in {item.scenario_id for item in official}
+    assert probe.filename not in {item.filename for item in official}
+    assert probe.filename.startswith("timing_probe_")

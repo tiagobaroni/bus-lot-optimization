@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, replace
+from hashlib import sha256
 import json
 from pathlib import Path
 import tempfile
@@ -21,7 +22,9 @@ from experiments.config import CampaignConfig
 from experiments.consolidation import _atomic_parquet
 from experiments.execution import build_plan, execute_campaign
 from experiments.resource_monitor import read_samples, summarize_samples
-from experiments.scenarios import Scenario, expand_scenarios, file_sha256
+from experiments.scenarios import (
+    Scenario, canonical_json, expand_scenarios, file_sha256,
+)
 from experiments.storage import (
     artifact_paths, atomic_write_json, read_json, validate_document,
 )
@@ -150,19 +153,34 @@ def _timing_window_report(
     }
 
 
-def _probe_timing_window(config: CampaignConfig) -> dict[str, Any]:
-    """Instrumenta a fronteira da janela cronometrada no caminho de produção."""
+def _timing_probe_scenario(config: CampaignConfig) -> Scenario:
+    """Cenário da sonda, com identidade própria e nunca a do cenário oficial.
+
+    A sonda roda com orçamento reduzido e não pode compartilhar ``scenario_id``
+    nem nome de arquivo com o cenário oficial de que deriva, sob pena de um dia
+    a sua saída ser gravada por cima de um resultado da campanha.
+    """
 
     algorithm, instance_name, k = TIMING_PROBE_CASE
-    scenario = next(
+    official = next(
         item for item in expand_scenarios(config)
         if item.payload["algorithm"] == algorithm
         and item.payload["instance"]["name"] == instance_name
         and item.payload["k"] == k
     )
-    payload = dict(scenario.payload)
+    payload = dict(official.payload)
     payload["budget"] = TIMING_PROBE_BUDGET
-    probe = Scenario(payload, scenario.scenario_id, scenario.filename)
+    payload["timing_probe"] = True
+    identifier = sha256(canonical_json(payload)).hexdigest()
+    return Scenario(payload, identifier, f"timing_probe_{identifier[:12]}.json")
+
+
+def _probe_timing_window(config: CampaignConfig) -> dict[str, Any]:
+    """Instrumenta a fronteira da janela cronometrada no caminho de produção."""
+
+    algorithm, instance_name, k = TIMING_PROBE_CASE
+    probe = _timing_probe_scenario(config)
+    payload = probe.payload
     instance_path = config.repository_root / payload["instance"]["path"]
 
     _load_instance(instance_path)
