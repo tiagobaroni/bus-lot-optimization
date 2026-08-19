@@ -13,7 +13,7 @@ for _thread_variable in (
     "VECLIB_MAXIMUM_THREADS",
     "ARROW_NUM_THREADS",
 ):
-    os.environ.setdefault(_thread_variable, "1")
+    os.environ[_thread_variable] = "1"
 
 import argparse
 from concurrent.futures import ProcessPoolExecutor
@@ -147,7 +147,7 @@ def _evaluation_payload(evaluation: Any) -> dict[str, float]:
     }
 
 
-def _greedy_payload(result: Any) -> dict[str, Any]:
+def _greedy_payload(result: Any, *, variant: str) -> dict[str, Any]:
     return {
         "algorithm": "greedy",
         "k": result.k,
@@ -165,7 +165,7 @@ def _greedy_payload(result: Any) -> dict[str, Any]:
             }
             for step in result.trace
         ],
-        "fingerprint_variant": "frozen",
+        "fingerprint_variant": variant,
     }
 
 
@@ -174,7 +174,8 @@ def run_scenario(root: Path, scenario: FingerprintScenario) -> tuple[str, dict[s
 
     instance = _load_instance(root, scenario.instance)
     if scenario.algorithm == "greedy":
-        return scenario.scenario_id, _greedy_payload(run_greedy(instance, k=scenario.k))
+        greedy_result = run_greedy(instance, k=scenario.k)
+        return scenario.scenario_id, _greedy_payload(greedy_result, variant=scenario.variant)
     if scenario.variant == "runner_up":
         parameters = dict(RUNNER_UP[scenario.algorithm])
     else:
@@ -247,9 +248,14 @@ def compare(baseline: Any, current: Any) -> list[str]:
 
 
 def _walk(path: str, left: Any, right: Any, differences: list[str]) -> None:
+    # Na raiz, "path" chega vazio; os quatro pontos de registro abaixo rotulam
+    # esse caso como "<raiz>" em vez de deixar dois pontos soltos na mensagem.
+    # No uso real a raiz é sempre um dicionário, então este rótulo só aparece
+    # se alguém comparar valores fora do formato de documento.
+    label = path or "<raiz>"
     if type(left) is not type(right):
         differences.append(
-            f"{path}: tipo {type(left).__name__} contra {type(right).__name__}"
+            f"{label}: tipo {type(left).__name__} contra {type(right).__name__}"
         )
         return
     if isinstance(left, dict):
@@ -264,17 +270,17 @@ def _walk(path: str, left: Any, right: Any, differences: list[str]) -> None:
         return
     if isinstance(left, list):
         if len(left) != len(right):
-            differences.append(f"{path}: tamanho {len(left)} contra {len(right)}")
+            differences.append(f"{label}: tamanho {len(left)} contra {len(right)}")
             return
         for index, (item_left, item_right) in enumerate(zip(left, right)):
             _walk(f"{path}[{index}]", item_left, item_right, differences)
         return
     if isinstance(left, float):
         if left.hex() != right.hex():
-            differences.append(f"{path}: {left!r} contra {right!r}")
+            differences.append(f"{label}: {left!r} contra {right!r}")
         return
     if left != right:
-        differences.append(f"{path}: {left!r} contra {right!r}")
+        differences.append(f"{label}: {left!r} contra {right!r}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -284,20 +290,30 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("operation", choices=("generate", "compare"))
     parser.add_argument("--baseline", type=Path, default=BASELINE_PATH)
     parser.add_argument("--workers", type=int, default=16)
+    # A comparação por subconjunto é mais fraca que a completa; ver o aviso no
+    # texto de ajuda abaixo e o comentário junto ao filtro em compare.
     parser.add_argument(
         "--only",
         action="append",
         default=None,
         help="restringe a cenários informados; repetível. Em compare, apenas os "
         "cenários informados são conferidos, o que serve a verificações "
-        "intermediárias por arquivo refatorado.",
+        "intermediárias por arquivo refatorado. Atenção: a comparação por "
+        "subconjunto é mais fraca que a comparação completa - inclua ao menos "
+        "um cenário de instância real por algoritmo, e trate o veredito final "
+        "de qualquer correção como vindo sempre da comparação completa, nunca "
+        "só do subconjunto.",
     )
     arguments = parser.parse_args(argv)
     root = Path(__file__).resolve().parents[1]
     only = tuple(arguments.only) if arguments.only else None
     if only is not None and arguments.operation == "generate":
         parser.error("generate exige o conjunto completo; --only vale só em compare")
-    document = generate(root, workers=arguments.workers, only=only)
+    try:
+        document = generate(root, workers=arguments.workers, only=only)
+    except ValueError as error:
+        print(f"erro: {error}", file=sys.stderr)
+        return 2
     baseline_path = root / arguments.baseline
     if arguments.operation == "generate":
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
@@ -310,6 +326,12 @@ def main(argv: list[str] | None = None) -> int:
     with baseline_path.open(encoding="utf-8") as stream:
         baseline = json.load(stream)
     if only is not None:
+        # Aviso: a comparação por subconjunto é estritamente mais fraca que a
+        # comparação completa, porque só audita os cenários pedidos. Para que
+        # ela sirva de conferência intermediária por arquivo refatorado, o
+        # subconjunto deve incluir ao menos um cenário de instância real por
+        # algoritmo; mesmo assim, o veredito final de qualquer correção vem
+        # sempre da comparação completa, nunca só do subconjunto.
         # Sem esta restrição, comparar um subconjunto acusaria como diferença todos
         # os cenários que a linha de base tem e o documento atual não executou.
         baseline = dict(baseline)

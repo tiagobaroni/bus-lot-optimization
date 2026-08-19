@@ -1,5 +1,6 @@
 """Testes do oráculo de impressão digital da auditoria B11B."""
 
+import json
 from math import nextafter
 from pathlib import Path
 import tomllib
@@ -13,6 +14,7 @@ from experiments.audit_fingerprint import (
     TINY_BUDGET,
     compare,
     generate,
+    main,
     scenarios,
 )
 
@@ -97,3 +99,50 @@ def test_generate_em_processos_coincide_com_execucao_serial():
     serial = generate(ROOT, workers=1, only=("tabu:tiny_manual:2:frozen", "aco:tiny_manual:2:frozen"))
     paralelo = generate(ROOT, workers=2, only=("tabu:tiny_manual:2:frozen", "aco:tiny_manual:2:frozen"))
     assert compare(serial, paralelo) == []
+
+
+def test_main_generate_com_only_recusa_e_sai_2():
+    with pytest.raises(SystemExit) as encerramento:
+        main(["generate", "--only", "tabu:tiny_manual:2:frozen"])
+    assert encerramento.value.code == 2
+
+
+def test_main_compare_acusa_cenario_ausente_da_linha_de_base(tmp_path):
+    linha_de_base_reduzida = {
+        "schema_version": 1,
+        "seed": FINGERPRINT_SEED,
+        "budgets": {},
+        "scenarios": {"tabu:tiny_manual:2:frozen": {}},
+    }
+    caminho_reduzido = tmp_path / "linha_de_base_reduzida.json"
+    caminho_reduzido.write_text(json.dumps(linha_de_base_reduzida), encoding="utf-8")
+    status = main(
+        [
+            "compare",
+            "--baseline",
+            str(caminho_reduzido),
+            "--workers",
+            "1",
+            "--only",
+            "tabu:tiny_manual:2:frozen",
+            "--only",
+            "aco:tiny_manual:2:frozen",
+        ]
+    )
+    assert status == 2
+
+
+def test_main_compare_com_subconjunto_valido_sai_0():
+    status = main(
+        ["compare", "--workers", "1", "--only", "tabu:tiny_manual:2:frozen"]
+    )
+    assert status == 0
+
+
+def test_main_compare_com_id_unico_desconhecido_sai_2(capsys):
+    status = main(
+        ["compare", "--workers", "1", "--only", "algoritmo_inexistente:instancia:1:frozen"]
+    )
+    assert status == 2
+    saida = capsys.readouterr()
+    assert "erro:" in saida.err
