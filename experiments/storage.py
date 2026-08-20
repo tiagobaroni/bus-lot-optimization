@@ -28,12 +28,17 @@ class ScenarioState(StrEnum):
 class ArtifactPaths:
     result: Path
     failure: Path
+    interrupted: Path
 
 
 def artifact_paths(root: Path, purpose: str, scenario: Scenario) -> ArtifactPaths:
+    failures = root / "failures" / purpose
+    # O registro de interrupção é irmão do registro de falha e mora em arquivo
+    # próprio, para não sobrescrever o histórico de tentativas do cenário.
     return ArtifactPaths(
         root / "raw" / purpose / scenario.filename,
-        root / "failures" / purpose / scenario.filename,
+        failures / scenario.filename,
+        failures / f"{Path(scenario.filename).stem}.interrupted.json",
     )
 
 
@@ -151,8 +156,18 @@ def build_result_document(
 
 def classify(paths: ArtifactPaths, scenario: Scenario) -> ScenarioState:
     if paths.result.exists():
-        validate_document(read_json(paths.result), scenario)
+        document = validate_document(read_json(paths.result), scenario)
+        if (
+            scenario.payload.get("purpose") == "benchmark"
+            and document.get("official") is not True
+        ):
+            # Autorização para estado sujo ou não versionado existe apenas para
+            # desenvolvimento: o resultado não é concluído e a retomada oficial
+            # precisa reexecutar o cenário.
+            return ScenarioState.PENDING
         return ScenarioState.COMPLETED
+    # Cenário apenas interrompido continua pendente: interrupção externa não
+    # conta como falha nem consome a tentativa única.
     return ScenarioState.FAILED if paths.failure.exists() else ScenarioState.PENDING
 
 
@@ -171,7 +186,39 @@ def record_failure(paths: ArtifactPaths, scenario: Scenario, error: BaseExceptio
     })
     atomic_write_json(paths.failure, {
         "schema_version": 1,
+        "kind": "failed",
         "scenario_id": scenario.scenario_id,
         "scenario": scenario.payload,
         "attempts": attempts,
+    })
+
+
+def record_interrupted(
+    paths: ArtifactPaths, scenario: Scenario, error: BaseException
+) -> None:
+    """Registra interrupção externa sem consumir a tentativa única.
+
+    Morte de worker por sinal, inclusive pelo matador por falta de memória, não
+    é falha algorítmica do cenário. O evento é gravado em arquivo próprio, de
+    modo que o histórico de tentativas permanece intacto e ``classify`` continua
+    devolvendo ``PENDING``.
+    """
+
+    events: list[dict[str, Any]] = []
+    if paths.interrupted.exists():
+        existing = read_json(paths.interrupted)
+        if existing.get("scenario_id") != scenario.scenario_id:
+            raise ConfigurationError("registro de interrupção incompatível")
+        events = list(existing.get("events", []))
+    events.append({
+        "at": utc_now(),
+        "exception_type": type(error).__name__,
+        "message": str(error),
+    })
+    atomic_write_json(paths.interrupted, {
+        "schema_version": 1,
+        "kind": "interrupted",
+        "scenario_id": scenario.scenario_id,
+        "scenario": scenario.payload,
+        "events": events,
     })

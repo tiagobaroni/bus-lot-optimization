@@ -28,8 +28,8 @@ from experiments.benchmark_validation import finalize_benchmark, validate_batch
 from experiments.config import CampaignConfig, load_campaign
 from experiments.execution import build_plan
 from experiments.provenance import capture_provenance
-from experiments.scenarios import canonical_json
-from experiments.storage import read_json
+from experiments.scenarios import Scenario, canonical_json
+from experiments.storage import read_json, validate_document
 
 
 DEFAULT_CONFIG = Path("experiments/configs/benchmark.toml")
@@ -72,18 +72,48 @@ def _ordered_selection(
     )
 
 
+def inspect_existing_results(
+    config: CampaignConfig, known: dict[str, Scenario]
+) -> dict[str, list[str]]:
+    """Inspeciona, e não apenas conta, o que já existe em resultados.
+
+    Contar deixava passar resultado não oficial, isto é gerado com
+    ``--allow-dirty`` ou sem versionamento, que a retomada adotava em silêncio
+    como concluído.
+    """
+
+    raw = config.repository_root / config.output_root / "raw" / config.purpose
+    if not raw.exists():
+        return {"existing": [], "unexpected": [], "nonofficial": []}
+    existing = sorted(path.name for path in raw.glob("*.json"))
+    return {
+        "existing": existing,
+        "unexpected": [name for name in existing if name not in known],
+        "nonofficial": [
+            name for name in existing if name in known
+            and validate_document(
+                read_json(raw / name), known[name]
+            ).get("official") is not True
+        ],
+    }
+
+
 def readiness(config: CampaignConfig, *, workers: int, pilot_runs: Path) -> dict[str, object]:
     freeze = verify_freeze_manifest(config.repository_root, workers=workers)
     partition = validate_benchmark_partition(config)
     schedules = [schedule_batch(config, batch=batch, pilot_runs=pilot_runs) for batch in range(1, 6)]
-    root = config.repository_root / config.output_root
-    raw = root / "raw" / config.purpose
-    known_names = {item.filename for batch in schedules for group in batch for item in group.selection.scenarios}
-    unexpected = sorted(
-        path.name for path in raw.glob("*.json") if path.name not in known_names
-    ) if raw.exists() else []
+    known = {
+        item.filename: item
+        for batch in schedules for group in batch for item in group.selection.scenarios
+    }
+    inspection = inspect_existing_results(config, known)
+    unexpected = inspection["unexpected"]
     if unexpected:
         raise ConfigurationError(f"resultados inesperados: {unexpected}")
+    if inspection["nonofficial"]:
+        raise ConfigurationError(
+            f"resultados não oficiais: {inspection['nonofficial']}"
+        )
     provenance = capture_provenance(config.repository_root, allow_dirty=True)
     if provenance["git_dirty"]:
         raise ConfigurationError("prontidão exige worktree limpa")
@@ -106,8 +136,9 @@ def readiness(config: CampaignConfig, *, workers: int, pilot_runs: Path) -> dict
         "freeze_schema_version": freeze["schema_version"],
         "git_commit": provenance["git_commit"],
         "git_dirty": provenance["git_dirty"],
-        "existing_results": len(tuple(raw.glob("*.json"))) if raw.exists() else 0,
+        "existing_results": len(inspection["existing"]),
         "unexpected_results": unexpected,
+        "nonofficial_results": inspection["nonofficial"],
     }
 
 

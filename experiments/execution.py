@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import Future, ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass
 import multiprocessing
 from pathlib import Path
@@ -15,7 +16,7 @@ from experiments.provenance import capture_provenance
 from experiments.scenarios import Scenario, expand_scenarios, select_scenario
 from experiments.storage import (
     ScenarioState, artifact_paths, atomic_write_json, build_result_document,
-    classify, record_failure,
+    classify, record_failure, record_interrupted,
 )
 from experiments.provenance import utc_now
 
@@ -215,6 +216,7 @@ def execute_campaign(
         from experiments.worker import run_scenario
         executor = ProcessPoolExecutor(max_workers=workers, mp_context=context)
         interrupted = False
+        broken = False
         try:
             futures: dict[Future[dict[str, Any]], Scenario] = {
                 executor.submit(run_scenario, scenario, str(config.repository_root)): scenario
@@ -226,6 +228,17 @@ def execute_campaign(
                     try:
                         _publish_success(config, scenario, future.result(), provenance)
                         succeeded += 1
+                    except BrokenProcessPool as error:
+                        # Morte de worker por sinal ou pelo matador por falta de
+                        # memória não é falha algorítmica do cenário: registra
+                        # interrupção, sem consumir a tentativa única, e encerra
+                        # o lote para que a retomada reexecute os pendentes.
+                        record_interrupted(
+                            artifact_paths(output_root, config.purpose, scenario),
+                            scenario, error,
+                        )
+                        broken = True
+                        break
                     except Exception as error:
                         record_failure(
                             artifact_paths(output_root, config.purpose, scenario),
@@ -253,6 +266,12 @@ def execute_campaign(
         finally:
             if not interrupted:
                 executor.shutdown(wait=True, cancel_futures=False)
+        if broken:
+            _write_interruption_report(config, workers=workers)
+            return ExecutionSummary(
+                plan.expected, len(plan.selected), plan.completed,
+                succeeded, failures, True,
+            )
     return ExecutionSummary(
         plan.expected, len(plan.selected), plan.completed,
         succeeded, failures, False,

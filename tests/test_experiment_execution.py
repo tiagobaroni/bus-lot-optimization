@@ -204,3 +204,49 @@ def test_explicit_ordered_selection_is_preserved(tmp_path: Path) -> None:
     ]
     with pytest.raises(ConfigurationError, match="incompatíveis"):
         build_plan(config, scenario_id=scenarios[0].scenario_id, selected_scenarios=scenarios)
+
+
+def _dies_by_signal_on_first_seed(scenario, repository_root):
+    """Worker que morre por sinal, como o matador por falta de memória.
+
+    Precisa ser função de módulo: com o contexto ``spawn`` o processo filho
+    reimporta o módulo e recebe a função por qualificação, não por fechamento.
+    ``raise SystemExit`` não serve, porque não deixa o pool em estado quebrado.
+    """
+
+    import os as _os
+    import time as _time
+
+    if scenario.payload["seed"] == 1:
+        _os._exit(1)
+    # Mantém os demais em voo, para que a morte alcance futuros pendentes.
+    _time.sleep(1.5)
+    from experiments.worker import run_scenario
+
+    return run_scenario(scenario, repository_root)
+
+
+def test_worker_death_does_not_consume_the_single_attempt(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = _campaign(tmp_path, seeds="[1, 2, 3, 4, 5, 6, 7, 8]")
+    from experiments import worker
+
+    monkeypatch.setattr(worker, "run_scenario", _dies_by_signal_on_first_seed)
+    summary = execute_campaign(config, workers=4, allow_unversioned=True)
+    assert summary.interrupted is True
+    assert summary.failed == 0
+    scenarios = expand_scenarios(config)
+    paths = [artifact_paths(tmp_path / "out", "pilot", item) for item in scenarios]
+    assert not [item for item in paths if item.failure.exists()]
+    assert [item for item in paths if item.interrupted.exists()]
+    plan = build_plan(config)
+    assert plan.failed == 0
+    assert plan.pending == 8
+    assert len(plan.selected) == 8
+
+    monkeypatch.undo()
+    resumed = execute_campaign(config, workers=4, allow_unversioned=True)
+    assert resumed.succeeded == 8
+    assert resumed.failed == 0
+    assert build_plan(config).completed == 8
