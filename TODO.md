@@ -7,15 +7,26 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 19/08/2026
+- **Atualizado em:** 20/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 1, diagnóstico
+- **Fase do bloco ativo:** Fase 2, correção. Cinco dos 29 pacotes concluídos.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
-- **Próxima ação atômica:** despachar os auditores independentes das frentes F1 a
-  F5 em modo somente leitura.
-- **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B.
-- **Última verificação:** `experiments.run_benchmark readiness` retornou
-  `ready: true` e `git_dirty: false` no commit `ca5b81f`.
+- **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
+  merge em `main` foi feito.
+- **Próxima ação atômica:** redespachar o pacote B5, que acelera o ACO em 3,58
+  vezes preservando os bits e espelha a correção em `gpu/`. Ele foi interrompido
+  por erro de servidor e seu trabalho parcial, não verificado, está preservado em
+  `git stash`.
+- **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
+  manifesto de congelamento está divergente de propósito, em dez arquivos
+  protegidos, e não deve ser renovado antes do fechamento da auditoria.
+- **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
+  e o piloto oficiais serão refeitos antes da B11-E.
+- **Última verificação:** suíte com 321 aprovados e impressão digital idêntica à
+  linha de base `8b4fbfb3`, no commit `1351e98`.
+- **Handover detalhado:** `superpowers/B11B_handover.md`, fora do Git, com o
+  estado completo, as armadilhas conhecidas e o que fazer com o trabalho
+  guardado no stash.
 
 > **Aviso:** todos os blocos devem seguir o fluxo obrigatório definido na Seção
 > 12.1 de `AGENTS.md`: brainstorming, especificação, aprovação, plano, aprovação
