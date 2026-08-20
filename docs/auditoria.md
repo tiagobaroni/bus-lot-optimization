@@ -771,8 +771,25 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   encadeamento entre lotes, com um caso negativo por guarda.
 - **Onda:** B, na onda dos defeitos associados F6-01, F6-04 e F6-05, que são
   defeitos reais da mesma barreira.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado no commit do pacote B2, com dezesseis testes.
+  `tests/test_benchmark_validation.py` passou a exercitar a barreira com
+  validadores reais sobre um repositório de brinquedo versionado e congelado,
+  construído em `tests/toy_repository.py`, com três instâncias sintéticas, dois
+  lotes de 324 execuções reais cada e 32.400 checkpoints por lote, executados pelo
+  caminho saturado. Nenhuma das cinco funções é substituída por dublê, com uma
+  única exceção nomeada: o caso da contagem de 324 precisa de um seletor truncado,
+  porque `select_benchmark` já recusa lote de tamanho diferente e sem o dublê a
+  guarda seria inalcançável. Casos negativos: barreira anterior ausente, segunda
+  falha, arquivos temporários, artefato estranho, resultado ausente, contagem menor
+  que 324, resultado não oficial, proveniência não uniforme, diário incompleto,
+  diário ausente, operação sem sessão, resumo de recursos reprovado, worktree suja
+  e congelamento divergente. O encadeamento entre lotes é exercitado nos dois
+  sentidos: o lote 2 é recusado sem a barreira do lote 1 e aprovado depois dela,
+  com os 324 resultados reais do lote 2.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os 42
+  cenários devolveu "impressão digital idêntica" com saída 0, antes e depois do
+  lote. O pacote vive em `experiments/`, `.gitignore`, `README.md`,
+  `docs/` e `tests/`, fora do caminho científico executado pelo oráculo.
 
 #### F2-06. O reinício da Busca Tabu não tem a limpeza da memória verificada
 
@@ -2263,9 +2280,26 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   acrescentar `results/tables/benchmark_batches/` ao `.gitignore`, ou mover as
   tabelas de barreira para `results/operational/`, que já é ignorado.
 - **Onda:** B, primeira posição.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero, porque a mudança é de
-  destino de escrita e de `.gitignore`, sem efeito em número científico.
+- **Situação:** fechado no commit do pacote B2. Das duas opções do registro foi
+  adotada a segunda, mover as tabelas da barreira para
+  `results/operational/benchmark_batches/`, e não acrescentar `results/tables/` ao
+  `.gitignore`, porque `results/tables/` contém artefatos oficiais versionados e
+  vários deles estão em `FIXED_PROTECTED`. O `.gitignore` recebeu, ainda assim,
+  `results/tables/benchmark_batches/` como rede contra execução por versão antiga
+  do código. **Oráculo:** `tests/test_benchmark_validation.py`
+  `test_barrier_writes_outside_versioned_tables_and_leaves_worktree_clean` roda a
+  barreira do lote 1 sobre repositório Git temporário, com cópia do `.gitignore`
+  real, e exige `git status --porcelain --untracked-files=all` vazio. Antes da
+  correção o teste falhava com
+  `?? results/tables/benchmark_batches/batch-01_checkpoints.parquet` e
+  `?? results/tables/benchmark_batches/batch-01_runs.parquet`. Como a linha nova do
+  `.gitignore` sozinha faria o oráculo passar, o teste também exige que o relatório
+  aponte para `results/operational/` e que `results/tables/benchmark_batches` não
+  exista.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os 42
+  cenários devolveu "impressão digital idêntica" com saída 0, antes e depois do
+  lote. O pacote vive em `experiments/`, `.gitignore`, `README.md`,
+  `docs/` e `tests/`, fora do caminho científico executado pelo oráculo.
 
 #### F6-02. O congelamento é gerado sobre worktree suja, sem revalidar comportamento e sem confrontar o commit do piloto
 
@@ -2439,8 +2473,21 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   tentativas independentemente do estado corrente.
 - **Onda:** B, com prioridade, junto de F2-05, que é a cobertura ausente da mesma
   guarda.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado no commit do pacote B2. `blocked_failures` passou a
+  consultar o histórico de tentativas em `results/failures/`, independentemente do
+  estado corrente, e `campaign_blocked_failures` aplica a mesma regra à campanha
+  inteira. A recusa passou a valer também na CLI genérica: `experiments.run`, com
+  finalidade `benchmark`, interrompe `execute` com `campanha bloqueada por segunda
+  falha` antes de qualquer execução. **Evidência:** com duas falhas registradas e o
+  resultado removido, a CLI genérica devolvia 0 e reexecutava o ID bloqueado
+  (`{"selected": 1, "succeeded": 1}`), que era a terceira tentativa; passou a
+  devolver 2 sem executar nada. Com o resultado publicado sobre duas falhas,
+  `blocked_failures` devolvia `()` e passou a devolver o ID, e a barreira do lote
+  recusa com `lote contém segunda falha`.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os 42
+  cenários devolveu "impressão digital idêntica" com saída 0, antes e depois do
+  lote. O pacote vive em `experiments/`, `.gitignore`, `README.md`,
+  `docs/` e `tests/`, fora do caminho científico executado pelo oráculo.
 
 #### F6-05. A barreira do lote não confere proveniência nem artefato estranho, e não registra o congelamento que diz confirmar
 
@@ -2476,8 +2523,20 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   lote 2 em diante será necessariamente assinada com worktree suja ou com commit
   intermediário não previsto, e o relatório não registrará nem uma coisa nem outra.
 - **Onda:** B, com prioridade, junto de F6-01 e F6-04.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado no commit do pacote B2. `validate_batch` passou a chamar
+  `verify_freeze_manifest` e `capture_provenance(allow_dirty=False)` por si, antes
+  de qualquer leitura de resultado, a varrer o diretório de resultados por artefato
+  estranho ao roteiro da campanha inteira, e a exigir `git_commit` uniforme entre os
+  324 documentos, que era a alegação estreita e verdadeira do verificador. O
+  relatório do lote passou a registrar `git_commit`, `git_dirty`, `results_commit`,
+  `freeze_sha256` e `workers`. A CLI repassa `--workers` à barreira e não duplica
+  mais a verificação. **Oráculo:** casos negativos de worktree suja, congelamento
+  divergente, artefato estranho e proveniência não uniforme, mais o controle
+  positivo que confere os campos novos contra o `HEAD` e o hash do manifesto.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os 42
+  cenários devolveu "impressão digital idêntica" com saída 0, antes e depois do
+  lote. O pacote vive em `experiments/`, `.gitignore`, `README.md`,
+  `docs/` e `tests/`, fora do caminho científico executado pelo oráculo.
 
 #### F6-06. A morte de um único worker converte os cenários pendentes em falhas com a tentativa única já consumida
 
@@ -2518,8 +2577,25 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
 - **Onda:** B, com prioridade. **A decisão precisa ser tomada junto com a escolha
   entre o caminho documentado por subgrupo e o caminho saturado por lote, e não
   isoladamente.** Ver a conexão 3 da seção 5.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado no commit do pacote B3. `BrokenProcessPool` ganhou ramo
+  próprio, antes do ramo genérico de `Exception`, que chama `record_interrupted`,
+  encerra o lote e devolve `interrupted = True`. `record_interrupted` é função nova
+  de `experiments/storage.py`, irmã de `record_failure`, que grava em
+  `results/failures/` com `kind: "interrupted"` em arquivo próprio, e não no
+  registro de falha, de modo que o histórico de tentativas permanece intacto;
+  `classify` continua devolvendo `PENDING` para cenário apenas interrompido. A
+  assinatura adotada é `record_interrupted(paths, scenario, error)`, por simetria
+  com `record_failure`, e não a do adendo, que passava a configuração.
+  **Evidência:** o teste com quatro workers reais, oito cenários e um worker
+  chamando `os._exit(1)` devolvia
+  `ExecutionSummary(succeeded=0, failed=8, interrupted=False)`, isto é oito
+  `record_failure` por morte de um worker; passou a devolver `failed=0`,
+  `interrupted=True`, nenhum registro de falha, os oito cenários em `pending` e a
+  retomada concluindo os oito.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os 42
+  cenários devolveu "impressão digital idêntica" com saída 0, antes e depois do
+  lote. O pacote vive em `experiments/`, `.gitignore`, `README.md`,
+  `docs/` e `tests/`, fora do caminho científico executado pelo oráculo.
 
 #### F6-07. Resultado não oficial válido é tratado como concluído pela retomada, e o preflight não olha o que já existe
 
@@ -2549,8 +2625,23 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
 - **Decisão:** corrigir, fazendo `classify` recusar documento com
   `official is not True` quando a finalidade for `benchmark`.
 - **Onda:** B, com prioridade.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado no commit do pacote B3. `classify` passou a recusar
+  documento com `official is not True` quando a finalidade do cenário é
+  `benchmark`, devolvendo `PENDING`, de modo que a retomada reexecuta o cenário; a
+  recusa não alcança piloto e tuning, o que é fixado por teste. O preflight passou
+  a inspecionar em vez de apenas contar: `inspect_existing_results` valida cada
+  documento existente e `readiness` recusa com `resultados não oficiais` além de
+  `resultados inesperados`. **Evidência:** um resultado gerado sem versionamento
+  era classificado como `completed` e `build_plan` selecionava zero cenários;
+  passou a ser `pending` e a ser selecionado, e volta a `completed` quando o
+  documento oficial o substitui. Consequência de manutenção registrada: o ensaio
+  reduzido de `tests/test_benchmark_dry_run.py` passou a rodar sobre repositório
+  versionado e limpo, porque resultado não oficial não conclui mais cenário de
+  benchmark.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os 42
+  cenários devolveu "impressão digital idêntica" com saída 0, antes e depois do
+  lote. O pacote vive em `experiments/`, `.gitignore`, `README.md`,
+  `docs/` e `tests/`, fora do caminho científico executado pelo oráculo.
 
 #### F6-08. O identificador por conteúdo não cobre os dois Parquet que carregam todos os dados do objetivo
 
@@ -2643,8 +2734,24 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   lateral sobre integridade do diário entra como item associado, não como achado
   novo, porque não passou por verificação adversarial independente.
 - **Onda:** B, sem prioridade.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado no commit do pacote B4, por alinhamento textual. Das duas
+  opções da decisão foi adotada a primeira, alinhar a seção 29 ao que a CLI
+  permite, e não permitir a redução de workers com renovação de manifesto: a
+  segunda abriria um caminho de renovação de manifesto no meio da campanha, que é
+  exatamente o que F6-02 acabou de fechar. A frase "Falha exclusivamente de
+  recursos reduz os workers e exige repetição integral" passou a dizer que o número
+  de workers é fixado em 16 pelo congelamento, que a CLI e a verificação do
+  manifesto recusam qualquer outro valor, e que a recuperação passa por nova sessão
+  registrada. **Item associado B7 absorvido:** a mesma redação diz que a
+  recuperação nunca se dá por sobrescrever o resumo de recursos de uma sessão já
+  registrada, porque o diário operacional precisa preservar o registro fiel de que
+  uma sessão reprovou em recursos. **Oráculo:**
+  `test_workers_other_than_sixteen_are_refused_in_both_gates` fixa as duas recusas,
+  a da CLI e a do congelamento, de modo que texto e código não voltem a divergir.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os 42
+  cenários devolveu "impressão digital idêntica" com saída 0, antes e depois do
+  lote. O pacote vive em `experiments/`, `.gitignore`, `README.md`,
+  `docs/` e `tests/`, fora do caminho científico executado pelo oráculo.
 
 #### F6-10. A escrita atômica de Parquet não sincroniza o diretório após a substituição
 
@@ -2819,10 +2926,24 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   `batch-01_initial.json`. Ver a conexão 3 da seção 5.
 - **Onda:** B, com prioridade. A mudança é de documentação de procedimento, não de
   código de algoritmo.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero. O auditor mediu a diferença
-  de regime de contenção entre os dois modos em cerca de 1%, com sinal
-  inconsistente, o que sustenta que a troca não altera resultado.
+- **Situação:** fechado no commit do pacote B4, e é a materialização da decisão
+  do usuário. O `README.md` passou a documentar `execute --batch N` **sem filtros**
+  como caminho oficial, com a sequência `execute`, `retry`, `barrier` por lote, com
+  a aritmética explícita (512,02 h-CPU, 32,00 h ideais pelo lote inteiro contra
+  85,34 h pelo subgrupo, 17,07 h por lote) e com advertência sobre o raio de dano:
+  uma morte de worker alcança 324 cenários em voo e não 6, e o que torna isso
+  aceitável é a correção de F6-06, que registra o evento como interrupção sem
+  consumir a tentativa única. A invocação por subgrupo permanece documentada como
+  retomada dirigida, e a pausa entre lotes substitui a pausa entre subgrupos. A
+  seção 29.2 de `docs/experiments.md` recebeu o mesmo alinhamento. **Oráculo:**
+  `test_saturated_execute_covers_the_whole_batch` exercita `execute --batch 1` sem
+  filtros sobre a campanha de brinquedo e confere que a seleção é o lote inteiro,
+  que o diário sai como `batch-01_initial.json` cobrindo os 324 IDs e que
+  `_validate_operations` o encontra.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os 42
+  cenários devolveu "impressão digital idêntica" com saída 0, antes e depois do
+  lote. O pacote vive em `experiments/`, `.gitignore`, `README.md`,
+  `docs/` e `tests/`, fora do caminho científico executado pelo oráculo.
 
 #### F7-2. O registro de `thread_limits` é tautológico e não pode falhar
 
@@ -4938,7 +5059,7 @@ verificados. São anotações, cada uma ancorada no achado que a originou.
 | B4 | A metodologia de mutação de `frente-3-report.md` não declara o diretório de trabalho com precisão suficiente para excluir, por si só, o padrão defeituoso de `PYTHONPATH`. Lacuna de reprodutibilidade do relatório, não dos resultados. | verificador da F2 | `L1` | seção 6.2 |
 | B5 | O padrão de comando de mutação documentado em `frente-6-report.md:292` não carrega o mutante. **Os dois verificadores divergem na classe**: o da F5 propõe `D3` de metodologia da auditoria, o da F2 propõe `L1`. A divergência não foi arbitrada. | verificadores da F5 e da F2 | `D3` ou `L1`, em disputa | seção 6.2 |
 | B6 | **A última iteração de qualquer execução do PSO nunca é contada**, mesmo em orçamento que divide exato por `n_particles`, porque `_stop_at_limit` verifica `remaining == 0` **depois** de uma avaliação bem sucedida e o caminho de exceção nunca alcança o incremento de `iterations_completed`. Medido: orçamento 100 com `n_particles=4` dá 23 iterações e não 24. | verificador da F3 | reforça `D2` | A5 |
-| B7 | Reescrever silenciosamente o resumo de recursos de uma sessão já registrada, que é o mecanismo que possibilita a recuperação de F6-09, **destrói a integridade do diário operacional**, porque sessões historicamente distintas passam a apontar para o mesmo arquivo mutável e se perde o registro fiel de que uma sessão reprovou em recursos. | verificador da F6 | não atribuída, ortogonal a F6-09 | F6-09 |
+| B7 | Reescrever silenciosamente o resumo de recursos de uma sessão já registrada, que é o mecanismo que possibilita a recuperação de F6-09, **destrói a integridade do diário operacional**, porque sessões historicamente distintas passam a apontar para o mesmo arquivo mutável e se perde o registro fiel de que uma sessão reprovou em recursos. **Absorvido no pacote B4**, como item associado de F6-09: a seção 29 passou a dizer que a recuperação é por nova sessão registrada da mesma rodada, e nunca por sobrescrita do resumo de uma sessão já registrada. | verificador da F6 | não atribuída, ortogonal a F6-09 | F6-09 |
 | B8 | A conformidade da GPU em **150.000 avaliações** permanece **não verificada por medição direta**. As medições usaram orçamentos de 2.000, 4.000 e 20.000, porque uma execução pareada de ACO em `artesp_rmsp_150` com orçamento cheio custaria cerca de 2,3 h de CPU. A extrapolação se apoia em que o desvio é arredondamento por avaliação e não acumulação, com o máximo travado em 1 a 2 ulp com orçamento cinco vezes maior. | verificador dedicado dos `D1` da GPU | limitação de escopo | F8-1 |
 | B9 | **Aritmética da conexão 8, derivada nesta tarefa e não verificada por ninguém:** aplicar F4-1 ao caminho CPU levaria `T_CPU` de 221,12 s a cerca de 61,8 s e o speedup do ACO de 1,3518 a cerca de **0,38**, isto é a variante GPU ficaria cerca de 2,6 vezes mais lenta que a CPU otimizada, a menos que o espelhamento em `gpu/aco.py` seja feito. A conclusão qualitativa está apoiada em números verificados; **a divisão é minha e precisa de verificação independente antes de ser citada como resultado**. | esta tarefa | consequência de F4-1 e F8-2 | F4-1, F8-2 |
 | B10 | **Lacunas declaradas de A7 e A8**, repetidas aqui por serem os dois únicos achados do registro com situação `aberto com lacuna declarada`: as magnitudes de qualidade que sustentam a classe `L1`, 0,286856 para A7 e 0,272414 para A8, **não foram reproduzidas** pelo verificador, porque exigiriam alterar código sob contrato de somente leitura. Se a magnitude de A7 não se sustentar, o achado teria de ser reavaliado como defeito que altera resultados, sem a defesa de que a mudança é benéfica. | verificador da F3 | condiciona a classe de A7 e A8 | A7, A8 |

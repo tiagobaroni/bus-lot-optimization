@@ -267,33 +267,50 @@ subgrupos de seis seeds, ordenados pela duração estimada no piloto:
 uv run python -m experiments.run_benchmark schedule
 ```
 
-Um subgrupo pode ser planejado sem executar nada:
+Um lote inteiro, ou um subgrupo dele, pode ser planejado sem executar nada:
 
 ```bash
+uv run python -m experiments.run_benchmark plan --batch 1
 uv run python -m experiments.run_benchmark plan --batch 1 \
   --algorithm aco --instance artesp_rmsp_150 --k 8
 ```
 
-Quando a B11-E for explicitamente autorizada, o mesmo subgrupo será executado
-e monitorado por:
+Quando a B11-E for explicitamente autorizada, o caminho oficial é o lote
+inteiro, isto é `execute --batch N` **sem filtros**, e a sequência por lote é:
+
+```bash
+uv run python -m experiments.run_benchmark execute --batch 1
+uv run python -m experiments.run_benchmark retry --batch 1
+uv run python -m experiments.run_benchmark barrier --batch 1
+```
+
+A razão de o lote ser a unidade de invocação é de ocupação: o
+`ProcessPoolExecutor` cria processos sob demanda, um por cenário submetido, de
+modo que submeter um subgrupo de seis cenários ocupa **6 dos 16 workers**. O
+roteiro versionado soma 512,02 h-CPU: submetido lote a lote, isso são **32,00 h
+ideais de relógio**, cerca de 6,5 h por lote; submetido subgrupo a subgrupo,
+são **85,34 h**, cerca de 17,07 h por lote.
+
+A invocação por subgrupo continua disponível, e o seu lugar é a **retomada
+dirigida**, quando se quer reexecutar uma fatia identificada do lote:
 
 ```bash
 uv run python -m experiments.run_benchmark execute --batch 1 \
   --algorithm aco --instance artesp_rmsp_150 --k 8
 ```
 
+**Advertência sobre o raio de dano.** Pelo lote inteiro, a morte de um worker,
+por sinal ou pelo matador por falta de memória, alcança os 324 cenários em voo,
+contra 6 pela invocação por subgrupo. O que torna esse raio aceitável é a
+distinção entre morte de worker e falha do cenário: o evento é registrado como
+interrupção, **não** consome a tentativa única de cenário algum, e a retomada
+reexecuta os pendentes. Uma segunda falha própria de um mesmo ID continua
+bloqueando a campanha.
+
 O comando pode ser interrompido por `Ctrl+C` e retomado. Resultados válidos são
 ignorados, cenários interrompidos retornam à fila e falhas aguardam o fim da
-rodada inicial do lote. Depois dos 54 subgrupos, uma única nova tentativa e a
-barreira são executadas por:
-
-```bash
-uv run python -m experiments.run_benchmark retry --batch 1
-uv run python -m experiments.run_benchmark barrier --batch 1
-```
-
-`retry` só deve ser chamado se houver falhas elegíveis. Se não houver, segue-se
-diretamente para `barrier`. Depois das cinco barreiras:
+rodada inicial do lote. `retry` só deve ser chamado se houver falhas elegíveis.
+Se não houver, segue-se diretamente para `barrier`. Depois das cinco barreiras:
 
 ```bash
 uv run python -m experiments.run_benchmark finalize
@@ -301,9 +318,16 @@ uv run python -m experiments.run_benchmark finalize
 
 A campanha usa exatamente 16 workers, uma thread computacional por execução e
 recusa alterações em código, automação, instâncias, parâmetros, configuração
-ou ambiente protegido. A estimativa atual é de 35 a 40 horas no total, ou 6,5
-a 8 horas por lote. É seguro pausar entre subgrupos para controlar carga e
-temperatura.
+ou ambiente protegido. O número de workers é fixado pelo congelamento e a CLI
+recusa qualquer outro valor. É seguro pausar entre lotes para controlar carga e
+temperatura; pelo caminho oficial a pausa natural é o intervalo entre a barreira
+de um lote e a execução do seguinte.
+
+A barreira do lote confere resultados, checkpoints, proveniência, congelamento,
+recursos, ausência de lacunas, duplicatas, temporários e artefato estranho, e
+grava as suas tabelas em `results/operational/benchmark_batches/`, fora da
+árvore versionada, de modo que a worktree continua limpa e o lote seguinte
+permanece executável.
 
 Uma repetição integral deve usar uma cópia da configuração com outro
 `output_root`; não se apagam nem sobrescrevem resultados oficiais válidos.

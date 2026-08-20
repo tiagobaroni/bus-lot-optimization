@@ -1071,7 +1071,13 @@ de otimizadores persistentes e memória disponível igual ou superior ao maior
 valor entre 10% da RAM e 2 GiB. Threads auxiliares ociosas do alocador ou da
 leitura Parquet são registradas separadamente e não contam como paralelismo
 computacional do otimizador.
-Falha exclusivamente de recursos reduz os workers e exige repetição integral.
+Falha exclusivamente de recursos exige repetição integral da rodada. O número
+de workers **não** é reduzido: ele é fixado em 16 pelo congelamento, e tanto a
+CLI quanto a verificação do manifesto recusam qualquer outro valor. A
+recuperação passa por **nova sessão registrada** da mesma rodada, e nunca por
+sobrescrever o resumo de recursos de uma sessão já registrada: o diário
+operacional precisa preservar o registro fiel de que uma sessão específica
+reprovou em recursos.
 
 Três execuções completas são repetidas em saída isolada: TS em `(20,3)`, ACO em
 `(60,8)` e PSO em `(150,3)`. Todos os campos determinísticos devem coincidir.
@@ -1127,17 +1133,33 @@ execuções e é dividido em 54 subgrupos definidos por algoritmo, instância e
 `K`. Um subgrupo contém seis execuções e pode ser interrompido e retomado
 isoladamente. A barreira de auditoria continua pertencendo ao lote completo.
 
+A unidade de invocação oficial é o **lote inteiro**, isto é `execute --batch N`
+sem filtros. O `ProcessPoolExecutor` cria processos sob demanda, um por cenário
+submetido, de modo que submeter um subgrupo por vez ocupa 6 dos 16 workers e
+converte as 512,02 h-CPU do roteiro em 85,34 h de relógio, contra 32,00 h
+ideais do lote inteiro. O subgrupo permanece como caminho de retomada dirigida.
+Pelo lote inteiro, a morte de um worker alcança os 324 cenários em voo, e é por
+isso que ela é registrada como interrupção, sem consumir a tentativa única.
+
 Os subgrupos são ordenados antes da B11-E pela duração estimada com os tempos do
 piloto. Para cada algoritmo e instância, `K=3` e `K=8` são âncoras e os valores
 intermediários usam interpolação linear. Tempos da própria B11-E não alteram a
-fila. A estimativa resultante é de aproximadamente 33 horas ideais e de 35 a 40
-horas com margem operacional, cerca de 6,5 a 8 horas por lote.
+fila. A estimativa resultante, já pela invocação por lote inteiro, é de
+aproximadamente 33 horas ideais e de 35 a 40 horas com margem operacional, cerca
+de 6,5 a 8 horas por lote.
 
-Depois que os 54 subgrupos de um lote recebem a rodada inicial, cada ID falho
-pode ser repetido uma única vez. Uma segunda falha bloqueia a campanha. Uma
+Depois que o lote recebe a rodada inicial integral, cada ID falho pode ser
+repetido uma única vez. Uma segunda falha bloqueia a campanha. Uma
 interrupção externa não conta como falha. O lote seguinte só é liberado após a
 barreira confirmar 324 resultados, 32.400 checkpoints, proveniência,
-congelamento, recursos, ausência de lacunas, duplicatas e temporários.
+congelamento, recursos, ausência de lacunas, duplicatas, temporários e artefato
+estranho ao roteiro. A barreira confere esses itens por si, e não pela linha de
+comando que a invoca; registra no relatório do lote o commit, o estado da
+worktree e o hash do congelamento; e grava as suas tabelas em
+`results/operational/`, fora da árvore versionada. Uma interrupção externa,
+inclusive morte de worker por sinal ou pelo matador por falta de memória, é
+registrada como interrupção e não consome a tentativa única. O bloqueio por
+segunda falha é propriedade do histórico do ID e não do estado corrente.
 
 Os comandos operacionais definitivos estão documentados no `README.md`. O
 preflight `experiments.run_benchmark readiness` é somente leitura. O roteiro
