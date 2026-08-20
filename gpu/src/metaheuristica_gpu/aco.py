@@ -14,7 +14,7 @@ from metaheuristica import (
     ProblemInstance, RunConfig, TerminationReason, canonicalize_solution,
     evaluate_solution, validate_solution,
 )
-from metaheuristica.metrics import COST_TOLERANCE
+from metaheuristica.aco import _heuristic_from_state, _PartialConstructionState
 
 from metaheuristica_gpu.evaluator import HybridEvaluator
 from metaheuristica_gpu.numerics import require_equivalent
@@ -28,59 +28,14 @@ class _Ant:
     probabilistic: int
 
 
-class _PartialState:
-    def __init__(self, instance: ProblemInstance, k: int, weights: ObjectiveWeights) -> None:
-        self.instance = instance
-        self.k = k
-        self.weights = weights
-        self.labels: list[int] = []
-        self.demand = np.zeros(k, dtype=np.float64)
-        self.production = np.zeros(k, dtype=np.float64)
-        self.territorial_cut = self.territorial_total = 0.0
-        self.affinity_cut = self.affinity_total = 0.0
-
-    def _cost(self, lot: int) -> float:
-        index = len(self.labels)
-        demand = self.demand.copy(); demand[lot] += self.instance.demand[index]
-        production = self.production.copy(); production[lot] += self.instance.production[index]
-        previous = np.asarray(self.labels, dtype=np.int64)
-        separated = previous != lot
-        territorial = self.instance.s_territorial[index, :index]
-        affinity = self.instance.w_affinity[index, :index]
-        def balance(values: np.ndarray) -> float:
-            cv = float(np.std(values, ddof=0) / np.mean(values))
-            return cv / (1.0 + cv)
-        t_total = self.territorial_total + float(np.sum(territorial))
-        a_total = self.affinity_total + float(np.sum(affinity))
-        t_cut = self.territorial_cut + float(np.sum(territorial[separated]))
-        a_cut = self.affinity_cut + float(np.sum(affinity[separated]))
-        return (
-            self.weights.demand * balance(demand)
-            + self.weights.production * balance(production)
-            + self.weights.territorial * (0.0 if t_total == 0 else t_cut / t_total)
-            + self.weights.affinity * (0.0 if a_total == 0 else a_cut / a_total)
-        )
-
-    def heuristic(self, choices: tuple[int, ...]) -> np.ndarray:
-        costs = np.asarray([self._cost(lot) for lot in choices], dtype=np.float64)
-        amplitude = float(np.max(costs) - np.min(costs))
-        if amplitude <= COST_TOLERANCE:
-            return np.ones(len(choices), dtype=np.float64)
-        return 1.0 + (float(np.max(costs)) - costs) / amplitude
-
-    def append(self, lot: int) -> None:
-        index = len(self.labels)
-        previous = np.asarray(self.labels, dtype=np.int64)
-        separated = previous != lot
-        territorial = self.instance.s_territorial[index, :index]
-        affinity = self.instance.w_affinity[index, :index]
-        self.demand[lot] += self.instance.demand[index]
-        self.production[lot] += self.instance.production[index]
-        self.territorial_cut += float(np.sum(territorial[separated]))
-        self.territorial_total += float(np.sum(territorial))
-        self.affinity_cut += float(np.sum(affinity[separated]))
-        self.affinity_total += float(np.sum(affinity))
-        self.labels.append(lot)
+# O estado parcial e a informação heurística vêm da CPU, e não de uma cópia
+# local. A cópia anterior reimplementava a mesma aritmética, o que já custou a
+# esta árvore uma divergência silenciosa: o espelho de `_trial` no PSO reteve a
+# ordem anterior ao pacote A1 e passou a divergir da CPU em custo total. Ao
+# delegar, a variante O4 do achado F4-1, com a asserção de contiguidade em ordem
+# C, vale aqui por construção, `require_equivalent` continua válido e uma futura
+# alteração da aritmética não pode atingir só um dos dois lados.
+_PartialState = _PartialConstructionState
 
 
 def _choices(prefix: list[int], n: int, k: int) -> tuple[tuple[int, ...], bool]:
@@ -99,14 +54,14 @@ def _construct(
     tau: np.ndarray, config: AcoConfig, rng: np.random.Generator,
 ) -> _Ant:
     prefix: list[int] = []
-    state = _PartialState(instance, k, weights)
+    state = _PartialState(instance, k=k, weights=weights)
     forced = probabilistic = 0
     for index in range(instance.n_units):
         choices, is_forced = _choices(prefix, instance.n_units, k)
         if is_forced:
             selected = choices[0]; forced += 1
         else:
-            eta = state.heuristic(choices)
+            eta = _heuristic_from_state(state, choices)
             log_weights = config.alpha * np.log(tau[index, list(choices)]) + config.beta * np.log(eta)
             log_weights -= float(np.max(log_weights))
             raw = np.exp(log_weights)

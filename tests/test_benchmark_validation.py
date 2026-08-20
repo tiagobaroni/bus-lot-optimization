@@ -41,6 +41,15 @@ def _diary(config, *, batch: int = 1) -> Path:
     return operational_root(config) / "operations" / f"batch-{batch:02d}_initial.json"
 
 
+def _batch_tables(config) -> Path:
+    return (
+        config.repository_root
+        / config.output_root
+        / "operational"
+        / "benchmark_batches"
+    )
+
+
 def test_barrier_writes_outside_versioned_tables_and_leaves_worktree_clean(
     toy_benchmark,
 ) -> None:
@@ -113,10 +122,42 @@ def test_barrier_refuses_alien_artifact_in_the_results_directory(toy_benchmark) 
 
 
 def test_barrier_refuses_missing_result(toy_benchmark) -> None:
+    """Uma barreira recusada não deixa tabela para trás.
+
+    A asserção de não escrita vinha de
+    ``test_barrier_rejects_missing_results_without_writing`` e se perdeu quando
+    a suíte migrou para o repositório de brinquedo. Sem ela, mover a gravação
+    das tabelas para antes das validações passaria despercebido, e um lote
+    recusado publicaria artefato operacional como se tivesse sido aprovado.
+    """
+
     config = toy_benchmark
     _result_path(config).unlink()
+    assert not _batch_tables(config).exists()
     with pytest.raises(ConfigurationError, match="resultado ausente"):
         validate_batch(config, batch=1)
+    assert not _batch_tables(config).exists()
+
+
+def test_barrier_refused_late_in_the_flow_still_writes_no_table(toy_benchmark) -> None:
+    """A recusa mais tardia da barreira também não pode publicar tabela.
+
+    ``resultado ausente`` é conferido cedo. O critério de recursos é conferido
+    dentro de ``_validate_operations``, que é a última validação antes da
+    gravação das tabelas, e portanto cobre o trecho do fluxo em que tudo o mais
+    já passou.
+    """
+
+    config = toy_benchmark
+    document = read_json(_diary(config))
+    summary_path = config.repository_root / document["sessions"][0]["resource_summary"]
+    summary = read_json(summary_path)
+    summary["passed"] = False
+    atomic_write_json(summary_path, summary)
+    with pytest.raises(ConfigurationError, match="recursos"):
+        validate_batch(config, batch=1)
+    assert not _batch_tables(config).exists()
+    assert not (operational_root(config) / "barriers" / "batch-01.json").exists()
 
 
 def test_barrier_refuses_batch_short_of_the_expected_count(

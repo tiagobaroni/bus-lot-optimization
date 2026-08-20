@@ -16,7 +16,7 @@ from metaheuristica.errors import (
     SolutionValidationError,
 )
 from metaheuristica.metrics import COST_TOLERANCE, OptimizationResult, RunConfig
-from metaheuristica.objective import _evaluate_aggregates
+from metaheuristica.objective import _evaluate_aggregates, _evaluate_total_costs
 from metaheuristica.optimizer import OptimizationContext, execute_optimizer
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
 
@@ -85,6 +85,7 @@ class _PartialConstructionState:
         "demand_totals",
         "instance",
         "k",
+        "label_array",
         "labels",
         "production_totals",
         "territorial_cut",
@@ -99,6 +100,10 @@ class _PartialConstructionState:
         self.k = k
         self.weights = weights
         self.labels: list[int] = []
+        # Espelho do prefixo em int64, mantido incrementalmente por `append`.
+        # `evaluate_choice` reconstruía este vetor a cada alternativa, o que é
+        # uma das recomputações que F4-1 identificou.
+        self.label_array = np.empty(instance.n_units, dtype=np.int64)
         self.demand_totals = np.zeros(k, dtype=np.float64)
         self.production_totals = np.zeros(k, dtype=np.float64)
         self.territorial_cut = 0.0
@@ -106,7 +111,72 @@ class _PartialConstructionState:
         self.affinity_cut = 0.0
         self.affinity_total = 0.0
 
+    def choice_costs(self, choices: tuple[int, ...]) -> FloatArray:
+        """Custos totais de todas as alternativas numa única passagem.
+
+        Variante O4 do achado F4-1. Equivale, bit a bit, a
+        ``[self.evaluate_choice(lot).total_cost for lot in choices]``, que
+        continua no módulo como referência normativa da identidade.
+
+        O que sai do laço por alternativa: as duas cópias de vetores de tamanho
+        `K`, que viram uma única matriz `(2m, K)` contígua reduzida de uma vez;
+        a reconstrução do prefixo a partir da lista Python; as duas reduções dos
+        denominadores de corte, que não dependem do lote e passam a ser
+        calculadas uma vez por posição; e a construção de `EvaluationResult`,
+        cujos sete campos o consumidor não usa.
+
+        O que **não** sai: as duas somas mascaradas de corte. Elas somam
+        vetores compactados de comprimento variável, e agrupá-las mudaria o
+        bloco da soma em pares. É a mesma razão pela qual a variante que
+        colapsava os cortes por `bincount` foi rejeitada.
+        """
+
+        unit_index = len(self.labels)
+        count = len(choices)
+        lots = np.fromiter(choices, dtype=np.int64, count=count)
+        rows = np.arange(count, dtype=np.int64)
+        totals_matrix = np.empty((2 * count, self.k), dtype=np.float64, order="C")
+        totals_matrix[:count] = self.demand_totals
+        totals_matrix[count:] = self.production_totals
+        totals_matrix[rows, lots] += self.instance.demand[unit_index]
+        totals_matrix[rows + count, lots] += self.instance.production[unit_index]
+        territorial_edges = self.instance.s_territorial[unit_index, :unit_index]
+        affinity_edges = self.instance.w_affinity[unit_index, :unit_index]
+        previous = self.label_array[:unit_index]
+        territorial_cuts = np.empty(count, dtype=np.float64)
+        affinity_cuts = np.empty(count, dtype=np.float64)
+        # `np.add.reduce` no lugar de `np.sum` é a mesma redução, pelo mesmo
+        # laço, sem a camada de despacho em Python de `_wrapreduction`: `np.sum`
+        # apenas encaminha para `np.add.reduce`. A troca é bit a bit neutra e
+        # está coberta pelo oráculo de identidade.
+        for position, lot in enumerate(choices):
+            separated = previous != lot
+            territorial_cuts[position] = self.territorial_cut + float(
+                np.add.reduce(territorial_edges[separated])
+            )
+            affinity_cuts[position] = self.affinity_cut + float(
+                np.add.reduce(affinity_edges[separated])
+            )
+        return _evaluate_total_costs(
+            totals_matrix=totals_matrix,
+            territorial_cuts=territorial_cuts,
+            territorial_total=self.territorial_total
+            + float(np.add.reduce(territorial_edges)),
+            affinity_cuts=affinity_cuts,
+            affinity_total=self.affinity_total + float(np.add.reduce(affinity_edges)),
+            weights=self.weights,
+        )
+
     def evaluate_choice(self, lot: int) -> EvaluationResult:
+        """Custo parcial de uma alternativa, referência normativa de `choice_costs`.
+
+        Esta é a implementação anterior à variante O4, preservada intacta e de
+        propósito: ela é o oráculo contra o qual a identidade bit a bit da
+        construção é reestabelecida, conforme o item B2 do Apêndice B do
+        registro da auditoria, já que o protótipo original não é
+        re-verificável. Fora dos testes, a construção usa `choice_costs`.
+        """
+
         unit_index = len(self.labels)
         demand = self.demand_totals.copy()
         production = self.production_totals.copy()
@@ -129,16 +199,16 @@ class _PartialConstructionState:
 
     def append(self, lot: int) -> None:
         unit_index = len(self.labels)
-        previous = np.asarray(self.labels, dtype=np.int64)
         territorial_edges = self.instance.s_territorial[unit_index, :unit_index]
         affinity_edges = self.instance.w_affinity[unit_index, :unit_index]
-        separated = previous != lot
+        separated = self.label_array[:unit_index] != lot
         self.demand_totals[lot] += self.instance.demand[unit_index]
         self.production_totals[lot] += self.instance.production[unit_index]
-        self.territorial_cut += float(np.sum(territorial_edges[separated]))
-        self.territorial_total += float(np.sum(territorial_edges))
-        self.affinity_cut += float(np.sum(affinity_edges[separated]))
-        self.affinity_total += float(np.sum(affinity_edges))
+        self.territorial_cut += float(np.add.reduce(territorial_edges[separated]))
+        self.territorial_total += float(np.add.reduce(territorial_edges))
+        self.affinity_cut += float(np.add.reduce(affinity_edges[separated]))
+        self.affinity_total += float(np.add.reduce(affinity_edges))
+        self.label_array[unit_index] = lot
         self.labels.append(lot)
 
 
@@ -169,12 +239,24 @@ def _validate_prefix(prefix: Any, *, n_units: int, k: int) -> tuple[int, ...]:
     return labels
 
 
-def _construction_choices(prefix: Any, *, n_units: int, k: int) -> _ConstructionChoices:
-    labels = _validate_prefix(prefix, n_units=n_units, k=k)
-    opened = max(labels, default=-1) + 1
-    remaining = n_units - len(labels)
+def _choices_from_counts(
+    *, filled: int, opened: int, n_units: int, k: int
+) -> _ConstructionChoices:
+    """Escolhas permitidas a partir das contagens do prefixo, sem percorrê-lo.
+
+    Núcleo aritmético comum a `_construction_choices`, que valida o prefixo
+    inteiro antes de chamar, e ao laço de `_construct_ant`, que mantém `filled`
+    e `opened` incrementalmente. F4-1: revalidar o prefixo inteiro a cada
+    posição tornava a validação quadrática por formiga, e a formiga constrói o
+    próprio prefixo, de modo que os invariantes valem por construção. A
+    pós-condição continua conferida uma vez por formiga, por
+    `validate_solution` e pela comparação com a forma canônica no fim de
+    `_construct_ant`.
+    """
+
+    remaining = n_units - filled
     unopened = k - opened
-    if not labels:
+    if not filled:
         return _ConstructionChoices((0,), True)
     if remaining == unopened:
         if opened >= k:
@@ -184,6 +266,16 @@ def _construction_choices(prefix: Any, *, n_units: int, k: int) -> _Construction
     if not allowed:
         raise SolutionValidationError("estado de construção sem escolha válida")
     return _ConstructionChoices(allowed, False)
+
+
+def _construction_choices(prefix: Any, *, n_units: int, k: int) -> _ConstructionChoices:
+    labels = _validate_prefix(prefix, n_units=n_units, k=k)
+    return _choices_from_counts(
+        filled=len(labels),
+        opened=max(labels, default=-1) + 1,
+        n_units=n_units,
+        k=k,
+    )
 
 
 def _heuristic_values(
@@ -207,18 +299,19 @@ def _heuristic_from_state(
 ) -> FloatArray:
     if len(state.labels) >= state.instance.n_units:
         raise ConfigurationError("prefixo completo não possui próxima escolha")
-    costs = np.empty(len(choices), dtype=np.float64)
-    for position, lot in enumerate(choices):
-        costs[position] = state.evaluate_choice(lot).total_cost
+    costs = state.choice_costs(choices)
     if not np.isfinite(costs).all():
         raise ConfigurationError("custo parcial não finito")
-    minimum = float(np.min(costs))
-    maximum = float(np.max(costs))
+    # `np.min`/`np.max` encaminham para os métodos homônimos do arranjo; a
+    # forma direta poupa a camada de despacho em Python e reduz exatamente a
+    # mesma sequência de valores.
+    minimum = float(costs.min())
+    maximum = float(costs.max())
     amplitude = maximum - minimum
     if amplitude <= COST_TOLERANCE:
         return np.ones(len(choices), dtype=np.float64)
     eta = 1.0 + (maximum - costs) / amplitude
-    if not np.isfinite(eta).all() or np.any(eta < 1.0) or np.any(eta > 2.0):
+    if not np.isfinite(eta).all() or (eta < 1.0).any() or (eta > 2.0).any():
         raise ConfigurationError("informação heurística fora do intervalo [1, 2]")
     return eta
 
@@ -237,21 +330,26 @@ def _choice_probabilities(
     if (
         not np.isfinite(tau_values).all()
         or not np.isfinite(eta_values).all()
-        or np.any(tau_values <= 0.0)
-        or np.any(eta_values <= 0.0)
+        or (tau_values <= 0.0).any()
+        or (eta_values <= 0.0).any()
     ):
         raise ConfigurationError("tau e eta devem ser positivos e finitos")
     log_weights = alpha * np.log(tau_values) + beta * np.log(eta_values)
-    log_weights -= float(np.max(log_weights))
+    log_weights -= float(log_weights.max())
     raw = np.exp(log_weights)
-    denominator = float(np.sum(raw))
+    denominator = float(np.add.reduce(raw))
     if not isfinite(denominator) or denominator <= 0.0:
         raise ConfigurationError("probabilidades não podem ser normalizadas")
     probabilities = raw / denominator
+    # `np.isclose(total, 1.0, rtol=0.0, atol=1e-12)` decide exatamente
+    # `|total - 1| <= 1e-12`. A forma escalar aplica o mesmo critério, com a
+    # mesma tolerância de `aco.py`, sem montar arranjo por chamada. O ramo de
+    # finitude é avaliado antes e continua curto-circuitando, de modo que
+    # `total` já é finito quando a comparação roda.
     if (
         not np.isfinite(probabilities).all()
-        or np.any(probabilities < 0.0)
-        or not np.isclose(np.sum(probabilities), 1.0, rtol=0.0, atol=1e-12)
+        or (probabilities < 0.0).any()
+        or abs(float(np.add.reduce(probabilities)) - 1.0) > 1e-12
     ):
         raise ConfigurationError("probabilidades inválidas")
     return probabilities
@@ -279,9 +377,10 @@ def _construct_ant(
     state = _PartialConstructionState(instance, k=k, weights=weights)
     forced = 0
     probabilistic = 0
+    opened = 0
     for unit_index in range(instance.n_units):
-        available = _construction_choices(
-            prefix, n_units=instance.n_units, k=k
+        available = _choices_from_counts(
+            filled=unit_index, opened=opened, n_units=instance.n_units, k=k
         )
         if available.forced:
             selected = available.allowed[0]
@@ -299,6 +398,8 @@ def _construct_ant(
             probabilistic += 1
         prefix.append(selected)
         state.append(selected)
+        if selected >= opened:
+            opened = selected + 1
     solution = validate_solution(prefix, n_units=instance.n_units, k=k)
     canonical = canonicalize_solution(solution, n_units=instance.n_units, k=k)
     if not np.array_equal(solution, canonical):

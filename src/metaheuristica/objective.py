@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any
 
 import numpy as np
@@ -26,10 +27,113 @@ def _provisional_labels(solution: Any, *, n_units: int, k: int) -> np.ndarray:
     return result
 
 
+@lru_cache(maxsize=None)
+def _triangular_indices(size: int) -> tuple[np.ndarray, np.ndarray]:
+    """Pares do triângulo superior, memorizados por tamanho.
+
+    F1-06: `_evaluate_arrays` recomputava `np.triu_indices` a cada avaliação, o
+    que em `N=150` são 11.175 pares e dois vetores `int64` de 11.175 posições
+    alocados por chamada, em cada uma das 150.000 avaliações da execução. A
+    memorização é por **tamanho** e não por instância porque o caminho parcial
+    do guloso avalia submatrizes induzidas de todos os tamanhos de 1 a `N`, e
+    uma pré-computação presa à instância quebraria esse caminho.
+
+    A ordem dos pares é exatamente a de `np.triu_indices`, logo a ordem dos
+    somatórios não muda e a identidade bit a bit é preservada. Os vetores saem
+    somente-leitura porque são compartilhados por todos os chamadores; nenhum
+    deles os altera hoje, e a marcação impede que uma refatoração futura passe
+    a alterá-los em silêncio.
+    """
+
+    row, column = np.triu_indices(size, k=1)
+    row.flags.writeable = False
+    column.flags.writeable = False
+    return row, column
+
+
 def _balance_totals_component(totals: np.ndarray) -> tuple[float, float]:
     mean = float(np.mean(totals))
     cv = float(np.std(totals, ddof=0) / mean)
     return cv / (1.0 + cv), cv
+
+
+def _balance_totals_matrix(matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Réplica vetorizada de `_balance_totals_component`, uma linha por alternativa.
+
+    Variante O4 do achado F4-1. Reproduz a ordem de operações de
+    `numpy._core._methods._mean` e `._var` com `ddof=0`, em vez de trocar
+    `np.mean` e `np.std` por aritmética `float` ingênua: soma por
+    `np.add.reduce`, divisão pelo número de lotes, subtração da média,
+    quadrado no lugar, segunda soma por `np.add.reduce`, divisão e raiz. O
+    resultado é bit a bit igual ao de `_balance_totals_component` aplicado a
+    cada linha isoladamente, e é isso que
+    `tests/test_aco.py::test_batched_choice_costs_reproduce_the_reference_bit_by_bit`
+    fixa contra a implementação de referência.
+    """
+
+    # A identidade bit a bit com np.mean/np.std depende da ordem de memória: em
+    # ordem Fortran a redução diverge em até 44% das linhas com K=8. Sem esta
+    # asserção, uma refatoração futura que mude a ordem quebra a identidade em
+    # silêncio, sem que teste algum reclame.
+    assert matrix.flags["C_CONTIGUOUS"], "a redução exige matriz contígua em ordem C"
+    count = matrix.shape[1]
+    means = np.add.reduce(matrix, axis=1) / count
+    deviations = np.subtract(matrix, means[:, np.newaxis])
+    np.square(deviations, out=deviations)
+    # A segunda redução corre sobre os desvios, e não sobre a matriz de entrada:
+    # a mesma exigência de ordem C vale para ela, e por isso é conferida aqui.
+    assert deviations.flags["C_CONTIGUOUS"], "a redução exige matriz contígua em ordem C"
+    variances = np.add.reduce(deviations, axis=1) / count
+    cv = np.sqrt(variances) / means
+    return cv / (1.0 + cv), cv
+
+
+def _cut_fractions(numerators: np.ndarray, denominator: float) -> np.ndarray:
+    """Versão em lote de `_cut_fraction`, com o mesmo desvio de denominador nulo."""
+
+    if denominator == 0.0:
+        return np.zeros(len(numerators), dtype=np.float64)
+    return numerators / denominator
+
+
+def _evaluate_total_costs(
+    *,
+    totals_matrix: np.ndarray,
+    territorial_cuts: np.ndarray,
+    territorial_total: float,
+    affinity_cuts: np.ndarray,
+    affinity_total: float,
+    weights: ObjectiveWeights,
+) -> np.ndarray:
+    """Custos totais de várias alternativas de uma só vez, sem `EvaluationResult`.
+
+    `totals_matrix` tem `2m` linhas de `K` colunas: as `m` primeiras são os
+    totais de demanda de cada alternativa e as `m` seguintes os de produção. As
+    duas metades entram na mesma matriz para que as reduções de demanda e de
+    produção custem um único despacho de NumPy em vez de dois. As linhas são
+    independentes entre si e cada uma é reduzida sobre as suas próprias `K`
+    posições contíguas, de modo que empilhá-las não altera nenhuma soma.
+
+    Contrato: para cada alternativa `i`, o valor devolvido é bit a bit igual ao
+    `total_cost` que `_evaluate_aggregates` produziria com os agregados dessa
+    alternativa. Os denominadores de corte não dependem do lote escolhido e por
+    isso entram como escalares, calculados uma única vez por posição da
+    construção. O consumidor, a informação heurística do ACO, usa apenas
+    `total_cost`, de modo que os sete campos de `EvaluationResult` e a
+    verificação de finitude do seu `__post_init__` não são construídos aqui; a
+    finitude continua conferida por `_heuristic_from_state`.
+    """
+
+    count = len(territorial_cuts)
+    if totals_matrix.shape[0] != 2 * count:
+        raise SolutionValidationError("matriz de totais desalinhada com as alternativas")
+    balance, _ = _balance_totals_matrix(totals_matrix)
+    return (
+        weights.demand * balance[:count]
+        + weights.production * balance[count:]
+        + weights.territorial * _cut_fractions(territorial_cuts, territorial_total)
+        + weights.affinity * _cut_fractions(affinity_cuts, affinity_total)
+    )
 
 
 def _balance_component(values: np.ndarray, labels: np.ndarray, k: int) -> tuple[float, float]:
@@ -112,7 +216,7 @@ def _evaluate_arrays(
     k: int,
     weights: ObjectiveWeights,
 ) -> EvaluationResult:
-    row, column = np.triu_indices(len(labels), k=1)
+    row, column = _triangular_indices(len(labels))
     territorial_values = s_territorial[row, column]
     affinity_values = w_affinity[row, column]
     cut = labels[row] != labels[column]
