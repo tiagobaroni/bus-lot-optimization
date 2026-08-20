@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from metaheuristica.errors import ConfigurationError
 
@@ -13,6 +13,7 @@ from experiments.config import CampaignConfig
 from experiments.execution import ExecutionSummary, execute_campaign
 from experiments.provenance import capture_provenance, utc_now
 from experiments.resource_monitor import ResourceMonitor, read_samples, summarize_samples
+from experiments.scenarios import Scenario, expand_scenarios
 from experiments.storage import ScenarioState, artifact_paths, atomic_write_json, classify, read_json
 
 
@@ -145,11 +146,29 @@ def execute_operation(
     return summary, document
 
 
+def _blocked(config: CampaignConfig, scenarios: Iterable[Scenario]) -> tuple[str, ...]:
+    """Bloqueio pelo histórico de tentativas, e não pelo estado corrente.
+
+    A política da seção 29.2 é do histórico do ID: uma segunda falha bloqueia a
+    campanha. Calculado sobre o estado, o bloqueio era apagado por qualquer
+    sucesso posterior, porque o registro de falha permanecia íntegro em disco e
+    ignorado.
+    """
+
+    root = config.repository_root / config.output_root
+    blocked: list[str] = []
+    for scenario in scenarios:
+        path = artifact_paths(root, config.purpose, scenario).failure
+        if path.exists() and len(read_json(path).get("attempts", [])) >= 2:
+            blocked.append(scenario.scenario_id)
+    return tuple(sorted(blocked))
+
+
 def blocked_failures(config: CampaignConfig, *, batch: int) -> tuple[str, ...]:
-    selection = select_benchmark(config, batch=batch)
-    states = _states(config, selection)
-    attempts = _failure_attempts(config, selection)
-    return tuple(sorted(
-        identifier for identifier, state in states.items()
-        if state == ScenarioState.FAILED.value and attempts[identifier] >= 2
-    ))
+    return _blocked(config, select_benchmark(config, batch=batch).scenarios)
+
+
+def campaign_blocked_failures(config: CampaignConfig) -> tuple[str, ...]:
+    """Mesma regra sobre a campanha inteira, para a CLI genérica."""
+
+    return _blocked(config, expand_scenarios(config))

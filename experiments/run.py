@@ -68,9 +68,18 @@ def main(argv: list[str] | None = None) -> int:
                 raise ConfigurationError("--allow-incomplete é exclusivo de consolidate")
             if config.purpose == "benchmark":
                 from experiments.benchmark_freeze import verify_freeze_manifest
+                from experiments.benchmark_operations import campaign_blocked_failures
                 verify_freeze_manifest(
                     config.repository_root, workers=arguments.workers
                 )
+                # Sem esta guarda, a CLI genérica é a terceira tentativa que a
+                # seção 29.2 proíbe: run_benchmark retry recusa IDs com duas
+                # tentativas, e este caminho não impunha limite algum.
+                blocked = campaign_blocked_failures(config)
+                if blocked:
+                    raise ConfigurationError(
+                        f"campanha bloqueada por segunda falha: {list(blocked)}"
+                    )
             def execute():
                 return execute_campaign(
                     config, workers=arguments.workers,

@@ -10,12 +10,13 @@ from typing import Any
 from metaheuristica.errors import ConfigurationError
 
 from experiments.benchmark_batches import select_benchmark
+from experiments.benchmark_freeze import FREEZE_PATH, verify_freeze_manifest
 from experiments.benchmark_operations import blocked_failures, operational_root
 from experiments.config import CampaignConfig
 from experiments.consolidation import _atomic_parquet, consolidate_campaign, documents_to_frames
 from experiments.pilot_validation import _validate_result
-from experiments.provenance import utc_now
-from experiments.scenarios import canonical_json, file_sha256
+from experiments.provenance import capture_provenance, utc_now
+from experiments.scenarios import canonical_json, expand_scenarios, file_sha256
 from experiments.storage import artifact_paths, atomic_write_json, read_json, validate_document
 
 
@@ -32,6 +33,22 @@ def _temporary_files(config: CampaignConfig) -> list[str]:
         if directory.exists()
         for path in directory.glob("*.tmp")
     )
+
+
+def _unexpected_results(config: CampaignConfig) -> list[str]:
+    """Nomeia todo artefato do diretório de resultados fora da campanha.
+
+    O escopo é a campanha inteira e não o lote, porque quando a barreira do lote
+    ``n`` roda os lotes anteriores já publicaram legitimamente os seus
+    resultados. Somente ``raw`` é varrido: ``failures`` guarda registros de falha
+    e de interrupção, que não são resultados.
+    """
+
+    raw = config.repository_root / config.output_root / "raw" / config.purpose
+    if not raw.exists():
+        return []
+    known = {scenario.filename for scenario in expand_scenarios(config)}
+    return sorted(path.name for path in raw.iterdir() if path.name not in known)
 
 
 def _documents(config: CampaignConfig, batch: int) -> list[dict[str, Any]]:
@@ -69,17 +86,31 @@ def _validate_operations(config: CampaignConfig, batch: int, expected_ids: set[s
     return operations
 
 
-def validate_batch(config: CampaignConfig, *, batch: int) -> dict[str, Any]:
+def validate_batch(
+    config: CampaignConfig, *, batch: int, workers: int = 16
+) -> dict[str, Any]:
     if batch > 1:
         previous = operational_root(config) / "barriers" / f"batch-{batch - 1:02d}.json"
         _require(previous.is_file() and read_json(previous).get("passed") is True,
                  "barreira anterior ausente ou inválida")
+    # Congelamento e proveniência pertencem à barreira, e não à linha de comando
+    # que a invoca: é o relatório do lote que serve de evidência auditável.
+    verify_freeze_manifest(config.repository_root, workers=workers)
+    freeze_sha256 = file_sha256(config.repository_root / FREEZE_PATH)
+    provenance = capture_provenance(config.repository_root, allow_dirty=False)
     selection = select_benchmark(config, batch=batch)
     expected_ids = {item.scenario_id for item in selection.scenarios}
     _require(not blocked_failures(config, batch=batch), "lote contém segunda falha")
     _require(not _temporary_files(config), "campanha contém arquivos temporários")
+    unexpected = _unexpected_results(config)
+    _require(not unexpected, f"resultado inesperado na campanha: {unexpected}")
     documents = _documents(config, batch)
     _require(len(documents) == 324, "lote deve conter 324 resultados")
+    commits = {item["provenance"].get("git_commit") for item in documents}
+    _require(
+        len(commits) == 1 and None not in commits,
+        f"proveniência do lote não é uniforme: {sorted(commit or '' for commit in commits)}",
+    )
     algorithms = Counter(item["scenario"]["algorithm"] for item in documents)
     instances = Counter(item["scenario"]["instance"]["name"] for item in documents)
     ks = Counter(item["scenario"]["k"] for item in documents)
@@ -91,7 +122,11 @@ def validate_batch(config: CampaignConfig, *, batch: int) -> dict[str, Any]:
     operations = _validate_operations(config, batch, expected_ids)
     runs, checkpoints = documents_to_frames(documents)
     _require(len(checkpoints) == 32_400, "lote deve conter 32400 checkpoints")
-    tables = config.repository_root / config.output_root / "tables" / "benchmark_batches"
+    # Tabela de barreira é artefato operacional: gravá-la em results/tables/,
+    # que é versionado, sujava a worktree e impedia oficialmente o lote seguinte.
+    tables = (
+        config.repository_root / config.output_root / "operational" / "benchmark_batches"
+    )
     runs_path = tables / f"batch-{batch:02d}_runs.parquet"
     checkpoints_path = tables / f"batch-{batch:02d}_checkpoints.parquet"
     _atomic_parquet(runs_path, runs)
@@ -104,6 +139,11 @@ def validate_batch(config: CampaignConfig, *, batch: int) -> dict[str, Any]:
         "expected": 324,
         "completed": len(runs),
         "checkpoints": len(checkpoints),
+        "workers": workers,
+        "git_commit": provenance["git_commit"],
+        "git_dirty": provenance["git_dirty"],
+        "results_commit": next(iter(commits)),
+        "freeze_sha256": freeze_sha256,
         "scenario_ids_sha256": sha256(canonical_json(sorted(expected_ids))).hexdigest(),
         "runs": {"path": str(runs_path.relative_to(config.repository_root)), "sha256": file_sha256(runs_path)},
         "checkpoint_table": {"path": str(checkpoints_path.relative_to(config.repository_root)), "sha256": file_sha256(checkpoints_path)},

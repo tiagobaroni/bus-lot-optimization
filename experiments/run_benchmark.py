@@ -186,8 +186,11 @@ def main(argv: list[str] | None = None) -> int:
         elif arguments.operation == "barrier":
             if arguments.batch is None or any((arguments.algorithm, arguments.instance, arguments.k)):
                 raise ConfigurationError("barrier exige somente --batch")
-            verify_freeze_manifest(config.repository_root, workers=arguments.workers)
-            output = validate_batch(config, batch=arguments.batch)
+            # O congelamento e a proveniência são conferidos dentro da barreira,
+            # que também os registra no relatório do lote.
+            output = validate_batch(
+                config, batch=arguments.batch, workers=arguments.workers
+            )
         else:
             if arguments.batch is not None or any((arguments.algorithm, arguments.instance, arguments.k)):
                 raise ConfigurationError("finalize não aceita filtros")

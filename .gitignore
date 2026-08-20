@@ -27,6 +27,9 @@ results/gpu/sessions/
 results/gpu/operational/
 results/gpu/diagnostic/
 results/**/*.tmp
+# Rede contra barreira de lote executada por versão antiga do código, que
+# gravava as tabelas do lote dentro da árvore de artefatos oficiais.
+results/tables/benchmark_batches/
 
 # Local environment files
 .env
