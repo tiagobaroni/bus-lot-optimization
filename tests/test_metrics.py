@@ -147,3 +147,68 @@ def test_result_rejects_wrong_checkpoint_count() -> None:
             runtime_seconds=0.1,
             termination_reason=TerminationReason.BUDGET_EXHAUSTED,
         )
+
+
+def _result_with_final_evaluation(
+    final: EvaluationResult, last_checkpoint: EvaluationResult
+) -> OptimizationResult:
+    """Constrói um resultado cujo checkpoint 100 pode divergir da avaliação final."""
+
+    checkpoints = tuple(
+        ConvergenceCheckpoint(
+            index, index, last_checkpoint if index == 100 else EVALUATION
+        )
+        for index in range(1, 101)
+    )
+    return OptimizationResult(
+        algorithm="aco_gpu",
+        k=2,
+        seed=1,
+        budget=100,
+        weights=ObjectiveWeights(),
+        solution=np.array([1, 1, 0, 0]),
+        evaluation=final,
+        evaluations=100,
+        cache_hits=0,
+        checkpoints=checkpoints,
+        runtime_seconds=0.25,
+        termination_reason=TerminationReason.BUDGET_EXHAUSTED,
+        diagnostics={},
+    )
+
+
+def test_result_rejects_final_evaluation_that_diverges_from_last_checkpoint() -> None:
+    """Caso negativo da guarda que a tolerância de `1e-12` deixava passar.
+
+    A tabela principal da seção 9 e a tabela de checkpoints da seção 27 descrevem
+    a mesma execução e precisam carregar o mesmo número. Com
+    `math.isclose(rel_tol=1e-12, abs_tol=1e-12)` uma divergência de `9e-13`
+    passava, e `to_dict` exportava `0x1.0000000003f55p-2` num lugar contra
+    `0x1.0000000000000p-2` no outro. O cenário abaixo é o reproduzido pelo
+    verificador, no caminho GPU, onde os dois objetos são distintos por
+    construção.
+    """
+
+    checkpoint = EvaluationResult(0.25, 0.1, 0.2, 0.3, 0.4, 0.11, 0.22)
+    final = EvaluationResult(0.25 + 9e-13, 0.1, 0.2, 0.3, 0.4, 0.11, 0.22)
+    assert final.total_cost.hex() != checkpoint.total_cost.hex()
+    with pytest.raises(
+        ConfigurationError, match="avaliação final diverge do último checkpoint"
+    ):
+        _result_with_final_evaluation(final, checkpoint)
+
+
+def test_result_accepts_final_evaluation_identical_to_last_checkpoint() -> None:
+    """Caso positivo: valores iguais bit a bit em objetos distintos são aceitos.
+
+    Garante que o aperto da guarda recusa a divergência sem passar a exigir
+    identidade de objeto, que o caminho GPU não tem.
+    """
+
+    checkpoint = EvaluationResult(0.25, 0.1, 0.2, 0.3, 0.4, 0.11, 0.22)
+    final = EvaluationResult(0.25, 0.1, 0.2, 0.3, 0.4, 0.11, 0.22)
+    assert final is not checkpoint
+    result = _result_with_final_evaluation(final, checkpoint)
+    assert result.checkpoints[-1].evaluation.total_cost.hex() == (
+        result.evaluation.total_cost.hex()
+    )

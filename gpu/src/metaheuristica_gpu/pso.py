@@ -238,7 +238,11 @@ def run_pso_gpu(
         algorithm="pso_gpu", k=run_config.k, seed=run_config.seed,
         budget=run_config.budget, weights=run_config.weights,
         solution=np.asarray(evaluator.incumbent_solution, dtype=np.int64),
-        evaluation=final_cpu, evaluations=evaluator.evaluations, cache_hits=0,
+        # Publica o mesmo objeto que a tabela de checkpoints carrega. A
+        # conferência de conformidade contra a CPU continua sendo feita acima,
+        # por `require_equivalent`, que é contrato do projeto.
+        evaluation=evaluator.incumbent_evaluation,
+        evaluations=evaluator.evaluations, cache_hits=0,
         checkpoints=evaluator.checkpoints, runtime_seconds=runtime,
         termination_reason=TerminationReason.BUDGET_EXHAUSTED,
         diagnostics={

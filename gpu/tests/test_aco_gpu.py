@@ -90,3 +90,21 @@ def test_gpu_construction_is_identical_to_the_cpu_construction() -> None:
     assert mirrored.solution.tolist() == reference.solution.tolist()
     assert mirrored.forced == reference.forced_assignments
     assert mirrored.probabilistic == reference.probabilistic_assignments
+
+
+def test_aco_gpu_publishes_the_incumbent_object_in_both_tables() -> None:
+    """A tabela principal e a de checkpoints carregam o mesmo objeto.
+
+    O caminho GPU publicava `evaluation` recalculada na CPU ao lado de
+    checkpoints medidos na GPU, dois objetos distintos por construção, e a
+    guarda de `metrics.py` tolerava até `1e-12` de divergência entre eles. A
+    conferência de conformidade contra a CPU continua sendo feita, por
+    `require_equivalent`, que é contrato do projeto e admite `1e-12`; o que muda
+    é apenas qual objeto é publicado.
+    """
+
+    instance = load_artesp_instance(ROOT / "data/instances", 20)
+    run = RunConfig(k=3, seed=11, budget=400)
+    config = AcoConfig(alpha=1.0, beta=2.0, rho=0.5, n_ants=20)
+    gpu = run_aco_gpu(instance, run, config)
+    assert gpu.evaluation is gpu.checkpoints[-1].evaluation

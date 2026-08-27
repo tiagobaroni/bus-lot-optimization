@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from math import isclose, isfinite
+from math import isfinite
 from types import MappingProxyType
 from typing import Any, Mapping
 
@@ -322,27 +322,27 @@ class OptimizationResult:
         return data
 
 
+def _evaluation_tuple(value: EvaluationResult) -> tuple[float, ...]:
+    return (
+        value.total_cost,
+        value.c_demand,
+        value.c_production,
+        value.c_territorial,
+        value.c_affinity,
+        value.cv_demand,
+        value.cv_production,
+    )
+
+
 def _same_evaluation(left: EvaluationResult, right: EvaluationResult) -> bool:
-    return all(
-        isclose(a, b, rel_tol=COST_TOLERANCE, abs_tol=COST_TOLERANCE)
-        for a, b in zip(
-            (
-                left.total_cost,
-                left.c_demand,
-                left.c_production,
-                left.c_territorial,
-                left.c_affinity,
-                left.cv_demand,
-                left.cv_production,
-            ),
-            (
-                right.total_cost,
-                right.c_demand,
-                right.c_production,
-                right.c_territorial,
-                right.c_affinity,
-                right.cv_demand,
-                right.cv_production,
-            ),
-        )
+    """Compara as duas publicações do incumbente por igualdade exata.
+
+    A tolerância anterior de `1e-12` admitia divergência real entre a tabela
+    principal da seção 9 e a tabela de checkpoints da seção 27, que descrevem a
+    mesma execução e precisam carregar o mesmo número.
+    """
+
+    return left is right or all(
+        float(a).hex() == float(b).hex()
+        for a, b in zip(_evaluation_tuple(left), _evaluation_tuple(right))
     )

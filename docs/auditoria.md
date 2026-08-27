@@ -280,9 +280,26 @@ depois da soma ponderada.
   igualdade exata via `float.hex()`, e alinhar o caminho GPU para publicar o mesmo
   objeto nos dois lugares.
 - **Onda:** B, com prioridade.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. No caminho CPU o invariante já vale por
-  identidade de objeto, logo o diff esperado é zero.
+- **Situação:** fechado com correção de código e três testes novos, no commit do
+  pacote B7. `_same_evaluation` passa a aceitar somente identidade de objeto ou
+  igualdade exata por `float.hex()` nos sete campos, e os caminhos GPU do ACO e do
+  PSO passam a publicar em `evaluation` o mesmo objeto que a tabela de checkpoints
+  carrega, em vez da avaliação recalculada na CPU. A conferência de conformidade
+  contra a CPU permanece intacta, por `require_equivalent`, cuja tolerância de
+  `1e-12` é contrato do projeto e não se confunde com a comparação exata, que é
+  metodologia da auditoria. A divergência prevista pelo achado foi **observada em
+  execução real** ao rodar o teste novo antes da correção: no PSO da GPU, com
+  `artesp_rmsp_20`, `K=3`, seed 7 e orçamento 600, a avaliação recalculada na CPU
+  deu `total_cost` `0,07671054313991764` contra `0,07671054313991765` medido na
+  GPU, isto é a divergência de último bit que a tolerância absorvia em silêncio.
+  **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação **bate**
+  com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, sobre o **conjunto completo dos 42
+  cenários**, sem `--only`, porque `metrics.py` é compartilhado pelos quatro
+  algoritmos. **Passo G.** Diff previsto zero; diff observado zero; a observação
+  **bate** com a previsão. O zero é o esperado por construção: no caminho CPU
+  `checkpoints[-1].evaluation is incumbent_evaluation`, logo apertar a guarda não
+  pode mudar número algum, e o oráculo não percorre o caminho GPU.
 
 #### F1-03. O incumbente registrado pode crescer, e o desvio acumula acima da tolerância
 
@@ -1073,8 +1090,22 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
 - **Decisão:** corrigir, no mesmo commit de F1-02, que é o defeito da mesma
   guarda.
 - **Onda:** B, na onda de F1-02.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com dois testes novos em `tests/test_metrics.py`, no commit
+  do pacote B7, junto de F1-02, que é o defeito da mesma guarda. O caso negativo
+  constrói o cenário do verificador, com `algorithm` igual a `aco_gpu`, checkpoint
+  100 em `0,25` e avaliação final em `0,25 + 9e-13`, e assevera a recusa pela
+  mensagem "avaliação final diverge do último checkpoint". O caso positivo confere
+  que valores iguais bit a bit em objetos distintos continuam aceitos, de modo que
+  a guarda não passou a exigir identidade de objeto, que o caminho GPU não tem.
+  **Poder discriminante:** o caso negativo foi executado sob a forma anterior e
+  falhou com "DID NOT RAISE", porque a tolerância de `1e-12` absorvia os `9e-13`.
+  **Passo G.** Classe prevista `M2`; classe observada `M2`; a observação **bate**
+  com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, dentro do zero conferido no
+  conjunto completo dos 42 cenários no Passo F do pacote B7. A alteração deste
+  achado é restrita a `tests/` e não tem efeito próprio sobre o caminho científico.
+  **Passo G.** Diff previsto zero; diff observado zero; a observação **bate** com a
+  previsão.
 
 #### F2-12. 177 dos 231 sítios de `ConfigurationError` não são acionados por teste algum
 
