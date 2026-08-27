@@ -2307,8 +2307,9 @@ achado 5. O código atual está correto; o que falta é proteção.
   exata de custo seguida da cadeia de desempate.
 - **Onda:** B, com prioridade. Mesma família de A9 do PSO, mas aqui a premissa é
   normativa e explícita, o que é a razão de a classe não cair para `L1`.
-- **Situação:** fechado com correção de código e seis testes novos, no commit do
-  pacote B8. `_candidate_is_better` passa a comparar custo por igualdade exata,
+- **Situação:** fechado com correção de código e um teste novo, parametrizado em
+  seis casos, no commit do pacote B8. `_candidate_is_better` passa a comparar custo
+  por igualdade exata,
   seguida da cadeia de desempate por chave canônica e depois por tupla do
   movimento, o que torna o comparador ordem total e o resultado de
   `_select_best_admissible` invariante à ordem da amostra. O teste novo apresenta
@@ -4502,8 +4503,10 @@ e só `tabu_tenure` com três. A substância do achado dirigido não muda.
   que ache `1e-12` excessivamente rígido à luz de F9-1: a recalibração aparentemente
   inocente de um único número **inverte silenciosamente a hierarquia declarada**.
 - **Onda:** B, junto de F2-13, que é a cobertura ausente da mesma tolerância.
-- **Situação:** fechado com correção de código e um teste novo, no commit do pacote
-  B8. O escalar único `TOLERANCE` deu lugar ao mapeamento `TOLERANCES`, com uma
+- **Situação:** fechado com correção de código e **três** testes novos em
+  `tests/test_tuning_analysis.py`, dois no commit do pacote B8 e um no commit de
+  correções da revisão do lote L1. O escalar único `TOLERANCE` deu lugar ao
+  mapeamento `TOLERANCES`, com uma
   tolerância **por critério**: `1e-12` em `mean_cost`, `1e-12` em `std_cost` e
   **zero por desenho** em `mean_runtime_seconds`. O laço de `_choose_best` passa a
   iterar o mapeamento, o que amarra cada critério à sua própria escala e torna

@@ -210,9 +210,13 @@ def test_result_accepts_final_evaluation_identical_to_last_checkpoint() -> None:
     final = EvaluationResult(0.25, 0.1, 0.2, 0.3, 0.4, 0.11, 0.22)
     assert final is not checkpoint
     result = _result_with_final_evaluation(final, checkpoint)
-    assert result.checkpoints[-1].evaluation.total_cost.hex() == (
-        result.evaluation.total_cost.hex()
-    )
+    # A asserção que discrimina aqui é a ausência de exceção na construção acima:
+    # a guarda apertada recusaria divergência de um ulp. A comparação seguinte
+    # percorre o caminho de exportação, que é onde a divergência aparecia nas duas
+    # tabelas publicadas; ela não substitui o caso negativo, que está no teste
+    # irmão de divergência.
+    exported = result.to_dict()
+    assert exported["checkpoints"][-1]["evaluation"] == exported["evaluation"]
 
 
 _NON_TRANSITIVE = (

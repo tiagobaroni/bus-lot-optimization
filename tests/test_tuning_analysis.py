@@ -9,7 +9,10 @@ import pytest
 
 from experiments.config import ALGORITHM_FIELDS, load_campaign
 from experiments.scenarios import canonical_json, expand_scenarios
+from experiments import tuning_analysis
 from experiments.tuning_analysis import (
+    CRITERIA,
+    TOLERANCES,
     _choose_best,
     parameter_effects,
     summarize_tuning,
@@ -157,3 +160,43 @@ def test_runtime_criterion_has_no_tie_band_and_separates_by_any_difference() -> 
     )
     assert frame.loc[0, "mean_runtime_seconds"] != frame.loc[1, "mean_runtime_seconds"]
     assert _choose_best(frame, [0, 1]) == 1
+
+
+def test_criteria_hierarchy_is_explicit_and_survives_a_reordering_of_tolerances(
+    monkeypatch,
+) -> None:
+    """A hierarquia da seção 12.1 não pode depender da ordem de `TOLERANCES`.
+
+    O achado `F9-2` existe porque recalibrar um número invertia a hierarquia. Com
+    a iteração feita sobre o mapeamento de tolerâncias, reordenar as chaves faria
+    o mesmo em silêncio, por hábito de alfabetizar ou por formatador automático.
+    O par abaixo difere nos **dois** critérios de desempate ao mesmo tempo, que é
+    o que falta aos demais testes: neles o critério deslocado é constante nas duas
+    linhas e por isso não filtra nada, de modo que a inversão passa despercebida.
+    """
+
+    assert tuple(TOLERANCES) == CRITERIA, (
+        "a ordem de TOLERANCES divergiu da hierarquia declarada em CRITERIA"
+    )
+
+    frame = pd.DataFrame([
+        {"algorithm": "pso", "mean_cost": 1.0, "std_cost": 0.2,
+         "mean_runtime_seconds": 5.0, "param_n_particles": 20,
+         "param_inertia": 0.4, "param_cognitive": 1.5, "param_social": 1.5},
+        {"algorithm": "pso", "mean_cost": 1.0 + 5e-13, "std_cost": 0.1,
+         "mean_runtime_seconds": 6.0, "param_n_particles": 40,
+         "param_inertia": 0.4, "param_cognitive": 1.5, "param_social": 1.5},
+    ])
+
+    # Hierarquia correta: o custo empata dentro da banda, a dispersão decide e
+    # vence a linha 1, apesar de ela ser a mais lenta.
+    assert _choose_best(frame, [0, 1]) == 1
+
+    # Promovido a primeiro critério, o tempo passa a decidir e o vencedor troca.
+    # É esta troca que dá poder de detecção ao teste.
+    monkeypatch.setattr(
+        tuning_analysis,
+        "CRITERIA",
+        ("mean_runtime_seconds", "std_cost", "mean_cost"),
+    )
+    assert _choose_best(frame, [0, 1]) == 0

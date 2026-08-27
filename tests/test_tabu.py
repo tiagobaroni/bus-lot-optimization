@@ -350,15 +350,26 @@ def test_restart_clears_the_tabu_memory_seen_through_the_restart(monkeypatch) ->
     passa a responder "não tabu".
     """
 
-    observations: list[tuple[tuple[tuple[TabuMove, int], ...], tuple[bool, ...]]] = []
+    observations: list[
+        tuple[tuple[tuple[TabuMove, int], ...], tuple[bool, ...], tuple[bool, ...]]
+    ] = []
     original_clear = _TabuMemory.clear
 
     def spy_clear(self: _TabuMemory) -> None:
         before = self.entries
+        # A consulta precisa ser feita duas vezes, com a memória povoada e depois
+        # de limpa, e a primeira tem de vir antes de `original_clear`. Consultar
+        # apenas depois roda contra `_expirations` vazio e devolve falso por
+        # construção, o que tornaria a asserção do estado "antes" vazia.
+        was_tabu = tuple(
+            self.is_tabu(move, accepted_moves=expiration - 1)
+            for move, expiration in before
+        )
         original_clear(self)
         assert self.entries == (), "a memória não ficou vazia depois da limpeza"
         observations.append((
             before,
+            was_tabu,
             tuple(
                 self.is_tabu(move, accepted_moves=expiration - 1)
                 for move, expiration in before
@@ -372,10 +383,12 @@ def test_restart_clears_the_tabu_memory_seen_through_the_restart(monkeypatch) ->
     assert len(observations) == result.diagnostics["restarts"]
     populated = [entry for entry in observations if entry[0]]
     assert populated, "nenhum reinício encontrou a memória povoada"
-    for before, still_tabu in populated:
-        # Antes da limpeza cada uma destas consultas responderia "tabu", porque
-        # `accepted_moves` é estritamente menor que a expiração registrada.
-        assert all(expiration - 1 < expiration for _, expiration in before)
+    for _before, was_tabu, still_tabu in populated:
+        # Antes da limpeza cada uma destas consultas responde "tabu", porque
+        # `accepted_moves` é estritamente menor que a expiração registrada. É esta
+        # a asserção que observa o estado anterior; a forma antiga comparava
+        # `expiration - 1 < expiration`, verdadeira para todo inteiro.
+        assert all(was_tabu), "a memória povoada não respondeu tabu antes da limpeza"
         assert not any(still_tabu)
 
 
@@ -411,6 +424,13 @@ def test_aspiration_acceptance_happens_in_an_integrated_run() -> None:
     por aspiração: o diagnóstico não era asseverado em arquivo algum. O prazo
     longo somado à amostra estreita torna a aspiração frequente nesta instância
     real, e o ramo passa a ser percorrido de ponta a ponta.
+
+    O valor 7 é **medição** desta configuração fixada, e não um invariante do
+    algoritmo. Fixá-lo em vez de exigir apenas positivo é deliberado, porque é o
+    que dá poder de detecção. Qualquer mudança em `_candidate_is_better` ou em
+    `_aspiration_applies` o invalida por desenho: nesse caso, remeça a execução,
+    confirme que a mudança era pretendida e atualize o número, em vez de afrouxar
+    a asserção para uma desigualdade.
     """
 
     result = run_tabu(
@@ -482,4 +502,10 @@ def test_restart_when_the_entire_sample_is_tabu(monkeypatch) -> None:
 
     assert blocked, "nenhuma amostra ficou inteiramente tabu"
     assert max(blocked) >= 2, "o bloqueio total precisa valer para amostra não trivial"
+    # Igualdade exata, e não o intervalo que o teste vizinho usa: aqui a folga de
+    # `F5-3` não está ativa, o que foi medido. Esta configuração produz cinco
+    # entradas em `evaluate_restart`, cinco reinícios publicados e cinco amostras
+    # bloqueadas, todas de quatro candidatos, sem amostra vazia e sem reinício por
+    # estagnação. Se `F5-3` for corrigido e esta asserção passar a falhar, o certo
+    # é reconferir a configuração, e não relaxar para desigualdade.
     assert result.diagnostics["restarts"] == len(blocked)

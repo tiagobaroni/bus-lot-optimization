@@ -24,6 +24,13 @@ TOLERANCES: Mapping[str, float] = {
     # contra a hierarquia declarada na seção 12.1.
     "mean_runtime_seconds": 0.0,
 }
+# A hierarquia de critérios da seção 12.1 é esta tupla, e ela é explícita de
+# propósito. Iterar `TOLERANCES` diretamente faria a ordem dos critérios depender
+# da ordem de inserção de um literal que existe para guardar tolerâncias, de modo
+# que reordenar as chaves, por hábito de alfabetizar ou por formatador
+# automático, inverteria a hierarquia em silêncio. É exatamente o modo de falha
+# do achado F9-2, com outro gatilho.
+CRITERIA: tuple[str, ...] = ("mean_cost", "std_cost", "mean_runtime_seconds")
 COST_COLUMNS = (
     "total_cost", "c_demand", "c_production", "c_territorial", "c_affinity",
     "cv_demand", "cv_production", "runtime_seconds",
@@ -46,7 +53,8 @@ def _parameter_tuple(row: pd.Series) -> tuple[Any, ...]:
 
 def _choose_best(frame: pd.DataFrame, indices: list[int]) -> int:
     candidates = list(indices)
-    for column, tolerance in TOLERANCES.items():
+    for column in CRITERIA:
+        tolerance = TOLERANCES[column]
         minimum = min(float(frame.loc[index, column]) for index in candidates)
         candidates = [
             index for index in candidates
