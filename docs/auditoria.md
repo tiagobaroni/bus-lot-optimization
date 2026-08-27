@@ -396,8 +396,32 @@ depois da soma ponderada.
   diagnóstico e o ganho é capturado por F4-1, que é a variante bit-preservadora.
   Ver a conexão 1 da seção 5.
 - **Onda:** B, embutida em F4-1.
-- **Situação:** aberto, com a prescrição substituída pela de F4-1.
-- **Impressão digital:** pendente, herdada de F4-1.
+- **Situação:** fechado **sem correção própria**, no commit `d297377`, do pacote B5,
+  exatamente como decidido: a medição fica registrada como diagnóstico e o ganho que ela
+  buscava foi capturado por F4-1 pelo caminho bit-preservador. Não há linha de código
+  atribuível a este achado, e o oráculo que o cobre é o de F4-1,
+  `test_batched_choice_costs_reproduce_the_reference_bit_by_bit`, herdado por absorção. A
+  ressalva original do relatório, de que capturar o ganho exigiria quebrar bits e refazer
+  tuning e piloto, fica definitivamente refutada por demonstração: o ganho foi capturado
+  e o diff é zero nos 42 cenários.
+  **Sobre o parágrafo "Prioridade relativa entre os dois achados `M1`", e a instrução de
+  riscá-lo.** A instrução está cumprida, e a forma de cumprimento precisa ficar escrita
+  para que o item não fique eternamente aberto. O parágrafo **não existe** neste registro
+  versionado: ele pertence ao relatório de origem da frente F1, e este documento apenas o
+  cita, aqui no campo de divergência acima e na conexão 1 da seção de conexões, nos dois
+  casos **já** para declarar que ele apresenta uma dicotomia falsa e deve ser riscado.
+  Riscar aqui seria riscar a própria instrução de riscar. A dicotomia foi resolvida de
+  fato, e não apenas por anotação: a terceira opção que o parágrafo negava, F1-06 e o
+  ganho de F1-05 juntos no ramo bit-preservado, foi a que o pacote B5 executou. A
+  instrução é portanto **inócua no registro versionado** e fica registrada como
+  executada, sem pendência residual.
+  **Passo G.** Classe prevista `M1`; classe observada `M1`; a observação **bate** com a
+  previsão. Sem reclassificação, e o Passo H não se aplica. A classe é mantida porque o
+  que caiu foi a prescrição, e não a medição, que reproduz com 90,1% e tem corroboração
+  independente de 86,3% por `cProfile`.
+- **Impressão digital:** zero, conforme previsto, herdada de F4-1 e conferida no
+  conjunto completo dos 42 cenários no Passo F de `d297377`. **Passo G.** Diff previsto
+  zero; diff observado zero; a observação **bate** com a previsão.
 
 #### F1-06. Cada avaliação completa recomputa `np.triu_indices` e canonicaliza e valida a solução duas vezes
 
@@ -454,10 +478,43 @@ depois da soma ponderada.
   alterar a ordem das operações de somatório.
 - **Onda:** B, junto de F4-1, por serem o mesmo commit de desempenho no módulo
   compartilhado.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. A correção é declaradamente bit-preservadora,
-  logo o diff esperado é zero, o que precisa ser confirmado pelo oráculo e não
-  presumido.
+- **Situação:** fechado no commit `d297377`, do pacote B5, pelas duas metades da
+  prescrição e pelo caminho declaradamente bit-seguro. Primeira metade:
+  `_triangular_indices` (`src/metaheuristica/objective.py:30-51`) memoriza os pares do
+  triângulo superior **por tamanho**, e não por instância, porque o caminho parcial do
+  guloso avalia submatrizes induzidas de todos os tamanhos de 1 a `N`; a ordem dos pares
+  é exatamente a de `np.triu_indices`, logo a ordem dos somatórios não muda. Segunda
+  metade: `evaluator.py:104-127` canonicaliza uma única vez e passa o vetor canônico
+  direto para `_evaluate_labels`, removendo a segunda validação que `evaluate_solution`
+  fazia; `evaluate_solution` permanece intacta, porque é a função pública usada pelo
+  espelho GPU e pela conferência normativa.
+  **Bit-neutralidade da remoção, conferida por leitura na revisão independente.**
+  `solution_key` (`canonical.py:68-72`) é literalmente `canonicalize_solution` seguido da
+  compreensão de tupla que `evaluator.py:116` passou a fazer na mão, e
+  `evaluate_solution` redevolvia, por `validate_solution` (`objective.py:292-302`), o
+  mesmo vetor `int64` somente-leitura que `canonicalize_solution` já havia produzido, os
+  dois passando por `_immutable_int_array`. Os rótulos que entram em `np.bincount` são
+  idênticos em valor, `dtype` e ordem. O `weights or ObjectiveWeights()` removido era
+  inócuo, porque `self._weights` nunca é `None` (`evaluator.py:58`).
+  **Poder discriminante, e a distinção importa.** A memorização é cache puro: revertê-la
+  não muda comportamento algum, logo nenhum teste dirigido pode falhar sem ela e nenhum é
+  necessário para a correção. O que ela cria, e o que precisava de teste, é o **contrato
+  de imutabilidade** do estado global memorizado, que a própria docstring declara e que
+  não era asseverado em lugar nenhum. Esse teste foi escrito no fechamento do pacote:
+  `tests/test_objective.py::test_triangular_indices_are_shared_and_read_only` assevera
+  que duas chamadas do mesmo tamanho devolvem o **mesmo objeto**, que os dois vetores têm
+  `flags.writeable is False`, que uma escrita neles levanta `ValueError` e que a ordem
+  dos pares continua sendo a de `np.triu_indices`. A remoção da validação dupla em
+  `evaluator.py`, essa sim, **é** observável, porque muda a forma do argumento que chega
+  a `_evaluate_labels` de tupla para vetor, e está coberta pela suíte inteira e pelo diff
+  zero nos 42 cenários.
+  **Passo G.** Classe prevista `M1`; classe observada `M1`; a observação **bate** com a
+  previsão. Sem reclassificação, e o Passo H não se aplica. A lacuna de teste registrada
+  pela revisão independente do pacote está fechada.
+- **Impressão digital:** zero, conforme previsto, dentro do zero conferido no conjunto
+  completo dos 42 cenários no Passo F de `d297377`. **Passo G.** Diff previsto zero; diff
+  observado zero; a observação **bate** com a previsão. A expectativa foi confirmada pelo
+  oráculo, validado por marcador, e não presumida.
 
 #### F1-07. O teste que sustenta o reaproveitamento do guloso só exercita uma instância de 4 unidades
 
@@ -1077,8 +1134,26 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
 - **Decisão:** corrigir. Fixar `abs=1e-12` nas quatro asserções.
 - **Onda:** B, junto de F4-5, que é o outro achado de tolerância em
   `tests/test_aco.py` e que a correção de F4-1 obriga a mover no mesmo commit.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com a correção das quatro asserções de `tests/test_aco.py`, no
+  commit `d297377`, do pacote B5. As quatro asserções que
+  estavam em `tests/test_aco.py:109`, `:110`, `:137` e `:147` na forma
+  `== pytest.approx(valor)` sem argumentos passaram a `abs=1e-12` e, depois da
+  movimentação que a correção de F4-1 obrigou, vivem em `tests/test_aco.py:110`, `:111`,
+  `:300` e `:310`. A quarta delas verifica agora com `1e-12` a mesma soma de
+  probabilidades que o código do projeto já verificava com `1e-12`, o que elimina o caso
+  em que o teste era mais frouxo que a guarda do próprio código.
+  **Poder discriminante:** o próprio teste é o oráculo. Sob a forma anterior, `rel=1e-6`,
+  um erro relativo de `1e-7` na normalização de `eta` passaria; sob `abs=1e-12` ele não
+  passa. **Nota metodológica:** a restrição global de comparação exata é metodologia da
+  auditoria e não regra do projeto, e o achado nunca dependeu dela; o `1e-12` fixado aqui
+  é o do código do projeto, e não deve ser confundido com o contrato de conformidade da
+  GPU, que também usa `1e-12` de tolerância e **não** exige igualdade exata.
+  **Passo G.** Classe prevista `M2`; classe observada `M2`; a observação **bate** com a
+  previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, dentro do zero conferido nos 42
+  cenários no Passo F de `d297377`. A alteração é restrita a `tests/test_aco.py` e não
+  tem efeito próprio sobre o caminho científico. **Passo G.** Diff previsto zero; diff
+  observado zero; a observação **bate** com a previsão.
 
 #### F2-15. O oráculo declarado do `tiny_manual` é decorativo e as instâncias congeladas não estão fixadas ao gerador
 
@@ -1279,6 +1354,32 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   momento, porque `_cpu_readiness()` em `gpu/src/metaheuristica_gpu/run.py:186`
   reexecuta a verificação antes de todo cenário GPU e o manifesto hoje já diverge, o
   que mantém o alarme armado.
+  **Proveniência da correção do espelho, executada no pacote B5 e registrada aqui.** A
+  divergência acima foi fechada no commit `d297377`, que é o commit de código do pacote
+  B5, e **não** em nenhum commit do pacote A1. `gpu/src/metaheuristica_gpu/pso.py:95-109`
+  passou a saturar a velocidade **antes** de somá-la à posição, espelhando
+  `metaheuristica.pso._trial_state`, com o comentário no código apontando o pacote A1 como
+  origem. O teste novo `gpu/tests/test_pso_gpu.py:25-48`
+  (`test_pso_gpu_matches_cpu_on_a_real_instance`, parametrizado em `K=3` e `K=5` sobre
+  `artesp_rmsp_20`) mede a divergência que existia: **`5,16e-2`** de custo total, contra a
+  régua normativa de `1e-12` de `metaheuristica_gpu.numerics`. O teste anterior, em quatro
+  unidades com `K=2`, passava mesmo com o espelho defeituoso, porque as duas trajetórias
+  chegam a custo zero de qualquer forma.
+  **A lacuna de origem é da lista de arquivos do pacote A1**, que declarou
+  `src/metaheuristica/pso.py` e `tests/test_pso.py` e **omitiu**
+  `gpu/src/metaheuristica_gpu/pso.py`. Não tocar em `gpu/` foi conformidade com essa
+  lista, e foi a lista que estava incompleta. A correção é substantiva e o defeito era
+  real e latente; o que não é defensável, e fica registrado como irregularidade de
+  escrituração, é que a mudança entrou num commit cuja mensagem não a menciona em nenhuma
+  linha e cuja lista de arquivos declarada também não a previa. Esta nota existe para que
+  quem procurar a origem da correção do espelho do PSO não a procure em vão no commit do
+  pacote A1.
+  **Efeito sobre a proibição de renovar o manifesto.** O bloqueio condicionado a B5 está
+  cumprido, porque o espelho do PSO deixou de divergir. Isso **não** libera a renovação do
+  manifesto de congelamento: a regra permanente da seção 4 de
+  `superpowers/B11B_plan_ondas.md` continua proibindo que qualquer pacote das ondas
+  regenere o manifesto, e a renovação é da Tarefa 20. A recusa atual de `freeze` e de
+  `readiness` é o mecanismo corrigido funcionando, e não regressão.
 - **Impressão digital:** diff **não zero**, confinado ao escopo previsto. Divergiram
   exatamente os **11 cenários `pso:*`** e **nenhum** cenário `tabu:*`, `aco:*` ou
   `greedy:*`, em 7.325 diferenças de campo mais o `content_sha256` do documento. Os
@@ -1724,10 +1825,66 @@ não presumida herdada do protótipo descartado.
   recomputação, para que `require_equivalent` continue válido.
 - **Onda:** B. Deve entrar **antes** de qualquer retuning, porque o tuning roda 160
   execuções de ACO e o próprio retuning fica mais barato com a correção aplicada.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado **zero**, por identidade bit a bit
-  demonstrada; a expectativa precisa ser confirmada pelo oráculo contra a
-  implementação real e não presumida do protótipo.
+- **Situação:** fechado no commit `d297377`, do pacote B5, com a variante O4.
+  `_PartialConstructionState.choice_costs` (`src/metaheuristica/aco.py:114-168`) monta a
+  matriz `(2m, K)` contígua em ordem C e delega a redução a `_evaluate_total_costs`
+  (`src/metaheuristica/objective.py:99-135`), que por sua vez chama
+  `_balance_totals_matrix` (`:61-89`), a réplica vetorizada que reproduz a ordem de
+  operações de `numpy._core._methods._mean` e `._var` com `ddof=0`, em vez de trocar
+  `np.mean` e `np.std` por aritmética `float` ingênua. `_heuristic_from_state`
+  (`aco.py:297`) consome os custos em lote e `_construct_ant` (`aco.py:363`) mantém
+  `opened` incrementalmente, o que remove a validação quadrática do prefixo e a
+  revalidação de `tau` por formiga. O guarda-corpo obrigatório está na implementação
+  real, em `objective.py:78` e `:85`, e não apenas no teste, com o comentário exigido;
+  ver o item `B1` do Apêndice B.
+  **Oráculo usado, e ele não é tautológico.** A implementação anterior,
+  `evaluate_choice`, foi **preservada intacta** (`aco.py:170-199`), com docstring
+  declarando que ela é a referência normativa, e
+  `test_batched_choice_costs_reproduce_the_reference_bit_by_bit` compara `choice_costs`
+  contra ela por `float.hex()` em 27 combinações parametrizadas de instância e `K`,
+  percorrendo construções reais e comparando em toda posição não forçada. Os dois
+  controles negativos obrigatórios estão em
+  `test_negative_controls_prove_the_comparator_detects_divergence`: `ddof=1` diverge em
+  toda linha e o produto por BLAS diverge em parte delas. Isso é o que o item `B2` do
+  Apêndice B exigia, a saber, reestabelecer a identidade contra a implementação real, já
+  que o protótipo original não é re-verificável.
+  **Ganho medido.** 3,58x preservando os bits, declarado pelo pacote; a revisão
+  independente reproduziu **3,70x** medindo `_construct_ant` em `artesp_rmsp_150` com
+  `K=8`, com as sete variáveis de thread fixadas em `1` e validação por `aco.__file__` de
+  qual módulo foi carregado, com a base caindo dentro da faixa de 73,6 a 74,4 ms por
+  formiga que o verificador da F4 mediu. O número do pacote é conservador. Campanha ACO
+  em `N=150` cai de 439,7 h-CPU para 122,8 h-CPU, como projeção aritmética; o número
+  definitivo vem do roteiro regenerado.
+  **O `S` honesto do ACO, e o resultado que entra no relatório.** O espelhamento em
+  `gpu/` foi feito, por unificação e não por cópia, de modo que a construção da GPU
+  recebeu o mesmo ganho: 3,18x medidos pela revisão independente. Com isso o `S` do ACO
+  **não inverte de sinal**, e passa a ser da ordem de **1,006**, contra os 1,3518
+  anteriores. Este é o resultado que entra no relatório final: **o resultado do ACO na
+  GPU é negativo**, no sentido de que a variante GPU deixa de apresentar ganho
+  apreciável sobre a CPU otimizada, e é ele que deve ser relatado, e não o 1,3518 medido
+  contra a CPU lenta. Sem o espelhamento o `S` cairia a cerca de 0,38, isto é a GPU
+  ficaria cerca de 2,6 vezes mais lenta que a CPU otimizada. O número 1,006 é projeção
+  aritmética, corroborada em direção e magnitude pela revisão independente, e não
+  substitui o roteiro regenerado; ver o item `B9` do Apêndice B.
+  **Mudança de comportamento observável dentro das linhas removidas, declarada aqui
+  porque não foi declarada no commit.** Entre as 56 linhas removidas de `gpu/aco.py`
+  estava `heuristic()`, que **não** verificava finitude dos custos nem confinamento de
+  `eta` a `[1, 2]`. O `_heuristic_from_state` que a substitui levanta
+  `ConfigurationError` nos dois casos (`src/metaheuristica/aco.py:304` e `:315`). É
+  endurecimento desejável, o caminho feliz é idêntico, e é a única mudança de
+  comportamento observável que a revisão encontrou nas 112 linhas removidas pelo commit.
+  **Passo G.** Classe prevista `M1`; classe observada `M1`; a observação **bate** com a
+  previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, sobre o **conjunto completo dos 42
+  cenários**, sem `--only`, porque `objective.py` e `evaluator.py` afetam os quatro
+  algoritmos. **Passo G.** Diff previsto zero; diff observado zero; a observação **bate**
+  com a previsão. O zero era exigência e não previsão neste pacote, porque a
+  bit-preservação é a alegação inteira do achado, e por isso o oráculo foi validado por
+  marcador antes de a ausência de diff ser interpretada. A revisão independente do pacote
+  **não** refez a impressão digital, por determinação do pacote de revisão; o que ela
+  reconferiu foram as duas suítes e as medições de ganho. A expectativa deixou de ser
+  presumida do protótipo descartado e passou a ser confirmada contra a implementação
+  real.
 
 #### F4-2. A informação heurística é ordinal, de amplitude fixa, e sua influência decai a zero relativo
 
@@ -1884,8 +2041,29 @@ não presumida herdada do protótipo descartado.
   correto para a construção do ACO é a própria construção antes da mudança,
   comparada por `float.hex()`.
 - **Onda:** B, no mesmo commit de F4-1, que é a correção que este teste bloquearia.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com teste novo em `tests/test_aco.py`, no commit `d297377`, do
+  pacote B5. `tests/test_aco.py:114-127`,
+  que afirmava `incremental == common`, igualdade exata dos sete campos sobre um único
+  caso de três unidades e `K=2`, foi substituído por
+  `test_incremental_partial_state_is_equivalent_within_tolerance`, parametrizado em três
+  casos de instâncias reais, `artesp_rmsp_20` com `K=3` e `K=5` e `artesp_rmsp_60` com
+  `K=8`, comparando os sete campos com `abs=1e-12` e com docstring registrando por que a
+  equivalência é da grandeza e não dos bits: o estado parcial acumula os cortes linha a
+  linha, na ordem da construção, e `_evaluate_partial_assignment` soma o triângulo
+  superior numa única redução. O oráculo bit a bit da construção, que é o oráculo correto
+  para o ACO, passou a ser
+  `test_batched_choice_costs_reproduce_the_reference_bit_by_bit`, contra
+  `evaluate_choice` preservado intacto. **Poder discriminante:** o teste novo falharia
+  sob a forma anterior, a igualdade exata, porque o dossiê mede 394 divergências em 1.033
+  comparações, com diferença absoluta máxima de `2,220e-16`.
+  **Passo G.** Classe prevista `M2`; classe observada `M2`; a observação **bate** com a
+  previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, e o zero é do conjunto completo dos 42
+  cenários conferido no Passo F de `d297377`, junto de F4-1. A alteração deste achado é
+  restrita a `tests/test_aco.py` e não tem efeito próprio sobre o caminho científico.
+  **Passo G.** Diff previsto zero; diff observado zero; a observação **bate** com a
+  previsão. O oráculo foi validado por marcador. A revisão independente do pacote **não**
+  refez a impressão digital, por determinação do pacote de revisão.
 
 ### 3.5. Frente F5 - Busca Tabu
 
@@ -3852,8 +4030,47 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   que **já** a protege contra divergência silenciosa, e não vetor de corrupção
   despercebida.
 - **Onda:** C.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** aberto, com o **componente ACO antecipado pelo pacote B5**, no commit
+  `d297377`. Transferência de escopo registrada aqui porque ela não estava prevista em
+  lugar algum. O pacote B5 tinha por escopo declarado **espelhar** em `gpu/aco.py` a
+  variante O4 de F4-1; o que ele fez foi **unificar**: a classe local
+  `_PartialState` foi apagada e aliasada para `_PartialConstructionState` da CPU
+  (`gpu/src/metaheuristica_gpu/aco.py:31-38`), com `_heuristic_from_state` importado do
+  mesmo módulo. Não existe, depois desse commit, nenhuma linha da variante O4 nem
+  nenhuma asserção de contiguidade em `gpu/aco.py`, porque não existe mais construção
+  espelhada: existe uma só. A revisão independente do pacote B5 julgou a unificação
+  **tecnicamente superior ao espelhamento**, porque torna a divergência impossível em
+  vez de improvável, e por isso a correção registrada é de plano e de registro, e não
+  reversão de código. Consequências, todas verificadas pela revisão:
+  1. **O escopo restante de F8-12 é `gpu/objective.py` e o grosso de `gpu/pso.py`.** O
+     trecho `gpu/aco.py:31-94` que este dossiê nomeia como réplica de
+     `src/metaheuristica/aco.py:79-186` já não existe como réplica. A restrição dura de
+     não alterar a ordem das operações de somatório perde objeto para o ACO e continua
+     valendo integralmente para os dois arquivos restantes.
+  2. **O teste que o pacote C7 prescrevia já está escrito.**
+     `gpu/tests/test_aco_gpu.py::test_gpu_construction_shares_the_cpu_partial_state`
+     assevera que a função unificada é a mesma referência nos dois pacotes, que é
+     exatamente o teste prescrito. C7 chegará com essa parte do seu escopo consumida.
+  3. **Duas asserções de `test_aco_gpu_matches_cpu_on_a_real_instance` viraram
+     tautológicas**, e isso é consequência real da unificação e não observação
+     estética: as asserções sobre `solution` e sobre `checkpoints`
+     (`gpu/tests/test_aco_gpu.py:26-47`) comparam duas execuções cuja construção passou
+     a ser literalmente o mesmo objeto de código, logo não podem mais discriminar
+     divergência de construção. O que continua com poder discriminante nesse teste é o
+     `require_equivalent` que dispara dentro do lote por `verify_every_batch=True`, e
+     que exercita o **avaliador** e não a construção. A vacuidade das asserções externas
+     sob `verify_every_batch=True` já é objeto de F8-4 e é o pacote C6 que a resolve; o
+     que se registra aqui é a perda de poder discriminante causada pela unificação, que
+     é independente daquela.
+  A **ordem de execução de C7 fica em aberto** e não é decidida aqui: a revisão do
+  pacote B5 recomendou reavaliar se C7 ainda precisa ser o último pacote da Onda C,
+  agora que a maior superfície do seu escopo em `gpu/` já foi tocada, e essa reavaliação
+  depende do estado de C5, C6 e B20, que não está estabelecido. A emenda de escopo foi
+  aplicada em `superpowers/B11B_plan_ondas.md`, seção do pacote C7; a emenda de ordem
+  não.
+- **Impressão digital:** pendente para o escopo restante. O componente antecipado não
+  alterou bits: o commit `d297377` deu diff **zero** nos 42 cenários, conforme o Passo F
+  registrado em F4-1.
 
 #### F8-13. O pareamento do speedup contrapõe CPU com 16 workers simultâneos a GPU sequencial e exclusiva
 
@@ -4348,7 +4565,11 @@ fatores.**
 
 Consequência: F1-05 não abre correção própria. A onda de correção executa F4-1, que
 absorve o ganho, e o parágrafo "Prioridade relativa entre os dois achados `M1`" de
-F1-06 deve ser riscado, porque apresenta uma dicotomia falsa.
+F1-06 deve ser riscado, porque apresenta uma dicotomia falsa. **Instrução cumprida no
+pacote B5**, e a forma de cumprimento está registrada no campo `Situação` de F1-05: o
+parágrafo pertence ao relatório de origem da frente F1 e nunca existiu neste registro
+versionado, logo a instrução é inócua aqui; a dicotomia foi resolvida de fato, porque a
+terceira opção que ela negava é a que o pacote executou.
 
 ### Conexão 2. Fechamento da divergência entre 19,0 s por execução e 5,2 a 5,8 h de economia
 
@@ -5053,13 +5274,13 @@ verificados. São anotações, cada uma ancorada no achado que a originou.
 
 | # | Item | Origem | Classe proposta | Achado-pai |
 |---|---|---|---|---|
-| B1 | A identidade bit a bit de O2 e O4 **depende de ordem C**: em ordem Fortran a redução diverge em 22 de 50 linhas (44%) com `K=8` e 17 de 50 (34%) com `K=12`. Recomendação: incluir `assert matrix.flags['C_CONTIGUOUS']` na implementação real. | verificador da F4 | robustez, sem classe atribuída | F4-1 |
-| B2 | A identidade bit a bit precisa ser **reestabelecida contra a implementação real** quando a onda materializar O2 e O4 em código versionado, porque as 176.557 linhas e 176 execuções do protótipo original não são re-verificáveis: o protótipo foi escrito fora da árvore e não existe mais. | verificador da F4 | limitação de escopo | F4-1 |
+| B1 | A identidade bit a bit de O2 e O4 **depende de ordem C**: em ordem Fortran a redução diverge em 22 de 50 linhas (44%) com `K=8` e 17 de 50 (34%) com `K=12`. Recomendação: incluir `assert matrix.flags['C_CONTIGUOUS']` na implementação real. **Satisfeito pelo pacote B5**, no commit `d297377`: a asserção está na implementação real, em `src/metaheuristica/objective.py:78`, e uma segunda em `:85` cobre a matriz de desvios, sobre a qual corre a segunda redução. `tests/test_aco.py::test_balance_matrix_refuses_memory_that_is_not_c_contiguous` dispara a asserção com uma matriz em ordem Fortran e, no mesmo teste, mede que a redução em ordem Fortran de fato diverge, o que impede que o teste vire ritual. Ressalva registrada pela revisão independente do pacote: as duas são `assert` e somem sob `python -O`, o que hoje é risco latente e não atual, porque não há ocorrência de `-O`, `-OO` ou `PYTHONOPTIMIZE` em `experiments/`, `gpu/`, `configs/` ou `pyproject.toml`; a troca por recusa explícita cabe ao pacote da Onda C que voltar a tocar o arquivo. | verificador da F4 | robustez, sem classe atribuída | F4-1 |
+| B2 | A identidade bit a bit precisa ser **reestabelecida contra a implementação real** quando a onda materializar O2 e O4 em código versionado, porque as 176.557 linhas e 176 execuções do protótipo original não são re-verificáveis: o protótipo foi escrito fora da árvore e não existe mais. **Satisfeito pelo pacote B5**, no commit `d297377`: `_PartialConstructionState.evaluate_choice` foi preservado intacto como referência normativa (`src/metaheuristica/aco.py:170-199`) e `tests/test_aco.py::test_batched_choice_costs_reproduce_the_reference_bit_by_bit` compara `choice_costs` contra ele por `float.hex()`, em 27 combinações parametrizadas de instância e `K`, percorrendo construções reais e comparando em toda posição não forçada. A identidade passou a ser medida contra a implementação real, e não herdada do protótipo descartado. Lacuna residual, medida pela revisão independente: o ramo de denominador nulo de `_cut_fractions` nunca é percorrido pelas instâncias congeladas, logo a identidade nele é afirmada por leitura; fechada por teste dirigido em `tests/test_objective.py`. | verificador da F4 | limitação de escopo | F4-1 |
 | B3 | `consolidate` descarta `diagnostics.gpu_timing` ao montar `gpu_runs.parquet`, publicando `speedup` sem a fração de dispositivo que o interpreta. Recomendação: publicar campo derivado `device_fraction`. | verificador dedicado dos `D1` da GPU | `M3` | F8-2 |
 | B4 | A metodologia de mutação de `frente-3-report.md` não declara o diretório de trabalho com precisão suficiente para excluir, por si só, o padrão defeituoso de `PYTHONPATH`. Lacuna de reprodutibilidade do relatório, não dos resultados. | verificador da F2 | `L1` | seção 6.2 |
 | B5 | O padrão de comando de mutação documentado em `frente-6-report.md:292` não carrega o mutante. **Os dois verificadores divergem na classe**: o da F5 propõe `D3` de metodologia da auditoria, o da F2 propõe `L1`. A divergência não foi arbitrada. | verificadores da F5 e da F2 | `D3` ou `L1`, em disputa | seção 6.2 |
 | B6 | **A última iteração de qualquer execução do PSO nunca é contada**, mesmo em orçamento que divide exato por `n_particles`, porque `_stop_at_limit` verifica `remaining == 0` **depois** de uma avaliação bem sucedida e o caminho de exceção nunca alcança o incremento de `iterations_completed`. Medido: orçamento 100 com `n_particles=4` dá 23 iterações e não 24. | verificador da F3 | reforça `D2` | A5 |
 | B7 | Reescrever silenciosamente o resumo de recursos de uma sessão já registrada, que é o mecanismo que possibilita a recuperação de F6-09, **destrói a integridade do diário operacional**, porque sessões historicamente distintas passam a apontar para o mesmo arquivo mutável e se perde o registro fiel de que uma sessão reprovou em recursos. **Absorvido no pacote B4**, como item associado de F6-09: a seção 29 passou a dizer que a recuperação é por nova sessão registrada da mesma rodada, e nunca por sobrescrita do resumo de uma sessão já registrada. | verificador da F6 | não atribuída, ortogonal a F6-09 | F6-09 |
 | B8 | A conformidade da GPU em **150.000 avaliações** permanece **não verificada por medição direta**. As medições usaram orçamentos de 2.000, 4.000 e 20.000, porque uma execução pareada de ACO em `artesp_rmsp_150` com orçamento cheio custaria cerca de 2,3 h de CPU. A extrapolação se apoia em que o desvio é arredondamento por avaliação e não acumulação, com o máximo travado em 1 a 2 ulp com orçamento cinco vezes maior. | verificador dedicado dos `D1` da GPU | limitação de escopo | F8-1 |
-| B9 | **Aritmética da conexão 8, derivada nesta tarefa e não verificada por ninguém:** aplicar F4-1 ao caminho CPU levaria `T_CPU` de 221,12 s a cerca de 61,8 s e o speedup do ACO de 1,3518 a cerca de **0,38**, isto é a variante GPU ficaria cerca de 2,6 vezes mais lenta que a CPU otimizada, a menos que o espelhamento em `gpu/aco.py` seja feito. A conclusão qualitativa está apoiada em números verificados; **a divisão é minha e precisa de verificação independente antes de ser citada como resultado**. | esta tarefa | consequência de F4-1 e F8-2 | F4-1, F8-2 |
+| B9 | **Aritmética da conexão 8, derivada nesta tarefa e não verificada por ninguém:** aplicar F4-1 ao caminho CPU levaria `T_CPU` de 221,12 s a cerca de 61,8 s e o speedup do ACO de 1,3518 a cerca de **0,38**, isto é a variante GPU ficaria cerca de 2,6 vezes mais lenta que a CPU otimizada, a menos que o espelhamento em `gpu/aco.py` seja feito. A conclusão qualitativa está apoiada em números verificados; **a divisão é minha e precisa de verificação independente antes de ser citada como resultado**. **Corroborada pela revisão independente do pacote B5**, na direção e na magnitude: a revisão mediu 3,70x de ganho na CPU e 3,18x na GPU, com a razão entre as construções passando de 0,805 para 0,937, que é o que a aritmética previa. A ressalva permanece quanto ao escopo: o que foi corroborado é a razão entre as construções, e não o `S` de campanha ponta a ponta. A mensagem de commit de `d297377` citou os 1,3518 e os 0,38 antes de a corroboração existir, o que é a irregularidade registrada; o `S` honesto do ACO depois do espelhamento é da ordem de **1,006**, é projeção aritmética como as demais deste bloco, e o número definitivo vem do roteiro regenerado. | esta tarefa | consequência de F4-1 e F8-2 | F4-1, F8-2 |
 | B10 | **Lacunas declaradas de A7 e A8**, repetidas aqui por serem os dois únicos achados do registro com situação `aberto com lacuna declarada`: as magnitudes de qualidade que sustentam a classe `L1`, 0,286856 para A7 e 0,272414 para A8, **não foram reproduzidas** pelo verificador, porque exigiriam alterar código sob contrato de somente leitura. Se a magnitude de A7 não se sustentar, o achado teria de ser reavaliado como defeito que altera resultados, sem a defesa de que a mudança é benéfica. | verificador da F3 | condiciona a classe de A7 e A8 | A7, A8 |

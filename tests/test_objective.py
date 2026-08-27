@@ -8,8 +8,12 @@ import pytest
 from metaheuristica import ObjectiveWeights, ProblemInstance, SolutionValidationError
 from metaheuristica.instances import load_tiny_instance
 from metaheuristica.objective import (
+    _cut_fraction,
+    _cut_fractions,
     _evaluate_partial_assignment,
     _evaluate_provisional_solution,
+    _evaluate_total_costs,
+    _triangular_indices,
     evaluate_solution,
 )
 
@@ -123,5 +127,72 @@ def test_invalid_partial_assignment_is_rejected(
             indices,
             labels,
             k=2,
+            weights=ObjectiveWeights(),
+        )
+
+
+def test_triangular_indices_are_shared_and_read_only() -> None:
+    """O cache memorizado de F1-06 devolve o mesmo objeto, e ele é imutável.
+
+    `_triangular_indices` é memorizado por tamanho e os dois vetores são
+    entregues a todos os chamadores. Sem a marcação somente-leitura, uma
+    alteração no lugar feita por um chamador contaminaria em silêncio todos os
+    demais, e a ordem dos pares, que sustenta a identidade bit a bit dos
+    somatórios, mudaria sem que teste algum reclamasse.
+    """
+
+    first_row, first_column = _triangular_indices(7)
+    second_row, second_column = _triangular_indices(7)
+    assert first_row is second_row
+    assert first_column is second_column
+    assert first_row.flags.writeable is False
+    assert first_column.flags.writeable is False
+    with pytest.raises(ValueError):
+        first_row[0] = 99
+    expected_row, expected_column = np.triu_indices(7, k=1)
+    assert first_row.tolist() == expected_row.tolist()
+    assert first_column.tolist() == expected_column.tolist()
+
+
+def test_cut_fractions_reproduces_the_scalar_deviation_for_a_null_denominator() -> None:
+    """O desvio de denominador nulo da versão em lote é o mesmo do escalar.
+
+    O ramo `denominator == 0.0` de `_cut_fractions` não é percorrido pelas
+    quatro instâncias congeladas, porque o denominador é o total acumulado e a
+    primeira linha de `s_territorial` e de `w_affinity` já é não nula. O oráculo
+    de identidade bit a bit da construção, portanto, nunca o exercita, e sem
+    este teste a igualdade com `_cut_fraction` seria afirmada por leitura.
+    """
+
+    numerators = np.array([0.0, 1.5, -2.25, 1e300], dtype=np.float64)
+    obtained = _cut_fractions(numerators, 0.0)
+    expected = [_cut_fraction(float(value), 0.0) for value in numerators]
+    assert obtained.dtype == np.float64
+    assert [float(value).hex() for value in obtained] == [value.hex() for value in expected]
+    positive = _cut_fractions(numerators, 4.0)
+    expected_positive = [_cut_fraction(float(value), 4.0) for value in numerators]
+    assert [float(value).hex() for value in positive] == [
+        value.hex() for value in expected_positive
+    ]
+
+
+def test_total_costs_reject_a_totals_matrix_that_is_not_twice_the_alternatives() -> None:
+    """A guarda de contrato interno de `_evaluate_total_costs` recusa desalinhamento.
+
+    `totals_matrix` tem de trazer `2m` linhas, as `m` de demanda seguidas das
+    `m` de produção. Um número ímpar de linhas, ou qualquer contagem que não
+    seja o dobro das alternativas, faria as duas metades se sobreporem e o
+    resultado sairia errado em silêncio.
+    """
+
+    cuts = np.array([0.25, 0.5], dtype=np.float64)
+    matrix = np.ones((3, 4), dtype=np.float64, order="C")
+    with pytest.raises(SolutionValidationError, match="desalinhada"):
+        _evaluate_total_costs(
+            totals_matrix=matrix,
+            territorial_cuts=cuts,
+            territorial_total=1.0,
+            affinity_cuts=cuts,
+            affinity_total=1.0,
             weights=ObjectiveWeights(),
         )
