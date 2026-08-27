@@ -7,26 +7,37 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 20/08/2026
+- **Atualizado em:** 27/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. Cinco dos 29 pacotes concluídos.
+- **Fase do bloco ativo:** Fase 2, correção. Cinco dos 29 pacotes concluídos,
+  mais o B5 implementado e verificado, porém **ainda sem a revisão independente**
+  que todos os outros pacotes tiveram. Ele só conta como concluído depois dela.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Próxima ação atômica:** redespachar o pacote B5, que acelera o ACO em 3,58
-  vezes preservando os bits e espelha a correção em `gpu/`. Ele foi interrompido
-  por erro de servidor e seu trabalho parcial, não verificado, está preservado em
-  `git stash`.
+- **Última decisão concluída:** o trabalho parcial do pacote B5, que estava na
+  branch `b5-parcial-nao-verificado`, foi recuperado e submetido à impressão
+  digital. Deu diff zero nos 42 cenários, e o oráculo foi validado com um
+  marcador que levanta exceção no caminho novo, descartando falso verde. O
+  pacote foi commitado em `d297377`, e as durações da campanha foram atualizadas
+  em `04a1a0d`.
+- **Próxima ação atômica:** revisar o pacote B5 por agente independente, fechando
+  formalmente os achados F4-1, F1-05, F1-06, F4-5 e F2-14, e em seguida despachar
+  o pacote B6.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
   manifesto de congelamento está divergente de propósito, em dez arquivos
   protegidos, e não deve ser renovado antes do fechamento da auditoria.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** suíte com 321 aprovados e impressão digital idêntica à
-  linha de base `8b4fbfb3`, no commit `1351e98`.
+- **Última verificação:** no commit `04a1a0d`, impressão digital idêntica à linha
+  de base `8b4fbfb3`, suíte de CPU com 353 aprovados e suíte de GPU com 23
+  aprovados sobre dispositivo real.
+- **Achado aberto sem pacote alocado:** rodando a suíte de GPU com o diretório de
+  trabalho em `gpu/`, cinco testes falham por caminho relativo
+  `data/instances/tiny_manual.json` resolvido contra o `cwd`. Passam quando o
+  `cwd` é a raiz. É defeito pré-existente, aparentado do `F0-01`.
 - **Handover detalhado:** `superpowers/B11B_handover.md`, fora do Git, com o
-  estado completo, as armadilhas conhecidas e o que fazer com o trabalho
-  guardado no stash.
+  estado completo e as armadilhas conhecidas.
 
 > **Aviso:** todos os blocos devem seguir o fluxo obrigatório definido na Seção
 > 12.1 de `AGENTS.md`: brainstorming, especificação, aprovação, plano, aprovação
