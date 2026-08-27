@@ -107,3 +107,53 @@ def test_parameter_effects_cover_every_level_and_are_descriptive() -> None:
 def test_summary_rejects_incomplete_unofficial_or_nonfinite_data(mutation, match) -> None:
     with pytest.raises(ConfigurationError, match=match):
         summarize_tuning(mutation(synthetic_runs()), CONFIG)
+
+
+def _tie_frame(
+    first: dict[str, float], second: dict[str, float]
+) -> pd.DataFrame:
+    base = {
+        "algorithm": "pso", "param_n_particles": 20, "param_inertia": 0.4,
+        "param_cognitive": 1.5, "param_social": 1.5,
+    }
+    return pd.DataFrame([
+        {**base, **first},
+        {**base, "param_n_particles": 40, **second},
+    ])
+
+
+def test_cost_tie_band_is_tight_enough_to_detect_a_loosened_tolerance() -> None:
+    """Um par de médias separadas por mais que `1e-12` e menos que `1e-6`.
+
+    O caso de desempate existente usa `1,0 + 5e-13`, cujo resultado é o mesmo
+    para `1e-12` e para `1e-6`, de modo que o afrouxamento da tolerância do
+    tuning não era detectado. Aqui a separação é de `1e-9`: sob `1e-12` a menor
+    média vence sozinha, e sob `1e-6` as duas empatariam e o desvio menor
+    decidiria pela outra configuração.
+    """
+
+    frame = _tie_frame(
+        {"mean_cost": 1.0, "std_cost": 0.2, "mean_runtime_seconds": 5.0},
+        {"mean_cost": 1.0 + 1e-9, "std_cost": 0.1, "mean_runtime_seconds": 5.0},
+    )
+    assert _choose_best(frame, [0, 1]) == 0
+
+
+def test_runtime_criterion_has_no_tie_band_and_separates_by_any_difference() -> None:
+    """A tolerância do tempo médio é zero por desenho.
+
+    Segundos e custo adimensional não compartilham escala, e um escalar único
+    para os três critérios torna impossível afrouxar o empate no custo sem
+    afrouxar, na mesma magnitude numérica, o empate em segundos, o que promove o
+    tempo de terceiro desempate a critério decisivo, contra a seção 12.1. As duas
+    médias abaixo distam `1e-13`: sob a tolerância antiga empatavam e a tupla
+    lexicográfica decidia pela primeira; sob a tolerância zero o menor tempo
+    decide pela segunda.
+    """
+
+    frame = _tie_frame(
+        {"mean_cost": 1.0, "std_cost": 0.1, "mean_runtime_seconds": 5.0 + 1e-13},
+        {"mean_cost": 1.0, "std_cost": 0.1, "mean_runtime_seconds": 5.0},
+    )
+    assert frame.loc[0, "mean_runtime_seconds"] != frame.loc[1, "mean_runtime_seconds"]
+    assert _choose_best(frame, [0, 1]) == 1

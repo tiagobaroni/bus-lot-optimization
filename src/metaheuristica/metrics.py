@@ -156,10 +156,13 @@ class ConvergenceRecorder:
         current = self._incumbent_evaluation
         if current is None:
             return True
-        difference = evaluation.total_cost - current.total_cost
-        if difference < -COST_TOLERANCE:
+        # Comparação exata: a banda de 1e-12 fazia a janela deslizar a cada empate
+        # e o desvio acumular sem limite, contra a seção 9, que exige curva não
+        # crescente. O desempate lexicográfico sobrevive apenas na igualdade exata,
+        # onde não há valor a deslocar.
+        if evaluation.total_cost < current.total_cost:
             return True
-        if abs(difference) <= COST_TOLERANCE:
+        if evaluation.total_cost == current.total_cost:
             assert self._incumbent_solution is not None
             return solution < self._incumbent_solution
         return False

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
+from itertools import permutations
 from pathlib import Path
 
 import numpy as np
@@ -161,9 +162,23 @@ def test_aspiration_requires_strict_improvement_beyond_tolerance() -> None:
 
 
 def test_candidate_selection_accepts_aspiration_and_uses_tie_breaks() -> None:
+    """A chave canônica desempata na igualdade exata, e só nela.
+
+    O caso original desta asserção usava `0,2` contra `0,2 + 5e-13` e esperava
+    que a chave menor vencesse, isto é registrava como correto o descarte de uma
+    melhora real de `5e-13`. Isso é o defeito de F5-2, não o contrato da seção
+    14: o melhor movimento admissível é sempre aceito. O desempate por chave
+    canônica passa a valer apenas onde não há valor a deslocar.
+    """
+
     larger_key = _candidate(TabuMove(0, 0, 1), 0.2, (0, 1, 0, 1))
-    smaller_key = _candidate(TabuMove(2, 1, 0), 0.2 + 5e-13, (0, 0, 1, 1))
+    smaller_key = _candidate(TabuMove(2, 1, 0), 0.2, (0, 0, 1, 1))
     assert _select_best_admissible([larger_key, smaller_key]) is smaller_key
+
+    cheaper = _candidate(TabuMove(0, 0, 1), 0.2, (0, 1, 0, 1))
+    dearer_but_smaller_key = _candidate(TabuMove(2, 1, 0), 0.2 + 5e-13, (0, 0, 1, 1))
+    assert _select_best_admissible([cheaper, dearer_but_smaller_key]) is cheaper
+    assert _select_best_admissible([dearer_but_smaller_key, cheaper]) is cheaper
 
     aspirated = _candidate(
         TabuMove(3, 1, 0),
@@ -231,3 +246,33 @@ def test_budget_ending_mid_sample_does_not_complete_partial_iteration() -> None:
     assert partial.evaluations == 103
     assert partial.diagnostics["iterations_completed"] == 28
     assert completed.diagnostics["iterations_completed"] == 29
+
+
+_ORDER_DEPENDENT = (
+    (TabuMove(0, 0, 1), 0.0, (0, 1, 1, 1)),
+    (TabuMove(1, 0, 1), 0.7e-12, (0, 1, 1, 0)),
+    (TabuMove(2, 1, 0), 1.4e-12, (0, 1, 0, 1)),
+)
+
+
+@pytest.mark.parametrize("order", list(permutations(range(3))))
+def test_best_admissible_is_invariant_to_the_order_of_the_sample(
+    order: tuple[int, ...],
+) -> None:
+    """A seleção do melhor movimento admissível é ordem total.
+
+    `_candidate_is_better` tratava como empate qualquer diferença até
+    `COST_TOLERANCE`, relação não transitiva, e `_select_best_admissible` é
+    redução sequencial na ordem da amostra. Com estes três candidatos e chaves
+    canônicas decrescentes, `[A,B,C]` elegia `C`, `[C,B,A]` elegia `A` e
+    `[A,C,B]` elegia `B`: três vencedores para a mesma amostra. Pior, em
+    `[A,B,C]` o vencedor `C` era estritamente pior que `A` pelo próprio
+    comparador, contra a seção 14, que manda aceitar sempre o melhor movimento
+    admissível.
+    """
+
+    candidates = [_candidate(*_ORDER_DEPENDENT[index]) for index in order]
+    winner = _select_best_admissible(candidates)
+    assert winner is not None
+    assert winner.evaluation.total_cost == 0.0
+    assert winner.canonical_key == (0, 1, 1, 1)

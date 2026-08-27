@@ -335,9 +335,26 @@ depois da soma ponderada.
   lexicográfico apenas para escolha de solução e não para substituição do valor
   registrado.
 - **Onda:** B, com prioridade.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Empates dentro de `1e-12` entre partições
-  distintas das instâncias ARTESP são improváveis, logo o diff esperado é zero.
+- **Situação:** fechado com correção de código e sete testes novos, no commit do
+  pacote B8. `_is_better` passa a comparar `total_cost` por mínimo estrito e a
+  aplicar o desempate lexicográfico **apenas na igualdade exata**, onde não há
+  valor a deslocar. O cenário canônico do verificador foi usado como teste, e não
+  o do relatório, conforme a divergência registrada acima: as quatro soluções
+  `(0,1,1,1)` em `0,5`, `(0,1,1,0)` em `0,5+5e-13`, `(0,1,0,1)` em `0,5+1e-12` e
+  `(0,0,1,1)` em `0,5+15e-13`, com `n_units=4` e `k=2`. Sob a forma anterior o
+  desvio acumulado reproduziu `1,500022328571049e-12`, idêntico ao registrado
+  aqui; sob a forma corrigida a série do incumbente é não crescente e termina em
+  `0,5`. Um segundo teste apresenta o contraexemplo de não transitividade nas
+  **seis** ordens possíveis, e falhava em quatro delas antes da correção.
+  **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação **bate**
+  com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, sobre o **conjunto completo dos 42
+  cenários**, sem `--only`, porque `metrics.py` é compartilhado pelos quatro
+  algoritmos. **Passo G.** Diff previsto zero; diff observado zero; a observação
+  **bate** com a previsão. O zero confirma por medição a evidência do registro, de
+  que empates dentro de `1e-12` entre partições distintas das instâncias ARTESP não
+  ocorrem, e a janela exposta pela correção é maior que o empate exato: toda
+  diferença em `(0, 1e-12]` mudava de desfecho.
 
 #### F1-04. A mensagem de `EvaluationLimitReached` interpola `evaluations` no lugar do orçamento
 
@@ -1159,8 +1176,25 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   `1e-6` e mais que `1e-12`.
 - **Onda:** B, na onda do achado 2 da frente F9, que é o defeito latente da mesma
   tolerância.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com dois testes novos em `tests/test_tuning_analysis.py`, no
+  commit do pacote B8, junto de F9-2. O primeiro usa um par de médias separadas por
+  `1e-9`, isto é mais que `1e-12` e menos que `1e-6`, com o desvio apontando para a
+  outra configuração, de modo que trocar a tolerância do custo por `1e-6` inverte o
+  vencedor. O segundo fixa a tolerância zero do tempo, com duas médias distando
+  `1e-13`, que sob a tolerância antiga empatavam e caíam no desempate lexicográfico.
+  **Poder discriminante, verificado por mutação na própria árvore de trabalho**, sem
+  `PYTHONPATH` e portanto sem o risco de o mutante não ser carregado: com
+  `TOLERANCES["mean_cost"]` em `1e-6` o primeiro teste falha, e com
+  `TOLERANCES["mean_runtime_seconds"]` de volta em `1e-12` o segundo falha. A árvore
+  foi restaurada em seguida e conferida. A mutação `E1` do registro, que devolvia
+  `254 passed`, está morta.
+  **Passo G.** Classe prevista `M2`; classe observada `M2`; a observação **bate** com
+  a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, dentro do zero conferido no
+  conjunto completo dos 42 cenários no Passo F do pacote B8. A alteração deste
+  achado é restrita a `tests/` e não tem efeito próprio sobre o caminho científico.
+  **Passo G.** Diff previsto zero; diff observado zero; a observação **bate** com a
+  previsão.
 
 #### F2-14. Quatro asserções usam tolerância relativa de `1e-6`
 
@@ -2244,9 +2278,33 @@ achado 5. O código atual está correto; o que falta é proteção.
   exata de custo seguida da cadeia de desempate.
 - **Onda:** B, com prioridade. Mesma família de A9 do PSO, mas aqui a premissa é
   normativa e explícita, o que é a razão de a classe não cair para `L1`.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero, porque o caso nunca ocorre
-  nos dados reais.
+- **Situação:** fechado com correção de código e seis testes novos, no commit do
+  pacote B8. `_candidate_is_better` passa a comparar custo por igualdade exata,
+  seguida da cadeia de desempate por chave canônica e depois por tupla do
+  movimento, o que torna o comparador ordem total e o resultado de
+  `_select_best_admissible` invariante à ordem da amostra. O teste novo apresenta
+  a amostra do verificador, com custos `0,0`, `0,7e-12` e `1,4e-12` e chaves
+  canônicas decrescentes, nas **seis** permutações, e falhava em quatro delas
+  antes da correção, reproduzindo os três vencedores diferentes registrados na
+  evidência. **A9 e o seu espelho `gpu/pso.py:70-80` não foram tocados**, porque
+  A9 é `L1` e fica fora deste pacote, e os dois seguem idênticos entre si, sem
+  divergência de critério introduzida entre CPU e GPU. `arbitrate_best` também não
+  foi tocado, conforme o aviso de risco do pacote.
+  **Registro de uma asserção que documentava o defeito:**
+  `tests/test_tabu.py::test_candidate_selection_accepts_aspiration_and_uses_tie_breaks`
+  exigia que, entre `0,2` e `0,2 + 5e-13`, vencesse o de **maior** custo por ter
+  chave canônica menor, isto é a suíte registrava o descarte de uma melhora real
+  como comportamento correto. A asserção foi corrigida para exercitar o desempate
+  na igualdade exata e ganhou o caso que confere que a melhora de `5e-13` passa a
+  decidir, nas duas ordens de apresentação.
+  **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação **bate**
+  com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, dentro do zero conferido no
+  conjunto completo dos 42 cenários no Passo F do pacote B8. **Passo G.** Diff
+  previsto zero; diff observado zero; a observação **bate** com a previsão. O zero
+  confirma a evidência do registro, de que em 299 amostras instrumentadas nenhuma
+  iteração apresentou empate de custo dentro de `1e-12` entre candidatos
+  admissíveis.
 
 #### Achado F5-3. Reinício que consome a última avaliação do orçamento não é contabilizado
 
@@ -4333,9 +4391,23 @@ e só `tabu_tenure` com três. A substância do achado dirigido não muda.
   que ache `1e-12` excessivamente rígido à luz de F9-1: a recalibração aparentemente
   inocente de um único número **inverte silenciosamente a hierarquia declarada**.
 - **Onda:** B, junto de F2-13, que é a cobertura ausente da mesma tolerância.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero, porque a tolerância está em
-  `1e-12` e nenhuma decisão atual depende dela.
+- **Situação:** fechado com correção de código e um teste novo, no commit do pacote
+  B8. O escalar único `TOLERANCE` deu lugar ao mapeamento `TOLERANCES`, com uma
+  tolerância **por critério**: `1e-12` em `mean_cost`, `1e-12` em `std_cost` e
+  **zero por desenho** em `mean_runtime_seconds`. O laço de `_choose_best` passa a
+  iterar o mapeamento, o que amarra cada critério à sua própria escala e torna
+  impossível afrouxar o custo afrouxando junto os segundos.
+  `experiments/analyze_tuning.py:122` republica o mapeamento no lugar do escalar,
+  para que o documento de seleção registre o que foi de fato aplicado. **A seleção
+  congelada não foi reaberta**: `mean_cost` e `std_cost` seguem em `1e-12`, a
+  recalibração é de estrutura e não de valor, e F9-1 permanece `L1`, registro
+  apenas. **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação
+  **bate** com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, dentro do zero conferido no
+  conjunto completo dos 42 cenários no Passo F do pacote B8. O pacote vive em
+  `experiments/` e em `tests/`, fora do caminho científico executado pelo oráculo.
+  **Passo G.** Diff previsto zero; diff observado zero; a observação **bate** com a
+  previsão.
 
 #### Achado F9-3. A análise oficial não é byte a byte reprodutível e reescreve arquivo protegido pelo congelamento, sem destino alternativo possível
 

@@ -153,10 +153,15 @@ def _apply_move(solution: Any, move: TabuMove, *, k: int) -> IntArray:
 def _candidate_is_better(
     candidate: _EvaluatedCandidate, incumbent: _EvaluatedCandidate
 ) -> bool:
-    difference = candidate.evaluation.total_cost - incumbent.evaluation.total_cost
-    if difference < -COST_TOLERANCE:
+    # Comparação exata de custo seguida da cadeia de desempate. A banda de
+    # COST_TOLERANCE não era transitiva, e como _select_best_admissible é redução
+    # sequencial na ordem da amostra, o vencedor dependia dessa ordem e podia ser
+    # estritamente pior que outro admissível, contra a seção 14.
+    candidate_cost = candidate.evaluation.total_cost
+    incumbent_cost = incumbent.evaluation.total_cost
+    if candidate_cost < incumbent_cost:
         return True
-    if abs(difference) <= COST_TOLERANCE:
+    if candidate_cost == incumbent_cost:
         if candidate.canonical_key != incumbent.canonical_key:
             return candidate.canonical_key < incumbent.canonical_key
         return candidate.move < incumbent.move

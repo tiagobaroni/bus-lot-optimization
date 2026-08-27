@@ -19,7 +19,7 @@ from experiments.consolidation import _atomic_parquet
 from experiments.provenance import utc_now
 from experiments.scenarios import canonical_json, file_sha256
 from experiments.storage import atomic_write_json, read_json
-from experiments.tuning_analysis import TOLERANCE, parameter_effects, summarize_tuning
+from experiments.tuning_analysis import TOLERANCES, parameter_effects, summarize_tuning
 
 
 def _atomic_text(path: Path, content: str) -> None:
@@ -119,7 +119,7 @@ def _selection_document(
     return {
         "schema_version": 1,
         "selection_method": "automatic_no_override",
-        "tolerance": TOLERANCE,
+        "tolerance": dict(TOLERANCES),
         "criteria": [
             "mean_cost", "sample_std_cost", "mean_runtime_seconds",
             "lexicographic_parameters",

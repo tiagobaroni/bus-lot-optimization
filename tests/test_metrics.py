@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import FrozenInstanceError
+from itertools import permutations
 
 import numpy as np
 import pytest
@@ -212,3 +213,65 @@ def test_result_accepts_final_evaluation_identical_to_last_checkpoint() -> None:
     assert result.checkpoints[-1].evaluation.total_cost.hex() == (
         result.evaluation.total_cost.hex()
     )
+
+
+_NON_TRANSITIVE = (
+    ((0, 0, 0, 1), 0.5 + 1.4e-12),
+    ((0, 0, 1, 1), 0.5 + 0.7e-12),
+    ((0, 1, 1, 1), 0.5),
+)
+
+
+@pytest.mark.parametrize("order", list(permutations(range(3))))
+def test_recorder_incumbent_does_not_depend_on_the_order_of_presentation(
+    order: tuple[int, ...],
+) -> None:
+    """Contraexemplo executável de não transitividade, nas seis ordens.
+
+    Com a banda de `1e-12`, `a` empatava com `b`, `b` empatava com `c` e `a`
+    perdia de `c`, relação que não é transitiva. A redução sequencial de
+    `observe` então dependia da ordem: em `(a, b, c)` o incumbente final custava
+    `0,5`, e em `(c, b, a)` custava `0,5 + 1,4e-12`, isto é acima da própria
+    tolerância. A comparação exata torna o resultado invariante.
+    """
+
+    recorder = ConvergenceRecorder(checkpoint_thresholds(400))
+    for position, index in enumerate(order, start=1):
+        solution, cost = _NON_TRANSITIVE[index]
+        recorder.observe(
+            position, solution, EvaluationResult(cost, 0.1, 0.2, 0.3, 0.4, 0.11, 0.22), True
+        )
+    assert recorder.incumbent_evaluation is not None
+    assert recorder.incumbent_evaluation.total_cost == 0.5
+    assert recorder.incumbent_solution == (0, 1, 1, 1)
+
+
+def test_recorder_incumbent_never_grows_across_ties_inside_the_band() -> None:
+    """Cenário canônico do verificador para o desvio acumulado de F1-03.
+
+    As quatro soluções são canônicas e viáveis com `n_units=4` e `k=2`, e cada
+    uma empata com a anterior dentro de `1e-12` sendo lexicograficamente menor.
+    A janela de tolerância deslizava a cada empate e o desvio acumulado chegava a
+    `1,500022328571049e-12`, acima da tolerância que supostamente o limitava. A
+    seção 9 exige curva não crescente.
+    """
+
+    scenario = (
+        ((0, 1, 1, 1), 0.5),
+        ((0, 1, 1, 0), 0.5 + 5e-13),
+        ((0, 1, 0, 1), 0.5 + 1e-12),
+        ((0, 0, 1, 1), 0.5 + 15e-13),
+    )
+    recorder = ConvergenceRecorder(checkpoint_thresholds(400))
+    observed = []
+    for position, (solution, cost) in enumerate(scenario, start=1):
+        recorder.observe(
+            position, solution, EvaluationResult(cost, 0.1, 0.2, 0.3, 0.4, 0.11, 0.22), True
+        )
+        assert recorder.incumbent_evaluation is not None
+        observed.append(recorder.incumbent_evaluation.total_cost)
+    assert all(
+        right <= left for left, right in zip(observed, observed[1:])
+    ), "o incumbente registrado cresceu"
+    assert observed[-1] == 0.5
+    assert recorder.incumbent_solution == (0, 1, 1, 1)

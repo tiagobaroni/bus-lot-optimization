@@ -5,7 +5,7 @@ from __future__ import annotations
 from itertools import product
 import json
 from math import isfinite
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,14 @@ from experiments.config import ALGORITHM_FIELDS, CampaignConfig
 from experiments.scenarios import canonical_json
 
 
-TOLERANCE = 1e-12
+TOLERANCES: Mapping[str, float] = {
+    "mean_cost": 1e-12,
+    "std_cost": 1e-12,
+    # Zero por desenho: segundos e custo adimensional não compartilham escala, e
+    # afrouxar o tempo promove-o de critério de desempate a critério decisivo,
+    # contra a hierarquia declarada na seção 12.1.
+    "mean_runtime_seconds": 0.0,
+}
 COST_COLUMNS = (
     "total_cost", "c_demand", "c_production", "c_territorial", "c_affinity",
     "cv_demand", "cv_production", "runtime_seconds",
@@ -39,11 +46,11 @@ def _parameter_tuple(row: pd.Series) -> tuple[Any, ...]:
 
 def _choose_best(frame: pd.DataFrame, indices: list[int]) -> int:
     candidates = list(indices)
-    for column in ("mean_cost", "std_cost", "mean_runtime_seconds"):
+    for column, tolerance in TOLERANCES.items():
         minimum = min(float(frame.loc[index, column]) for index in candidates)
         candidates = [
             index for index in candidates
-            if float(frame.loc[index, column]) <= minimum + TOLERANCE
+            if float(frame.loc[index, column]) <= minimum + tolerance
         ]
     return min(candidates, key=lambda index: _parameter_tuple(frame.loc[index]))
 
