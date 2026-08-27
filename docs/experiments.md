@@ -1136,17 +1136,22 @@ isoladamente. A barreira de auditoria continua pertencendo ao lote completo.
 A unidade de invocação oficial é o **lote inteiro**, isto é `execute --batch N`
 sem filtros. O `ProcessPoolExecutor` cria processos sob demanda, um por cenário
 submetido, de modo que submeter um subgrupo por vez ocupa 6 dos 16 workers e
-converte as 512,02 h-CPU do roteiro em 85,34 h de relógio, contra 32,00 h
-ideais do lote inteiro. O subgrupo permanece como caminho de retomada dirigida.
+converte as 512,02 h-CPU do roteiro versionado em 85,34 h de relógio, contra
+32,00 h ideais do lote inteiro. Esses quatro números são anteriores à aceleração
+do ACO; com ela, o total passa a cerca de 195 h-CPU, isto é 32,52 h pelo subgrupo
+contra 12,20 h ideais pelo lote inteiro. O subgrupo permanece como caminho de retomada dirigida.
 Pelo lote inteiro, a morte de um worker alcança os 324 cenários em voo, e é por
 isso que ela é registrada como interrupção, sem consumir a tentativa única.
 
 Os subgrupos são ordenados antes da B11-E pela duração estimada com os tempos do
 piloto. Para cada algoritmo e instância, `K=3` e `K=8` são âncoras e os valores
 intermediários usam interpolação linear. Tempos da própria B11-E não alteram a
-fila. A estimativa resultante, já pela invocação por lote inteiro, é de
+fila. A estimativa resultante, já pela invocação por lote inteiro, era de
 aproximadamente 33 horas ideais e de 35 a 40 horas com margem operacional, cerca
-de 6,5 a 8 horas por lote.
+de 6,5 a 8 horas por lote. Com a aceleração de 3,58 vezes do ACO, ela passa a
+aproximadamente 12,20 horas ideais e de 13 a 15 horas com margem operacional,
+cerca de 2,6 a 3 horas por lote. A projeção mantém a mesma proporção de margem e
+será substituída pelo roteiro regenerado depois que o piloto for refeito.
 
 Depois que o lote recebe a rodada inicial integral, cada ID falho pode ser
 repetido uma única vez. Uma segunda falha bloqueia a campanha. Uma

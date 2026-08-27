@@ -287,9 +287,17 @@ uv run python -m experiments.run_benchmark barrier --batch 1
 A razão de o lote ser a unidade de invocação é de ocupação: o
 `ProcessPoolExecutor` cria processos sob demanda, um por cenário submetido, de
 modo que submeter um subgrupo de seis cenários ocupa **6 dos 16 workers**. O
-roteiro versionado soma 512,02 h-CPU: submetido lote a lote, isso são **32,00 h
-ideais de relógio**, cerca de 6,5 h por lote; submetido subgrupo a subgrupo,
-são **85,34 h**, cerca de 17,07 h por lote.
+roteiro hoje versionado soma 512,02 h-CPU, e esse número é **anterior à
+aceleração do ACO**: submetido lote a lote, seriam 32,00 h ideais de relógio,
+cerca de 6,5 h por lote; submetido subgrupo a subgrupo, 85,34 h, cerca de
+17,07 h por lote.
+
+Com a aceleração de 3,58 vezes já aplicada ao ACO, as 439,7 h-CPU que ele
+respondia em `N=150` passam a 122,8, e o total cai para cerca de **195 h-CPU**:
+submetido lote a lote, isso são **12,20 h ideais de relógio**, cerca de 2,4 h
+por lote; submetido subgrupo a subgrupo, são **32,52 h**, cerca de 6,5 h por
+lote. Esses valores são projeção aritmética sobre o piloto anterior, e o número
+definitivo virá do roteiro regenerado depois que o piloto for refeito.
 
 A invocação por subgrupo continua disponível, e o seu lugar é a **retomada
 dirigida**, quando se quer reexecutar uma fatia identificada do lote:
@@ -319,7 +327,11 @@ uv run python -m experiments.run_benchmark finalize
 A campanha usa exatamente 16 workers, uma thread computacional por execução e
 recusa alterações em código, automação, instâncias, parâmetros, configuração
 ou ambiente protegido. O número de workers é fixado pelo congelamento e a CLI
-recusa qualquer outro valor. É seguro pausar entre lotes para controlar carga e
+recusa qualquer outro valor. A estimativa atual é de **13 a 15 horas no total**,
+ou 2,6 a 3 horas por lote, isto é as 12,20 h ideais com margem operacional; a
+margem é a mesma proporção que a faixa anterior à aceleração do ACO, quando
+eram 35 a 40 horas no total, ou 6,5 a 8 horas por lote. É seguro pausar entre
+lotes para controlar carga e
 temperatura; pelo caminho oficial a pausa natural é o intervalo entre a barreira
 de um lote e a execução do seguinte.
 
