@@ -92,12 +92,20 @@ def _trial(
         + config.cognitive * r1 * (particle.pbest.position - particle.position)
         + config.social * r2 * (gbest - particle.position)
     )
-    raw_position = particle.position + raw_velocity
+    velocity_clips = int(
+        np.count_nonzero((raw_velocity < -VELOCITY_LIMIT) | (raw_velocity > VELOCITY_LIMIT))
+    )
+    # A velocidade saturada é a que se aplica à posição: o limite da seção 16 é do
+    # passo, não apenas do estado herdado pelo termo de inércia da iteração
+    # seguinte. Espelha `metaheuristica.pso._trial_state`, corrigida no pacote A1.
+    velocity = np.clip(raw_velocity, -VELOCITY_LIMIT, VELOCITY_LIMIT)
+    raw_position = particle.position + velocity
+    position_clips = int(np.count_nonzero((raw_position < 0.0) | (raw_position > 1.0)))
     return _Trial(
         np.clip(raw_position, 0.0, 1.0),
-        np.clip(raw_velocity, -VELOCITY_LIMIT, VELOCITY_LIMIT),
-        int(np.count_nonzero((raw_position < 0.0) | (raw_position > 1.0))),
-        int(np.count_nonzero((raw_velocity < -VELOCITY_LIMIT) | (raw_velocity > VELOCITY_LIMIT))),
+        velocity,
+        position_clips,
+        velocity_clips,
     )
 
 

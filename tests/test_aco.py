@@ -22,13 +22,14 @@ from metaheuristica.aco import (
     run_aco,
 )
 from metaheuristica.errors import ConfigurationError, SolutionValidationError
-from metaheuristica.instances import load_tiny_instance
+from metaheuristica.instances import load_artesp_instance, load_tiny_instance
 from metaheuristica.metrics import RunConfig, TerminationReason
-from metaheuristica.objective import _evaluate_partial_assignment
+from metaheuristica.objective import _balance_totals_matrix, _evaluate_partial_assignment
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights
 
 
-TINY = load_tiny_instance(Path(__file__).parents[1] / "data/instances/tiny_manual.json")
+INSTANCES_DIR = Path(__file__).parents[1] / "data/instances"
+TINY = load_tiny_instance(INSTANCES_DIR / "tiny_manual.json")
 
 
 def _evaluation(cost: float) -> EvaluationResult:
@@ -106,24 +107,186 @@ def test_heuristic_reuses_partial_cost_and_normalizes_best_to_two() -> None:
         ).total_cost
         for choice in choices
     ]
-    assert eta[np.argmin(costs)] == pytest.approx(2.0)
-    assert eta[np.argmax(costs)] == pytest.approx(1.0)
+    assert eta[np.argmin(costs)] == pytest.approx(2.0, abs=1e-12)
+    assert eta[np.argmax(costs)] == pytest.approx(1.0, abs=1e-12)
     assert np.all((eta >= 1.0) & (eta <= 2.0))
 
 
-def test_incremental_partial_state_matches_common_partial_evaluation() -> None:
-    state = _PartialConstructionState(TINY, k=2, weights=ObjectiveWeights())
-    state.append(0)
-    state.append(1)
-    incremental = state.evaluate_choice(0)
+@pytest.mark.parametrize(
+    ("size", "k", "prefix"),
+    [
+        (20, 3, (0, 0, 0, 1, 0, 0, 0, 2)),
+        (20, 5, (0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1)),
+        (60, 8, tuple(index % 8 for index in range(40))),
+    ],
+)
+def test_incremental_partial_state_is_equivalent_within_tolerance(
+    size: int, k: int, prefix: tuple[int, ...]
+) -> None:
+    """F4-5: a equivalência é da grandeza, não dos bits.
+
+    `_PartialConstructionState` acumula os cortes linha a linha, na ordem da
+    construção, enquanto `_evaluate_partial_assignment` soma o triângulo
+    superior numa única redução. As duas ordens de somatório diferem em até
+    um ULP, e a versão anterior deste teste afirmava igualdade exata dos sete
+    campos apoiada num único caso de três unidades com `K=2`. Manter aquela
+    afirmação induziria a onda de correção a usar um oráculo errado: o oráculo
+    da construção do ACO é a própria construção anterior, comparada por
+    `float.hex()`, que é o que
+    `test_batched_choice_costs_reproduce_the_reference_bit_by_bit` fixa.
+    """
+
+    instance = load_artesp_instance(INSTANCES_DIR, size)
+    state = _PartialConstructionState(instance, k=k, weights=ObjectiveWeights())
+    for lot in prefix[:-1]:
+        state.append(lot)
+    incremental = state.evaluate_choice(prefix[-1])
     common = _evaluate_partial_assignment(
-        TINY,
-        np.arange(3),
-        np.array([0, 1, 0]),
-        k=2,
+        instance,
+        np.arange(len(prefix)),
+        np.array(prefix),
+        k=k,
         weights=ObjectiveWeights(),
     )
-    assert incremental == common
+    for field in (
+        "total_cost", "c_demand", "c_production", "c_territorial", "c_affinity",
+        "cv_demand", "cv_production",
+    ):
+        assert getattr(incremental, field) == pytest.approx(
+            getattr(common, field), abs=1e-12
+        ), field
+
+
+def _construction_walk(instance, k: int, *, seed: int):
+    """Percorre uma construção real e devolve as escolhas abertas por posição."""
+
+    rng = np.random.default_rng(seed)
+    state = _PartialConstructionState(instance, k=k, weights=ObjectiveWeights())
+    prefix: list[int] = []
+    for _ in range(instance.n_units):
+        available = _construction_choices(prefix, n_units=instance.n_units, k=k)
+        if not available.forced:
+            yield state, available.allowed
+        selected = int(rng.choice(available.allowed))
+        prefix.append(selected)
+        state.append(selected)
+
+
+WALKED = [(TINY, 2), (TINY, 3)]
+WALKED += [(20, k) for k in range(2, 13)]
+WALKED += [(60, k) for k in range(2, 13)]
+WALKED += [(150, k) for k in (3, 8, 12)]
+
+
+@pytest.mark.parametrize(("source", "k"), WALKED)
+def test_batched_choice_costs_reproduce_the_reference_bit_by_bit(
+    source: object, k: int
+) -> None:
+    """Oráculo de identidade da variante O4, item B2 do Apêndice B do registro.
+
+    `_PartialConstructionState.evaluate_choice` é a implementação anterior,
+    preservada intacta como referência normativa. `choice_costs` é a variante
+    O4, que monta a matriz `(m, K)` contígua e reduz com `np.add.reduce`. A
+    comparação é por `float.hex()`, sobre construções reais, porque a alegação
+    inteira do achado F4-1 é a preservação dos bits.
+    """
+
+    instance = source if source is TINY else load_artesp_instance(INSTANCES_DIR, source)
+    compared = 0
+    for state, choices in _construction_walk(instance, k, seed=k):
+        expected = [state.evaluate_choice(lot).total_cost for lot in choices]
+        obtained = state.choice_costs(choices)
+        assert obtained.dtype == np.float64
+        assert obtained.shape == (len(choices),)
+        for reference, batched in zip(expected, obtained):
+            assert reference.hex() == float(batched).hex()
+            compared += 1
+    assert compared > 0
+
+
+def _cv_from_matrix(
+    matrix: np.ndarray, *, ddof: int = 0, blas: bool = False, fortran: bool = False
+):
+    """Réplica local da redução, com os desvios usados pelos controles negativos."""
+
+    count = matrix.shape[1]
+    means = np.add.reduce(matrix, axis=1) / count
+    deviations = np.subtract(matrix, means[:, np.newaxis])
+    if fortran:
+        deviations = np.asfortranarray(deviations)
+    np.square(deviations, out=deviations)
+    if blas:
+        totals = deviations @ np.ones(count, dtype=np.float64)
+    else:
+        totals = np.add.reduce(deviations, axis=1)
+    return np.sqrt(totals / (count - ddof)) / means
+
+
+def _balance_matrices(instance, k: int, *, seed: int) -> list[np.ndarray]:
+    matrices: list[np.ndarray] = []
+    for state, choices in _construction_walk(instance, k, seed=seed):
+        unit_index = len(state.labels)
+        matrix = np.empty((len(choices), k), dtype=np.float64, order="C")
+        matrix[:] = state.demand_totals
+        matrix[np.arange(len(choices)), list(choices)] += instance.demand[unit_index]
+        matrices.append(matrix)
+    return matrices
+
+
+def _count_divergences(matrices: list[np.ndarray], **kwargs) -> tuple[int, int]:
+    divergent = 0
+    total = 0
+    for matrix in matrices:
+        expected = _balance_totals_matrix(matrix)[1]
+        obtained = _cv_from_matrix(matrix, **kwargs)
+        for left, right in zip(expected, obtained):
+            total += 1
+            divergent += float(left).hex() != float(right).hex()
+    return divergent, total
+
+
+def test_negative_controls_prove_the_comparator_detects_divergence() -> None:
+    """Sem controle negativo, ausência de divergência não significaria nada.
+
+    Os dois controles são os que sustentaram a verificação adversarial da F4:
+    `ddof=1` tem de divergir em toda linha, e o produto por BLAS tem de divergir
+    em parte delas. O agregado é sobre `K` de 2 a 12 porque o produto por BLAS
+    coincide com a redução em pares nos `K` pequenos, e um controle preso a um
+    único `K` poderia parar de discriminar sem que ninguém notasse. Se algum dos
+    dois deixar de divergir, o comparador por `float.hex()` perdeu sensibilidade
+    e o oráculo de identidade perdeu o valor.
+    """
+
+    instance = load_artesp_instance(INSTANCES_DIR, 60)
+    matrices = [
+        matrix for k in range(2, 13) for matrix in _balance_matrices(instance, k, seed=k)
+    ]
+    assert matrices
+    divergent_ddof, total = _count_divergences(matrices, ddof=1)
+    divergent_blas, _ = _count_divergences(matrices, blas=True)
+    assert divergent_ddof == total
+    assert divergent_blas > 0
+
+
+def test_balance_matrix_refuses_memory_that_is_not_c_contiguous() -> None:
+    """Guarda-corpo obrigatório: a identidade bit a bit depende de ordem C.
+
+    Construída em ordem Fortran, a mesma matriz reduzida em `axis=1` diverge da
+    redução linha a linha. Sem a asserção na implementação real, uma refatoração
+    futura que produza a matriz por transposição ou com `order="F"` quebraria a
+    identidade em silêncio, sem que teste algum reclamasse.
+    """
+
+    instance = load_artesp_instance(INSTANCES_DIR, 60)
+    matrices = _balance_matrices(instance, 8, seed=8)
+    fortran = np.asfortranarray(matrices[-1])
+    assert not fortran.flags["C_CONTIGUOUS"]
+    assert np.array_equal(fortran, matrices[-1])
+    with pytest.raises(AssertionError, match="ordem C"):
+        _balance_totals_matrix(fortran)
+    divergent, total = _count_divergences(matrices, fortran=True)
+    assert total > 0
+    assert divergent > 0
 
 
 def test_probability_formula_is_normalized_and_reflects_alpha_beta() -> None:
@@ -134,7 +297,7 @@ def test_probability_formula_is_normalized_and_reflects_alpha_beta() -> None:
     stronger_tau = _choice_probabilities(
         [1.0, 2.0], [1.0, 1.0], alpha=2.0, beta=1.0
     )
-    assert np.sum(neutral) == pytest.approx(1.0)
+    assert np.sum(neutral) == pytest.approx(1.0, abs=1e-12)
     assert stronger_eta[1] > neutral[1]
     assert stronger_tau[1] > 0.5
 
@@ -144,7 +307,7 @@ def test_probability_formula_is_stable_for_extreme_positive_values() -> None:
         [1e-300, 1e300], [1.0, 2.0], alpha=2.0, beta=2.0
     )
     assert np.isfinite(probabilities).all()
-    assert probabilities.sum() == pytest.approx(1.0)
+    assert probabilities.sum() == pytest.approx(1.0, abs=1e-12)
 
 
 @pytest.mark.parametrize(

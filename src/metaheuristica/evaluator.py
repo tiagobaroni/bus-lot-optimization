@@ -5,12 +5,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from metaheuristica.canonical import solution_key, validate_k
+from metaheuristica.canonical import canonicalize_solution, validate_k
 from metaheuristica.errors import BudgetExhausted, ConfigurationError
 from metaheuristica.objective import (
+    _evaluate_labels,
     _evaluate_partial_assignment,
     _evaluate_provisional_solution,
-    evaluate_solution,
 )
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
 
@@ -102,15 +102,26 @@ class FitnessEvaluator:
         self._evaluations += 1
 
     def evaluate(self, solution: Any) -> EvaluationResult:
-        key = solution_key(solution, n_units=self._instance.n_units, k=self._k)
+        # F1-06: `solution_key` já canonicalizava e validava, e `evaluate_solution`
+        # validava a mesma solução uma segunda vez. A canonicalização é feita uma
+        # única vez aqui e o vetor canônico segue direto para `_evaluate_labels`,
+        # que é o corpo de `evaluate_solution` depois da validação. A chave de
+        # cache continua sendo a tupla canônica, e os rótulos que entram no
+        # somatório são os mesmos `int64` na mesma ordem, logo os bits não mudam.
+        # `evaluate_solution` permanece intacta: é a função pública usada pelo
+        # espelho GPU e pela conferência normativa.
+        canonical = canonicalize_solution(
+            solution, n_units=self._instance.n_units, k=self._k
+        )
+        key = tuple(int(label) for label in canonical)
         self._consume()
         if self._cache_enabled and key in self._cache:
             self._cache_hits += 1
             result = self._cache[key]
         else:
-            result = evaluate_solution(
+            result = _evaluate_labels(
                 self._instance,
-                key,
+                canonical,
                 k=self._k,
                 weights=self._weights,
             )
