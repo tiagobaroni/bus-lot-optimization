@@ -9,29 +9,31 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 27/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. Cinco dos 29 pacotes concluídos,
-  mais o B5 implementado e verificado, porém **ainda sem a revisão independente**
-  que todos os outros pacotes tiveram. Ele só conta como concluído depois dela.
+- **Fase do bloco ativo:** Fase 2, correção. **Seis dos 29 pacotes fechados** com
+  revisão independente, que são A1, B1, B2, B3, B4 e B5, mais o **B6 entregue e
+  registrado, com a revisão em curso**. Restam 22: B7 a B21 e C1 a C7.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o trabalho parcial do pacote B5, que estava na
-  branch `b5-parcial-nao-verificado`, foi recuperado e submetido à impressão
-  digital. Deu diff zero nos 42 cenários, e o oráculo foi validado com um
-  marcador que levanta exceção no caminho novo, descartando falso verde. O
-  pacote foi commitado em `d297377`, e as durações da campanha foram atualizadas
-  em `04a1a0d`.
-- **Próxima ação atômica:** revisar o pacote B5 por agente independente, fechando
-  formalmente os achados F4-1, F1-05, F1-06, F4-5 e F2-14, e em seguida despachar
-  o pacote B6.
+- **Última decisão concluída:** o B5 foi recuperado da branch
+  `b5-parcial-nao-verificado`, verificado com diff zero nos 42 cenários e oráculo
+  validado por marcador, commitado em `d297377`, revisado de forma independente e
+  fechado com as quatro condições da revisão em `5a94c23`. O B6 foi desenvolvido
+  em worktree isolada, integrado por cherry-pick em `5f2774a`, com o Passo G em
+  `f22372b`.
+- **Próxima ação atômica:** concluída a revisão do B6, publicar a branch e atacar
+  os 22 pacotes restantes pelo agrupamento em dez lotes descrito em
+  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`, começando pelo lote
+  B7, B8 e B12.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
   manifesto de congelamento está divergente de propósito, em dez arquivos
   protegidos, e não deve ser renovado antes do fechamento da auditoria.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** no commit `04a1a0d`, impressão digital idêntica à linha
-  de base `8b4fbfb3`, suíte de CPU com 353 aprovados e suíte de GPU com 23
-  aprovados sobre dispositivo real.
+- **Última verificação:** no commit `f22372b`, impressão digital idêntica, suíte de
+  CPU com 376 aprovados e suíte de GPU com 23 aprovados sobre dispositivo real. A
+  linha de base foi regravada pelo B6, logo a identidade de hoje já é contra a
+  linha nova.
 - **Achado aberto sem pacote alocado:** rodando a suíte de GPU com o diretório de
   trabalho em `gpu/`, cinco testes falham por caminho relativo
   `data/instances/tiny_manual.json` resolvido contra o `cwd`. Passam quando o
