@@ -13,13 +13,14 @@ from typing import Any
 
 from metaheuristica.errors import ConfigurationError
 
+from experiments import INHERITED_THREAD_LIMITS, THREAD_LIMIT_VARIABLES
 from experiments.scenarios import canonical_json, file_sha256
 
 
-THREAD_VARIABLES = (
-    "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS",
-    "BLIS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "ARROW_NUM_THREADS",
-)
+# Reexportado com o nome histórico. Duas das sete, `ARROW_NUM_THREADS` e
+# `VECLIB_MAXIMUM_THREADS`, não têm efeito e são mantidas por simetria: quem
+# contém o Arrow é `OMP_NUM_THREADS` mais as chamadas explícitas de `pyarrow`.
+THREAD_VARIABLES = THREAD_LIMIT_VARIABLES
 
 
 def utc_now() -> str:
@@ -106,5 +107,10 @@ def capture_provenance(
         "processor": platform.processor(),
         "cpu_count": os.cpu_count(),
         "packages": packages,
+        # Declarado pelo próprio processo, e por isso incapaz de falhar.
         "thread_limits": {name: os.environ.get(name) for name in THREAD_VARIABLES},
+        # Recebido do processo pai, capturado antes da escrita das variáveis. É
+        # este campo, e não o de cima, que documenta a configuração do ambiente
+        # em que a campanha foi disparada.
+        "inherited_thread_limits": dict(INHERITED_THREAD_LIMITS),
     }

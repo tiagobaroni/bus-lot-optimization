@@ -3407,10 +3407,35 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
 - **Decisão:** corrigir, registrando o número de threads **observado**, não o valor
   declarado, ou lendo o ambiente do processo pai antes da escrita.
 - **Onda:** B.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado **não** zero se o campo de
-  proveniência mudar de forma; a impressão digital compara os artefatos do
-  resultado.
+- **Situação:** fechado com correção de código e três testes novos, no commit do
+  pacote B15. A captura do ambiente recebido passou a ocorrer em
+  `experiments/__init__.py` **antes** do laço de escrita, exposta como
+  `INHERITED_THREAD_LIMITS`; qualquer captura feita dentro de `worker.py` seria
+  tautológica de novo, porque a importação de `experiments` é anterior à do
+  módulo. O worker passou a devolver três registros com papéis distintos:
+  `thread_limits`, que é declaração e é mantido como estava, o herdado do pai e a
+  observação medida depois da otimização, com contagem de threads, contagem de
+  threads com ticks acumulados e os dois contadores do Arrow. `pilot_validation`
+  passou a exigir a garantia observada, `max_active_optimizer_threads` menor ou
+  igual a um, e o comentário no ponto da igualdade declarada diz agora o que ela
+  é. **Evidência:** com as sete variáveis em `8` no processo pai, o registro
+  herdado devolve `{"8"}` e o declarado devolve `{"1"}`; movendo a captura para
+  depois da escrita, o registro herdado volta a devolver `{"1"}` em qualquer
+  ambiente, que é exatamente a cegueira do achado. A observação devolveu
+  `threads_with_ticks` igual a 1 e `arrow_cpu_count` igual a 1.
+  **Resíduo declarado:** os dois registros novos do worker não chegam ao
+  documento publicado, porque `_publish_success` copia do worker apenas
+  `thread_limits`, e `experiments/execution.py` não pertence à lista deste
+  pacote. O campo `inherited_thread_limits` chega ao documento pelo lado da
+  proveniência do orquestrador, que é onde ele documenta a configuração recebida
+  pela campanha.
+- **Impressão digital:** zero, conforme previsto e conforme a distinção que o
+  próprio registro já antecipava. `compare --workers 16` sobre os 42 cenários
+  devolveu "impressão digital idêntica" com saída 0, antes e depois do pacote. A
+  previsão de diff não zero deste achado é sobre artefatos de campanha, que
+  carregam proveniência; os 42 cenários não passam por `experiments/` nem
+  publicam proveniência. Classe prevista `D3`, classe observada `D3`, sem
+  reclassificação.
 
 #### F7-3. O ponto de entrada da GPU não fixa nenhuma variável de thread
 
@@ -3453,9 +3478,26 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   densa passe a engajar 32 threads sem que nada denuncie.
 - **Onda:** B, junto dos achados de `gpu/`, que não são protegidos pelo
   congelamento.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero, medido bit a bit nos dois
-  regimes.
+- **Situação:** fechado com correção de código e dois testes novos, no commit do
+  pacote B15. `gpu/src/metaheuristica_gpu/run.py` ganhou o bloco de ambiente
+  antes de qualquer importação, no mesmo padrão do ponto de entrada da impressão
+  digital, com o valor recebido do pai capturado antes da escrita.
+  `GpuEnvironment` ganhou dois campos, `thread_limits` e `observed_threads`, este
+  último com contagem de threads e de threads com ticks acumulados, para que o
+  registro não repita do lado da GPU a tautologia que F7-2 aponta do lado da CPU.
+  **Evidência:** subprocesso limpo com as sete variáveis em `8` no ambiente do
+  pai, importando `metaheuristica_gpu.run`, passou a observar as sete em `1` e o
+  herdado em `8`; sem o bloco, o mesmo subprocesso observa `8`. Medição
+  independente confirmou o mecanismo do achado: fora do ponto de entrada, o
+  processo GPU chega a 36 threads.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
+  42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
+  do pacote. O oráculo é da CPU e não toca `gpu/`. Classe prevista `D3`, classe
+  observada `D3`, sem reclassificação. **Consequência declarada:** alterar
+  arquivos de `gpu/src/` muda `gpu_code_hash`, logo
+  `results/gpu/metadata/gpu_readiness_manifest.json` fica divergente até a sua
+  renovação, que é da B11A-E. Nenhum teste da suíte de GPU verifica o manifesto,
+  e a renovação não pertence a este pacote.
 
 #### F7-4. `ARROW_NUM_THREADS` é inerte; quem contém o Arrow é `OMP_NUM_THREADS`
 
@@ -3489,8 +3531,23 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   explícitas de `pyarrow`. Na campanha atual o efeito é nulo; o defeito é de
   enunciado da garantia, não de comportamento observado.
 - **Onda:** B.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com correção de enunciado e um teste novo, no commit do
+  pacote B15. Os três pontos que definem as sete variáveis passaram a declarar,
+  em comentário, que `ARROW_NUM_THREADS` e `VECLIB_MAXIMUM_THREADS` são mantidas
+  por simetria e sem efeito, e que a contenção do Arrow vem de `OMP_NUM_THREADS`
+  mais as chamadas explícitas de `pa.set_cpu_count(1)` e
+  `pa.set_io_thread_count(1)`. A lista das sete deixou de ser repetida em três
+  arquivos e passou a vir de `experiments.THREAD_LIMIT_VARIABLES`, com
+  `INEFFECTIVE_THREAD_VARIABLES` nomeando as duas inertes. **Oráculo:** teste que
+  reproduz as três combinações em subprocesso, asseverando que só
+  `ARROW_NUM_THREADS` deixa `pa.cpu_count()` acima de um, que só
+  `OMP_NUM_THREADS` o leva a um, e que o ambiente do worker leva `cpu_count` e
+  `io_thread_count` a um. **Redação da restrição global pendente de aprovação:**
+  a emenda ao enunciado em `superpowers/B11B_plan.md` foi proposta ao usuário e
+  não aplicada, porque plano aprovado não é emendado sem aprovação.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
+  42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
+  do pacote. Classe prevista `D2`, classe observada `D2`, sem reclassificação.
 
 #### F7-5. `swap_unchanged` e `memory_margin` atravessam sessões separadas por um intervalo não monitorado
 

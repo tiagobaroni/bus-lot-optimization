@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 
-for _thread_variable in (
-    "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS",
-    "BLIS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "ARROW_NUM_THREADS",
-):
+from experiments import INHERITED_THREAD_LIMITS, THREAD_LIMIT_VARIABLES
+
+# A escrita já ocorreu na importação de `experiments`, que é obrigatoriamente
+# anterior a este módulo; repeti-la aqui é redundante e barato, e serve de
+# defesa caso a ordem de importação mude.
+for _thread_variable in THREAD_LIMIT_VARIABLES:
     os.environ[_thread_variable] = "1"
 
 from pathlib import Path
@@ -16,6 +18,8 @@ from typing import Any
 
 import pyarrow as pa
 
+# Estas duas chamadas, e não `ARROW_NUM_THREADS`, são o que efetivamente contém
+# o Arrow, junto de `OMP_NUM_THREADS`.
 pa.set_cpu_count(1)
 pa.set_io_thread_count(1)
 
@@ -27,6 +31,40 @@ from metaheuristica.errors import ConfigurationError
 
 from experiments.provenance import utc_now
 from experiments.scenarios import Scenario, file_sha256
+
+
+def observed_thread_state() -> dict[str, Any]:
+    """Mede o processo em vez de reler o que ele próprio declarou.
+
+    O registro de `thread_limits` lê as sete variáveis do mesmo `os.environ` em
+    que acabou de escrevê-las, logo é verdadeiro por construção e não pode
+    falhar. O que segue é observação: quantas threads existem, quantas
+    acumularam tempo de CPU e em quantas o Arrow diz que pode trabalhar.
+    """
+
+    tasks = Path("/proc/self/task")
+    total: int | None = None
+    with_ticks: int | None = None
+    if tasks.is_dir():
+        total = 0
+        with_ticks = 0
+        for task in sorted(tasks.iterdir()):
+            if not task.name.isdigit():
+                continue
+            try:
+                stat = (task / "stat").read_text(encoding="utf-8")
+            except OSError:
+                continue
+            fields = stat[stat.rfind(")") + 2:].split()
+            total += 1
+            if int(fields[11]) + int(fields[12]) > 0:
+                with_ticks += 1
+    return {
+        "threads_total": total,
+        "threads_with_ticks": with_ticks,
+        "arrow_cpu_count": pa.cpu_count(),
+        "arrow_io_thread_count": pa.io_thread_count(),
+    }
 
 
 def _load_instance(path: Path):
@@ -65,12 +103,13 @@ def run_scenario(scenario: Scenario, repository_root: str) -> dict[str, Any]:
         "result": result.to_dict(),
         "started_at": started_at,
         "finished_at": utc_now(),
+        # Declarado: o que este processo escreveu e relê.
         "thread_limits": {
-            name: os.environ.get(name)
-            for name in (
-                "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-                "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS", "BLIS_NUM_THREADS",
-                "VECLIB_MAXIMUM_THREADS", "ARROW_NUM_THREADS",
-            )
+            name: os.environ.get(name) for name in THREAD_LIMIT_VARIABLES
         },
+        # Recebido: o que o processo pai entregou, capturado antes da escrita.
+        "inherited_thread_limits": dict(INHERITED_THREAD_LIMITS),
+        # Observado: medido depois da otimização, quando threads acidentais de
+        # BLAS já teriam sido criadas.
+        "observed_threads": observed_thread_state(),
     }

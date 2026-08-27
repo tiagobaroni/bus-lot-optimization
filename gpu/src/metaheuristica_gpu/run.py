@@ -2,12 +2,37 @@
 
 from __future__ import annotations
 
+import os
+
+THREAD_LIMIT_VARIABLES = (
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+    "BLIS_NUM_THREADS",
+    "VECLIB_MAXIMUM_THREADS",
+    "ARROW_NUM_THREADS",
+)
+
+# O ambiente recebido é capturado antes da escrita: relê-lo depois devolveria o
+# que este bloco acabou de escrever e não documentaria configuração alguma.
+INHERITED_THREAD_LIMITS: dict[str, str | None] = {
+    variable: os.environ.get(variable) for variable in THREAD_LIMIT_VARIABLES
+}
+
+# A fixação precisa vir antes de qualquer importação de NumPy ou de
+# `metaheuristica`, no mesmo padrão do ponto de entrada da CPU. O projeto `gpu/`
+# não importa `experiments`, onde essa proteção vive, e `src/metaheuristica/`
+# não tem bloco de ambiente, logo sem este bloco a garantia de uma thread
+# computacional por execução simplesmente não existia deste lado.
+for _thread_variable in THREAD_LIMIT_VARIABLES:
+    os.environ[_thread_variable] = "1"
+
 import argparse
 from contextlib import contextmanager
 import fcntl
 from hashlib import sha256
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import platform
 import subprocess
@@ -17,6 +18,45 @@ import numpy as np
 
 class GpuConfigurationError(RuntimeError):
     """Indica que a B11A não pode usar a GPU com segurança."""
+
+
+THREAD_LIMIT_VARIABLES = (
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+    "BLIS_NUM_THREADS",
+    "VECLIB_MAXIMUM_THREADS",
+    "ARROW_NUM_THREADS",
+)
+
+
+def observed_thread_state() -> dict[str, Any]:
+    """Threads do processo e quantas acumularam tempo de CPU.
+
+    O registro do valor das variáveis é declaração; esta contagem é observação,
+    e é ela que denuncia paralelismo acidental do lado da CPU durante uma
+    execução de GPU.
+    """
+
+    tasks = Path("/proc/self/task")
+    total: int | None = None
+    with_ticks: int | None = None
+    if tasks.is_dir():
+        total = 0
+        with_ticks = 0
+        for task in sorted(tasks.iterdir()):
+            if not task.name.isdigit():
+                continue
+            try:
+                stat = (task / "stat").read_text(encoding="utf-8")
+            except OSError:
+                continue
+            fields = stat[stat.rfind(")") + 2:].split()
+            total += 1
+            if int(fields[11]) + int(fields[12]) > 0:
+                with_ticks += 1
+    return {"threads_total": total, "threads_with_ticks": with_ticks}
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +73,8 @@ class GpuEnvironment:
     memory_total_mib: int
     compute_capability: str
     float64_kernel_passed: bool
+    thread_limits: dict[str, str | None]
+    observed_threads: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -98,6 +140,11 @@ def inspect_gpu_environment() -> GpuEnvironment:
         cuda_runtime=runtime, gpu_name=name, gpu_uuid=uuid,
         memory_total_mib=int(memory), compute_capability=capability,
         float64_kernel_passed=passed,
+        thread_limits={
+            variable: os.environ.get(variable)
+            for variable in THREAD_LIMIT_VARIABLES
+        },
+        observed_threads=observed_thread_state(),
     )
 
 

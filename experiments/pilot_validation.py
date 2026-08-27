@@ -21,6 +21,7 @@ from metaheuristica.errors import ConfigurationError
 from experiments.config import CampaignConfig
 from experiments.consolidation import _atomic_parquet
 from experiments.execution import build_plan, execute_campaign
+from experiments.provenance import THREAD_VARIABLES
 from experiments.resource_monitor import read_samples, summarize_samples
 from experiments.scenarios import (
     Scenario, canonical_json, expand_scenarios, file_sha256,
@@ -110,7 +111,17 @@ def _validate_result(config: CampaignConfig, scenario: Scenario, document: dict[
         "avaliação não finita",
     )
     limits = document["provenance"].get("thread_limits", {})
+    # Esta igualdade é registro de declaração, não de comportamento: o worker
+    # escreve as sete variáveis e relê as mesmas chaves do mesmo `os.environ`,
+    # no mesmo processo. Ela é mantida porque documenta a intenção, e as duas
+    # verificações abaixo é que podem falhar.
     _require(limits and set(limits.values()) == {"1"}, "limites de threads divergentes")
+    inherited = document["provenance"].get("inherited_thread_limits")
+    if inherited is not None:
+        _require(
+            set(inherited) == set(THREAD_VARIABLES),
+            "registro do ambiente herdado incompleto",
+        )
 
 
 def _timing_window_report(
@@ -332,6 +343,13 @@ def validate_pilot(config: CampaignConfig, *, reproduce: bool = True) -> dict[st
     samples = read_samples(operational / "resources.csv")
     resource_summary = summarize_samples(samples, workers=16)
     _require(resource_summary["passed"] is True, "critérios de recursos falharam")
+    # A garantia de uma thread computacional por execução é esta, medida por
+    # variação de ticks na árvore de processos, e não a igualdade declarada em
+    # `thread_limits`.
+    _require(
+        int(resource_summary["max_active_optimizer_threads"]) <= 1,
+        "mais de uma thread computacional ativa por otimizador",
+    )
     tables = config.repository_root / config.output_root / "tables"
     resource_samples_path = tables / "pilot_resource_samples.parquet"
     resource_summary_path = tables / "pilot_resource_summary.json"
