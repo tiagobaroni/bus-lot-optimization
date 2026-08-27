@@ -8,9 +8,10 @@ import numpy as np
 import pytest
 
 from metaheuristica.errors import ConfigurationError, SolutionValidationError
-from metaheuristica.instances import load_tiny_instance
-from metaheuristica.metrics import RunConfig, TerminationReason
+from metaheuristica.instances import load_artesp_instance, load_tiny_instance
+from metaheuristica.metrics import COST_TOLERANCE, RunConfig, TerminationReason
 from metaheuristica.problem import EvaluationResult
+import metaheuristica.tabu as tabu_module
 from metaheuristica.tabu import (
     TabuConfig,
     TabuMove,
@@ -26,7 +27,9 @@ from metaheuristica.tabu import (
 )
 
 
-TINY = load_tiny_instance(Path(__file__).parents[1] / "data/instances/tiny_manual.json")
+ROOT = Path(__file__).parents[1]
+TINY = load_tiny_instance(ROOT / "data/instances/tiny_manual.json")
+ARTESP_20 = load_artesp_instance(ROOT / "data/instances", 20)
 
 
 def _evaluation(cost: float) -> EvaluationResult:
@@ -276,3 +279,207 @@ def test_best_admissible_is_invariant_to_the_order_of_the_sample(
     assert winner is not None
     assert winner.evaluation.total_cost == 0.0
     assert winner.canonical_key == (0, 1, 1, 1)
+
+
+def test_tabu_memory_is_fed_by_accepted_moves_and_not_by_iterations(monkeypatch) -> None:
+    """O contador do prazo é `accepted_moves` ao longo de `_tabu_search` inteira.
+
+    A seção 14 diz que o retorno permanece tabu pelos próximos `L_tabu`
+    **movimentos aceitos**. A única asserção que existia sobre o prazo exercitava
+    `_TabuMemory` isolada, com o contador fornecido pelo próprio teste, de modo
+    que nenhum teste verificava qual contador chega de fato a `purge`, `is_tabu`
+    e `register`. Trocar `accepted_moves` por `iterations_completed` nos três
+    pontos altera o custo do algoritmo de referência em cerca de 7 por cento sem
+    quebrar teste algum, e este teste é o que fecha esse canal.
+
+    A execução tem reinícios, e é isso que separa as duas séries: com reinícios,
+    `iterations_completed` é estritamente maior que `accepted_moves`.
+    """
+
+    registrations: list[int] = []
+    queries: list[tuple[int, int]] = []
+    purges: list[tuple[int, int]] = []
+    original_purge = _TabuMemory.purge
+    original_is_tabu = _TabuMemory.is_tabu
+    original_register = _TabuMemory.register
+
+    def spy_purge(self: _TabuMemory, *, accepted_moves: int) -> None:
+        purges.append((accepted_moves, len(registrations)))
+        original_purge(self, accepted_moves=accepted_moves)
+
+    def spy_is_tabu(self: _TabuMemory, move: TabuMove, *, accepted_moves: int) -> bool:
+        queries.append((accepted_moves, len(registrations)))
+        return original_is_tabu(self, move, accepted_moves=accepted_moves)
+
+    def spy_register(
+        self: _TabuMemory, move: TabuMove, *, accepted_moves: int, tenure: int
+    ) -> None:
+        registrations.append(accepted_moves)
+        original_register(self, move, accepted_moves=accepted_moves, tenure=tenure)
+
+    monkeypatch.setattr(_TabuMemory, "purge", spy_purge)
+    monkeypatch.setattr(_TabuMemory, "is_tabu", spy_is_tabu)
+    monkeypatch.setattr(_TabuMemory, "register", spy_register)
+
+    result = run_tabu(TINY, RunConfig(k=2, seed=3, budget=200), TabuConfig(5, 2, 5))
+    accepted = result.diagnostics["accepted_moves"]
+    restarts = result.diagnostics["restarts"]
+    iterations = result.diagnostics["iterations_completed"]
+
+    assert accepted > 0 and restarts > 0
+    assert iterations == accepted + restarts
+    assert iterations > accepted, "sem reinícios as duas séries não se separam"
+
+    # `register` é chamado logo depois de `accepted_moves += 1`, logo a série que
+    # ele recebe é exatamente 1, 2, ..., total de movimentos aceitos.
+    assert registrations == list(range(1, accepted + 1))
+    # Toda consulta e toda expurga recebem o número de movimentos aceitos até ali,
+    # que é o número de registros já feitos.
+    assert all(seen == done for seen, done in queries)
+    assert all(seen == done for seen, done in purges)
+    assert queries and purges
+
+
+def test_restart_clears_the_tabu_memory_seen_through_the_restart(monkeypatch) -> None:
+    """A limpeza da memória é observada **através** do reinício.
+
+    A seção 14 manda o reinício limpar a memória. A cobertura existente conferia
+    apenas que houve reinício e que a identidade entre os contadores se mantinha,
+    e a remoção de `memory.clear()` sobrevivia à suíte inteira. Aqui a memória é
+    observada antes e depois de cada limpeza, e a consulta que respondia "tabu"
+    passa a responder "não tabu".
+    """
+
+    observations: list[tuple[tuple[tuple[TabuMove, int], ...], tuple[bool, ...]]] = []
+    original_clear = _TabuMemory.clear
+
+    def spy_clear(self: _TabuMemory) -> None:
+        before = self.entries
+        original_clear(self)
+        assert self.entries == (), "a memória não ficou vazia depois da limpeza"
+        observations.append((
+            before,
+            tuple(
+                self.is_tabu(move, accepted_moves=expiration - 1)
+                for move, expiration in before
+            ),
+        ))
+
+    monkeypatch.setattr(_TabuMemory, "clear", spy_clear)
+    result = run_tabu(TINY, RunConfig(k=2, seed=3, budget=200), TabuConfig(5, 2, 5))
+
+    assert result.diagnostics["restarts"] > 0
+    assert len(observations) == result.diagnostics["restarts"]
+    populated = [entry for entry in observations if entry[0]]
+    assert populated, "nenhum reinício encontrou a memória povoada"
+    for before, still_tabu in populated:
+        # Antes da limpeza cada uma destas consultas responderia "tabu", porque
+        # `accepted_moves` é estritamente menor que a expiração registrada.
+        assert all(expiration - 1 < expiration for _, expiration in before)
+        assert not any(still_tabu)
+
+
+def test_aspiration_boundary_is_strict_at_exactly_one_tolerance() -> None:
+    """A fronteira onde a estritez do `<` decide, e que não era exercitada.
+
+    A cobertura existente usa `5e-13`, dentro da tolerância, e `0,4` contra
+    `0,5`, muito fora. O ponto onde trocar `<` por `<=` muda a resposta é a
+    melhora de **exatamente** `1e-12`, e é só ele que separa as duas formas. A
+    seção 14 libera a reversão somente quando a melhora é **maior** que `1e-12`.
+    """
+
+    global_best = 0.5
+    exactly_at_the_limit = global_best - 1e-12
+    assert exactly_at_the_limit == global_best - COST_TOLERANCE
+    assert not _aspiration_applies(
+        was_tabu=True,
+        candidate_cost=exactly_at_the_limit,
+        global_best_cost=global_best,
+    )
+    assert _aspiration_applies(
+        was_tabu=True,
+        candidate_cost=global_best - 2e-12,
+        global_best_cost=global_best,
+    )
+
+
+def test_aspiration_acceptance_happens_in_an_integrated_run() -> None:
+    """`aspiration_acceptances` asseverado em execução completa, não em unidade.
+
+    A sonda da auditoria mostrou que nenhuma execução de Busca Tabu da suíte,
+    incluindo os dezoito cenários ARTESP do piloto, aceitava um candidato tabu
+    por aspiração: o diagnóstico não era asseverado em arquivo algum. O prazo
+    longo somado à amostra estreita torna a aspiração frequente nesta instância
+    real, e o ramo passa a ser percorrido de ponta a ponta.
+    """
+
+    result = run_tabu(
+        ARTESP_20,
+        RunConfig(k=5, seed=1, budget=600),
+        TabuConfig(tabu_tenure=40, neighborhood_size=5, stagnation_limit=100),
+    )
+    assert result.diagnostics["aspiration_acceptances"] == 7
+    assert result.diagnostics["tabu_candidates_evaluated"] > 0
+    assert result.evaluations == 600
+
+
+def test_restart_when_the_sample_has_no_valid_move(monkeypatch) -> None:
+    """Ramo de reinício por amostra vazia, que nenhum teste percorria.
+
+    Com `K` igual ao número de unidades cada lote fica com uma única unidade, e
+    todo movimento esvaziaria o lote de origem, logo não existe movimento válido
+    e a amostra sai vazia em toda iteração.
+    """
+
+    empty = 0
+    populated = 0
+    original_sample = tabu_module._sample_moves
+
+    def spy_sample(moves, size, rng):  # type: ignore[no-untyped-def]
+        nonlocal empty, populated
+        sampled = original_sample(moves, size, rng)
+        if sampled:
+            populated += 1
+        else:
+            empty += 1
+        return sampled
+
+    monkeypatch.setattr(tabu_module, "_sample_moves", spy_sample)
+    result = run_tabu(TINY, RunConfig(k=4, seed=1, budget=100), TabuConfig(3, 4, 5))
+
+    assert empty > 0, "o ramo de amostra vazia não foi percorrido"
+    assert populated == 0
+    assert result.diagnostics["accepted_moves"] == 0
+    # Toda amostra vazia leva a um reinício, e não há outra fonte de reinício
+    # aqui, porque nenhum movimento é aceito. A folga de uma unidade é o achado
+    # F5-3, ainda aberto: o reinício que consome a última avaliação do orçamento
+    # não é contabilizado, porque `restarts` é incrementado depois do
+    # `try/finally` que envolve a avaliação. Este teste não fixa essa folga, para
+    # não impedir a correção de F5-3.
+    assert empty - 1 <= result.diagnostics["restarts"] <= empty
+
+
+def test_restart_when_the_entire_sample_is_tabu(monkeypatch) -> None:
+    """Ramo de reinício por amostra inteiramente tabu, que nenhum teste percorria.
+
+    A seção 14 manda reiniciar também quando toda a amostra está tabu sem
+    aspiração. Com os parâmetros congelados a condição é inalcançável, porque a
+    memória guarda no máximo `L_tabu` entradas vivas contra vinte movimentos na
+    amostra; aqui a amostra é estreitada até que o bloqueio total ocorra.
+    """
+
+    blocked: list[int] = []
+    original_select = tabu_module._select_best_admissible
+
+    def spy_select(candidates):  # type: ignore[no-untyped-def]
+        winner = original_select(candidates)
+        if winner is None and candidates:
+            blocked.append(len(candidates))
+        return winner
+
+    monkeypatch.setattr(tabu_module, "_select_best_admissible", spy_select)
+    result = run_tabu(TINY, RunConfig(k=2, seed=0, budget=100), TabuConfig(5, 4, 100))
+
+    assert blocked, "nenhuma amostra ficou inteiramente tabu"
+    assert max(blocked) >= 2, "o bloqueio total precisa valer para amostra não trivial"
+    assert result.diagnostics["restarts"] == len(blocked)

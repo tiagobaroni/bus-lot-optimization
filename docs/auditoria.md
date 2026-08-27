@@ -935,8 +935,22 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
 - **Decisão:** corrigir. Observar o estado da memória através de um reinício.
 - **Onda:** B, junto do achado 5 da frente F5, que é o defeito latente da mesma
   região de `tabu.py`. Ver a conexão 5 da seção 5.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com um teste novo, no commit do pacote B12, sem alteração de
+  `src/`. A memória passa a ser observada **através** do reinício, e não apenas pelo
+  lado dos contadores: `clear` é instrumentada, o conteúdo é lido antes e depois, e
+  para cada entrada viva a consulta `is_tabu` com o contador que **antes** responderia
+  "tabu", isto é a expiração menos um, passa a responder "não tabu". O teste exige
+  que ao menos um reinício tenha encontrado a memória povoada, de modo que ele não
+  passa por vacuidade se o cenário deixar de produzir memória viva, e confere que o
+  número de limpezas observadas iguala o número de reinícios publicado. Sob a remoção
+  de `memory.clear()`, que é a mutação `M17` do registro, a instrumentação nunca é
+  chamada e o teste falha.
+  **Passo G.** Classe prevista `M2`; classe observada `M2`; a observação **bate** com
+  a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, dentro do zero conferido no
+  subconjunto `tabu:*` e no conjunto completo dos 42 cenários no Passo F do pacote
+  B12. A alteração é restrita a `tests/test_tabu.py`. **Passo G.** Diff previsto
+  zero; diff observado zero; a observação **bate** com a previsão.
 
 #### F2-07. A aceitação por aspiração nunca é exercitada em execução integrada
 
@@ -966,8 +980,23 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   asseverar `aspiration_acceptances`.
 - **Onda:** B, junto do achado 6 da frente F5, que aponta a mesma fronteira sem
   cobertura pelo lado do algoritmo.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com um teste novo de execução **integrada**, no commit do
+  pacote B12, sem alteração de `src/`. A sonda `M34` do registro mostrou que nenhuma
+  execução de Busca Tabu da suíte, incluindo os dezoito cenários ARTESP do piloto,
+  aceitava um candidato tabu por aspiração, e que `aspiration_acceptances` não era
+  asseverado em arquivo algum. O teste novo roda `run_tabu` sobre a instância real
+  `artesp_rmsp_20` com `K=5`, seed 1, orçamento 600 e `tabu_tenure=40` contra
+  `neighborhood_size=5`: o prazo longo somado à amostra estreita torna a aspiração
+  frequente, e o diagnóstico é asseverado em **7** aceitações, com o valor fixado e
+  não apenas exigido positivo. A configuração foi encontrada por varredura no
+  scratchpad, fora do repositório, e a seed `20260819`, reservada à impressão
+  digital, não foi usada.
+  **Passo G.** Classe prevista `M2`; classe observada `M2`; a observação **bate** com
+  a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, dentro do zero conferido no
+  subconjunto `tabu:*` e no conjunto completo dos 42 cenários no Passo F do pacote
+  B12. A alteração é restrita a `tests/test_tabu.py`. **Passo G.** Diff previsto
+  zero; diff observado zero; a observação **bate** com a previsão.
 
 #### F2-08. A manutenção dos `K` lotes nos vetores de totais não é testada
 
@@ -2430,8 +2459,51 @@ achado 5. O código atual está correto; o que falta é proteção.
   regravada.
 - **Onda:** B, com prioridade, junto de F2-06, que aponta a mesma região por outro
   ângulo. Ver a conexão 5 da seção 5.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Teste novo, diff esperado zero.
+- **Situação:** fechado com um teste novo, no commit do pacote B12. Nenhuma linha de
+  `src/metaheuristica/tabu.py` foi alterada, porque o código está correto; o que
+  faltava era proteção. O teste percorre `_tabu_search` inteira com `purge`,
+  `is_tabu` e `register` instrumentados por `monkeypatch`, cobrindo os **três**
+  pontos do achado, e assevera que a série recebida por `register` é exatamente
+  `1, 2, ..., accepted_moves` e que toda consulta e toda expurga recebem o número
+  de movimentos aceitos até ali. A execução escolhida tem reinícios, e é isso que
+  separa as duas séries, porque `iterations_completed` passa a ser estritamente
+  maior que `accepted_moves`.
+  **Vereditos de morte dos quatro mutantes da frente F5.** Reexecutados pelo método
+  validado: cópia do repositório inteiro para fora da árvore, execução do `pytest`
+  **de dentro da cópia**, nunca por `PYTHONPATH`. A validação por marcador foi feita
+  antes de interpretar qualquer sobrevivência: um `raise` inserido em
+  `tabu.py` da cópia interrompeu a coleta, provando que o módulo carregado é o da
+  cópia e não o do repositório. A execução de referência é a mesma do dossiê,
+  `artesp_rmsp_60` com `K=5`, seed 0, orçamento 60000 e parâmetros congelados
+  `tabu_tenure=10, neighborhood_size=20, stagnation_limit=100`, com comparação por
+  `float.hex()`.
+
+  | Variante | Suíte antes | Suíte agora | Custo de referência | `float.hex()` | Veredito |
+  |---|---|---|---:|---|---|
+  | baseline | 254 de 254 | **399 de 399** | 0,12904819343271928 | `0x1.084a6b5336172p-3` | - |
+  | B | 254 de 254 | **1 falha** | 0,12006716303716230 | `0x1.ebcb8ba916fccp-4` | **morto** |
+  | B linha | 254 de 254 | **1 falha** | 0,12904819343271928 | `0x1.084a6b5336172p-3` | **morto** |
+  | A | 254 de 254 | **1 falha** | 0,12904819343271928 | `0x1.084a6b5336172p-3` | **morto** |
+  | C | 254 de 254 | **4 falhas** | 0,12904819343271928 | `0x1.084a6b5336172p-3` | **morto** |
+
+  Os quatro morrem. B e B linha caem pelo teste do contador, A pelo teste da
+  fronteira exata da aspiração e C pelo teste do ramo de amostra inteiramente tabu,
+  mais dois outros testes deste pacote e mais
+  `tests/test_audit_fingerprint.py`, porque o ramo que C suprime é percorrido pelo
+  cenário `tabu:tiny_manual:2:frozen`, conforme a correção de alcance registrada em
+  F5-6. Os cinco custos de referência e os
+  diagnósticos reproduzem **dígito a dígito** a tabela medida em `ca5b81f`, o que
+  confirma de passagem que os pacotes B7 e B8 não alteraram o resultado do
+  algoritmo de referência. A régua contra a qual ACO e PSO são julgados passa a
+  estar protegida.
+  **Passo G.** Classe prevista `D3` com `M2` secundária; classe observada `D3` com
+  `M2` secundária; a observação **bate** com a previsão. Sem reclassificação, e o
+  Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, por construção, porque o pacote só
+  acrescenta teste e não altera `src/`. Conferida no subconjunto `tabu:*` e depois
+  no **conjunto completo dos 42 cenários** como controle, ambos com "impressão
+  digital idêntica". **Passo G.** Diff previsto zero; diff observado zero; a
+  observação **bate** com a previsão.
 
 #### Achado F5-6. Fronteira da aspiração e dois dos três ramos de reinício sem cobertura
 
@@ -2462,8 +2534,47 @@ achado 5. O código atual está correto; o que falta é proteção.
 - **Decisão:** corrigir, com teste na fronteira exata de `1e-12` e testes para os
   dois ramos de reinício descobertos.
 - **Onda:** B, junto de F2-07, que cobre a mesma fronteira pelo lado da suíte.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com três testes novos, no commit do pacote B12, sem
+  alteração de `src/`. O primeiro fixa a fronteira exata da aspiração: com melhora
+  de **exatamente** `1e-12` a reversão **não** é liberada, e com `2e-12` é, que é o
+  único ponto onde trocar `<` por `<=` muda a resposta. Os outros dois cobrem os
+  dois ramos de reinício descobertos. O de **amostra vazia** é construído com `K`
+  igual ao número de unidades, situação em que cada lote tem uma única unidade e
+  todo movimento esvaziaria a origem; o de **amostra inteiramente tabu** estreita a
+  amostra até o bloqueio total ocorrer, e a asserção exige que o bloqueio valha para
+  amostra não trivial, de pelo menos dois candidatos, para não passar por um caso
+  degenerado de amostra unitária.
+  **Correção de alcance do ramo de amostra inteiramente tabu.** O campo Evidência
+  acima conclui que a condição é impossível sob os parâmetros congelados, apoiado em
+  dez entradas vivas na memória contra vinte movimentos distintos na amostra. Essa
+  medição é de `artesp_rmsp_60` e **não se transporta para o `tiny_manual`**, onde
+  `neighborhood_size = 20` é limitado pelo número de movimentos válidos, que é
+  quatro em quatro unidades com `K=2`. Medido no cenário
+  `tabu:tiny_manual:2:frozen` da própria impressão digital, com os parâmetros
+  congelados e a seed reservada: **cinco** amostras ficaram inteiramente tabu, todas
+  com quatro candidatos, em vinte e seis amostras. O ramo é, portanto, inalcançável
+  **na grade ARTESP** e alcançável no `tiny_manual` sob congelamento. A consequência
+  prática apareceu na validação por mutação: o mutante C, inerte na execução de
+  referência, **quebra também `tests/test_audit_fingerprint.py`**, porque altera o
+  resultado daquele cenário. Isto refina o alcance descrito na Evidência, não muda a
+  classe, que segue `M2` por ser fresta de cobertura, e não muda veredito algum de
+  impressão digital, porque nenhum código de `src/` foi alterado neste pacote. Os dois ramos são provados percorridos por
+  marcador, e não por inferência a partir dos diagnósticos: `_sample_moves` e
+  `_select_best_admissible` são instrumentados e as ocorrências contadas. Mutantes A
+  e C mortos, conforme a tabela de vereditos em F5-5.
+  **Observação registrada durante a construção do teste do ramo de amostra vazia.**
+  O número de reinícios ficou em 98 contra 99 amostras vazias, folga de exatamente
+  uma unidade. **Isto não é achado novo**: é F5-3, já registrado e ainda aberto, o
+  reinício que consome a última avaliação do orçamento e não é contabilizado porque
+  `diagnostics.restarts` é incrementado depois do `try/finally` que envolve a
+  avaliação. A asserção do teste foi escrita como intervalo, e **não** fixa a folga,
+  justamente para não bloquear a correção de F5-3.
+  **Passo G.** Classe prevista `M2`; classe observada `M2`; a observação **bate** com
+  a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, dentro do zero conferido no
+  subconjunto `tabu:*` e no conjunto completo dos 42 cenários no Passo F do pacote
+  B12. A alteração é restrita a `tests/test_tabu.py`. **Passo G.** Diff previsto
+  zero; diff observado zero; a observação **bate** com a previsão.
 
 #### Achado F5-7. `is_tabu` usa o próprio contador como valor padrão, apoiado em invariante não declarado
 
