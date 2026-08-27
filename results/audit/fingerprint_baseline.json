@@ -5,7 +5,7 @@
     "tabu": 25007,
     "tiny": 101
   },
-  "content_sha256": "8b4fbfb31f64917e78cdfadcdea0b48cf71f7b95457a14ea04d17ec4388e1e35",
+  "content_sha256": "b73fdd82d210c451bdacf9a30a3335d0b01d75ffd785e387a95180821dc0c569",
   "scenarios": {
     "aco:artesp_rmsp_150:3:frozen": {
       "algorithm": "aco",
@@ -15559,13 +15559,13 @@
     "greedy:artesp_rmsp_150:3:frozen": {
       "algorithm": "greedy",
       "evaluation": {
-        "c_affinity": 0.0836955947571458,
-        "c_demand": 0.047704363189858476,
-        "c_production": 0.09457206139893787,
+        "c_affinity": 0.08369559475714582,
+        "c_demand": 0.047704363189858615,
+        "c_production": 0.09457206139893791,
         "c_territorial": 0.037340716366539954,
-        "cv_demand": 0.05009406884363291,
-        "cv_production": 0.10445012503707043,
-        "total_cost": 0.06582818392812054
+        "cv_demand": 0.05009406884363307,
+        "cv_production": 0.10445012503707048,
+        "total_cost": 0.06582818392812058
       },
       "evaluations": 441,
       "fingerprint_variant": "frozen",
@@ -16909,12 +16909,12 @@
     "greedy:artesp_rmsp_150:5:frozen": {
       "algorithm": "greedy",
       "evaluation": {
-        "c_affinity": 0.21370243370836142,
+        "c_affinity": 0.21370243370836145,
         "c_demand": 0.09454960885761474,
-        "c_production": 0.15220843758497593,
+        "c_production": 0.152208437584976,
         "c_territorial": 0.14368259886994936,
         "cv_demand": 0.104422737880011,
-        "cv_production": 0.17953521164022213,
+        "cv_production": 0.1795352116402222,
         "total_cost": 0.15103576975522537
       },
       "evaluations": 725,
@@ -18247,11 +18247,11 @@
       "evaluation": {
         "c_affinity": 0.3317813380831591,
         "c_demand": 0.11671396456442065,
-        "c_production": 0.19059043499236591,
+        "c_production": 0.19059043499236597,
         "c_territorial": 0.18111475072808816,
         "cv_demand": 0.13213609168729232,
-        "cv_production": 0.23546847385052627,
-        "total_cost": 0.20505012209200846
+        "cv_production": 0.23546847385052636,
+        "total_cost": 0.20505012209200849
       },
       "evaluations": 1136,
       "fingerprint_variant": "frozen",
@@ -19560,13 +19560,13 @@
     "greedy:artesp_rmsp_20:3:frozen": {
       "algorithm": "greedy",
       "evaluation": {
-        "c_affinity": 0.06854235163840322,
+        "c_affinity": 0.0685423516384032,
         "c_demand": 0.09503273430398947,
-        "c_production": 0.05712161396770894,
-        "c_territorial": 0.048464333564274806,
+        "c_production": 0.05712161396770888,
+        "c_territorial": 0.0484643335642748,
         "cv_demand": 0.10501234454143461,
-        "cv_production": 0.06058216501078293,
-        "total_cost": 0.0672902583685941
+        "cv_production": 0.06058216501078286,
+        "total_cost": 0.06729025836859409
       },
       "evaluations": 51,
       "fingerprint_variant": "frozen",
@@ -19740,13 +19740,13 @@
     "greedy:artesp_rmsp_20:5:frozen": {
       "algorithm": "greedy",
       "evaluation": {
-        "c_affinity": 0.352034703071987,
+        "c_affinity": 0.35203470307198687,
         "c_demand": 0.2989072270108074,
-        "c_production": 0.12403767747940082,
+        "c_production": 0.12403767747940085,
         "c_territorial": 0.1320924780713999,
         "cv_demand": 0.4263447556824482,
-        "cv_production": 0.14160161263840654,
-        "total_cost": 0.2267680214083988
+        "cv_production": 0.14160161263840657,
+        "total_cost": 0.22676802140839875
       },
       "evaluations": 75,
       "fingerprint_variant": "frozen",
@@ -19906,12 +19906,12 @@
     "greedy:artesp_rmsp_20:8:frozen": {
       "algorithm": "greedy",
       "evaluation": {
-        "c_affinity": 0.4927702395454996,
+        "c_affinity": 0.49277023954549953,
         "c_demand": 0.4131163968226175,
         "c_production": 0.2911613605378769,
-        "c_territorial": 0.2814180314360314,
+        "c_territorial": 0.28141803143603134,
         "cv_demand": 0.7039153838785223,
-        "cv_production": 0.4107583084900878,
+        "cv_production": 0.41075830849008776,
         "total_cost": 0.3696165070855063
       },
       "evaluations": 96,
@@ -20051,13 +20051,13 @@
     "greedy:artesp_rmsp_60:3:frozen": {
       "algorithm": "greedy",
       "evaluation": {
-        "c_affinity": 0.16953669674689584,
+        "c_affinity": 0.1695366967468958,
         "c_demand": 0.12323978110367775,
-        "c_production": 0.04333081712161231,
-        "c_territorial": 0.1048153481803682,
+        "c_production": 0.043330817121612394,
+        "c_territorial": 0.10481534818036824,
         "cv_demand": 0.14056269712922614,
-        "cv_production": 0.04529341793078386,
-        "total_cost": 0.11023066078813853
+        "cv_production": 0.04529341793078395,
+        "total_cost": 0.11023066078813855
       },
       "evaluations": 171,
       "fingerprint_variant": "frozen",
@@ -20591,13 +20591,13 @@
     "greedy:artesp_rmsp_60:5:frozen": {
       "algorithm": "greedy",
       "evaluation": {
-        "c_affinity": 0.25305199361970127,
+        "c_affinity": 0.2530519936197012,
         "c_demand": 0.2903135435391702,
         "c_production": 0.3652048174359173,
-        "c_territorial": 0.16458964861262015,
-        "cv_demand": 0.40907296580936464,
+        "c_territorial": 0.1645896486126202,
+        "cv_demand": 0.40907296580936475,
         "cv_production": 0.5753112617533921,
-        "total_cost": 0.2682900008018522
+        "total_cost": 0.2682900008018523
       },
       "evaluations": 275,
       "fingerprint_variant": "frozen",
@@ -21120,10 +21120,10 @@
         "c_affinity": 0.2757999788744045,
         "c_demand": 0.32047125708275775,
         "c_production": 0.3323876196307587,
-        "c_territorial": 0.18562422771815892,
-        "cv_demand": 0.4716080966744139,
-        "cv_production": 0.4978751584069227,
-        "total_cost": 0.27857077082651993
+        "c_territorial": 0.18562422771815898,
+        "cv_demand": 0.471608096674414,
+        "cv_production": 0.4978751584069226,
+        "total_cost": 0.27857077082652
       },
       "evaluations": 416,
       "fingerprint_variant": "frozen",

@@ -83,12 +83,8 @@ def run_greedy(
 
     budget = k * (instance.n_units - k)
     trace: list[GreedyTraceStep] = []
-    final_evaluation: EvaluationResult | None = None
 
     if budget == 0:
-        final_evaluation = evaluate_solution(
-            instance, labels, k=k, weights=scenario_weights
-        )
         evaluations = 0
     else:
         evaluator = FitnessEvaluator(
@@ -128,11 +124,17 @@ def run_greedy(
                     unit_id=instance.unit_ids[unit_index],
                     unit_index=unit_index,
                     lot=best_lot,
+                    # F1-01: este `partial_cost` é, de propósito, o custo na ordem
+                    # de construção, isto é o do conjunto induzido permutado pela
+                    # ordem decrescente de PU·km. Ele é o valor que decidiu a
+                    # escolha do lote e por isso tem de continuar sendo o
+                    # registrado aqui. No último passo ele difere em bits da
+                    # avaliação publicada, que é calculada na ordem natural da
+                    # instância; essa diferença é esperada e não é defeito.
                     partial_cost=best_result.total_cost,
                     evaluations=evaluator.evaluations,
                 )
             )
-            final_evaluation = best_result
 
         evaluations = evaluator.evaluations
         if evaluations != budget:
@@ -140,10 +142,21 @@ def run_greedy(
                 f"contador guloso divergente: esperado {budget}, obtido {evaluations}"
             )
 
-    assert final_evaluation is not None
     canonical_solution = solution_key(labels, n_units=instance.n_units, k=k)
     if len(trace) != instance.n_units - k:
         raise ConfigurationError("rastreio guloso possui tamanho divergente")
+    # F1-01: a avaliação publicada é a da solução canônica, na ordem natural da
+    # instância, pelo mesmo caminho de `evaluate_solution`. A última avaliação
+    # parcial da construção avaliava a instância inteira permutada pela ordem de
+    # processamento, e `np.bincount` e `np.triu_indices` acumulam na ordem do
+    # vetor e da matriz recebidos, de modo que o par publicado não era
+    # autoconsistente em 18 de 18 combinações oficiais. Esta chamada não passa
+    # pelo `FitnessEvaluator` e por isso não debita unidade alguma de orçamento,
+    # como exige a seção 13.3 da formulação ao dizer que a última avaliação é
+    # "reutilizada sem nova avaliação": o contador segue exatamente K(N-K).
+    final_evaluation = evaluate_solution(
+        instance, canonical_solution, k=k, weights=scenario_weights
+    )
     return GreedyResult(
         solution=canonical_solution,
         evaluation=final_evaluation,
