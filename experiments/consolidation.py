@@ -16,7 +16,9 @@ from metaheuristica.errors import ConfigurationError
 from experiments.config import CampaignConfig
 from experiments.provenance import capture_provenance, utc_now
 from experiments.scenarios import canonical_json, expand_scenarios, file_sha256
-from experiments.storage import artifact_paths, read_json, validate_document
+from experiments.storage import (
+    _fsync_directory, artifact_paths, read_json, validate_document,
+)
 
 
 def _json_text(value: Any) -> str:
@@ -32,9 +34,15 @@ def _atomic_parquet(path: Path, frame: pd.DataFrame) -> None:
     temporary = Path(temporary_name)
     try:
         frame.to_parquet(temporary, index=False)
-        with temporary.open("rb") as stream:
+        # O descritor é aberto para escrita porque sincronizar sobre descritor
+        # somente leitura funciona no Linux mas não é contrato garantido.
+        with temporary.open("rb+") as stream:
             os.fsync(stream.fileno())
         os.replace(temporary, path)
+        # Sem sincronizar o diretório, a entrada trocada pode não sobreviver a
+        # uma queda de energia mesmo com o conteúdo já em disco, que é a mesma
+        # garantia que `atomic_write_json` já dava e esta escrita não dava.
+        _fsync_directory(path.parent)
     finally:
         temporary.unlink(missing_ok=True)
 

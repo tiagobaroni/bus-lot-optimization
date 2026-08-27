@@ -3186,8 +3186,21 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
 - **Decisão:** corrigir, acrescentando `_fsync_directory(path.parent)` após o
   `os.replace` em `_atomic_parquet`.
 - **Onda:** B.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com correção de código e dois testes novos, no commit do
+  pacote B14. `_atomic_parquet` passou a chamar `_fsync_directory(path.parent)`
+  logo depois do `os.replace`, reusando a rotina de `experiments/storage.py` em
+  vez de duplicá-la, e o descritor de sincronização do arquivo passou a ser
+  aberto em `rb+`, porque sincronizar sobre descritor somente leitura funciona no
+  Linux mas não é contrato garantido. **Oráculo:** como o efeito observável exige
+  perda de energia, o teste instrumenta `os.fsync` e classifica cada descritor
+  com `stat.S_ISDIR`, asseverando a sequência arquivo e depois diretório.
+  **Evidência:** sem a correção a sequência observada era `[False]` numa escrita
+  e `[False, False]` em duas escritas sucessivas; com a correção passou a
+  `[False, True]` e `[False, True, False, True]`.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
+  42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
+  do pacote. A correção vive em `experiments/`, fora do caminho dos 42 cenários.
+  Classe prevista `D3`, classe observada `D3`, sem reclassificação.
 
 #### F6-11. `ExecutionSummary.skipped` relata concluídos da campanha inteira, e o valor errado entra no diário operacional
 
@@ -3255,8 +3268,22 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
 - **Decisão:** corrigir, separando os dois ramos de exceção e preservando commit e
   `dirty_sha256` quando o Git estiver disponível.
 - **Onda:** B.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com correção de código e dois testes novos, no commit do
+  pacote B14. O `try` passou a cobrir apenas as duas chamadas de Git, e a
+  avaliação de sujeira migrou para um ramo `else`, de modo que `unversioned` fica
+  reservado ao caso em que não há repositório. `--allow-unversioned` continua
+  tolerando worktree suja, isto é nenhuma recusa nova foi criada, mas agora
+  registra `git_commit`, `git_dirty` e `dirty_sha256` e o motivo `dirty_worktree`.
+  **Evidência:** com repositório presente e sujo, `capture_provenance(root,
+  allow_unversioned=True)` devolvia `git_commit = None` e
+  `nonofficial_reasons = ['unversioned']`; passou a devolver o commit de 40
+  caracteres, `git_dirty = True`, `dirty_sha256` não vazio e
+  `nonofficial_reasons = ['dirty_worktree']`. O segundo teste fixa o caso sem
+  repositório, que continua devolvendo `unversioned` com os três campos nulos.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
+  42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
+  do pacote. Os 42 cenários não passam por `experiments/` nem publicam
+  proveniência. Classe prevista `D2`, classe observada `D2`, sem reclassificação.
 
 ### 3.7. Frente F7 - disciplina de CPU, threads e cronometragem
 

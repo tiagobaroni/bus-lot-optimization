@@ -58,20 +58,17 @@ def capture_provenance(
     allow_unversioned: bool = False,
 ) -> dict[str, Any]:
     reasons: list[str] = []
+    # Os dois motivos de não oficialidade são separados de propósito. Enquanto
+    # um único `except` cobria os dois, `--allow-unversioned` sobre worktree
+    # suja apagava o commit e o hash do estado sujo e registrava `unversioned`,
+    # isto é o registro afirmava ausência de repositório onde havia repositório
+    # e havia diferença rastreável.
     try:
         commit = _git(repository_root, "rev-parse", "HEAD").decode().strip()
         status = _git(
             repository_root, "status", "--porcelain=v1", "-z", "--untracked-files=all"
         )
-        dirty = bool(status)
-        dirty_hash = _dirty_hash(repository_root, status) if dirty else None
-        if dirty and not allow_dirty:
-            raise ConfigurationError("worktree suja; use --allow-dirty para execução não oficial")
-        if dirty:
-            reasons.append("dirty_worktree")
     except ConfigurationError:
-        if (repository_root / ".git").exists() and not allow_unversioned:
-            raise
         if not allow_unversioned:
             raise ConfigurationError(
                 "Git indisponível; use --allow-unversioned para execução não oficial"
@@ -80,6 +77,13 @@ def capture_provenance(
         dirty = None
         dirty_hash = None
         reasons.append("unversioned")
+    else:
+        dirty = bool(status)
+        dirty_hash = _dirty_hash(repository_root, status) if dirty else None
+        if dirty and not (allow_dirty or allow_unversioned):
+            raise ConfigurationError("worktree suja; use --allow-dirty para execução não oficial")
+        if dirty:
+            reasons.append("dirty_worktree")
 
     packages = {}
     for package in (
