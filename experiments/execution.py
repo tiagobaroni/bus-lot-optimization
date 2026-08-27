@@ -27,6 +27,7 @@ class CampaignPlan:
     completed: int
     failed: int
     pending: int
+    skipped: int
     selected: tuple[Scenario, ...]
     by_algorithm: dict[str, int]
     by_instance: dict[str, int]
@@ -97,6 +98,14 @@ def build_plan(
         completed=sum(state is ScenarioState.COMPLETED for state in states.values()),
         failed=sum(state is ScenarioState.FAILED for state in states.values()),
         pending=sum(state is ScenarioState.PENDING for state in states.values()),
+        # `completed` conta a campanha inteira e `skipped` conta apenas o escopo
+        # selecionado: são números diferentes sempre que a seleção é um lote, e
+        # confundi-los faz o diário operacional registrar cenários que a sessão
+        # nunca teve diante de si.
+        skipped=sum(
+            states[scenario.scenario_id] is ScenarioState.COMPLETED
+            for scenario in selected_scope
+        ),
         selected=pending_selected,
         by_algorithm=by_algorithm,
         by_instance=by_instance,
@@ -201,7 +210,7 @@ def execute_campaign(
             except KeyboardInterrupt:
                 _write_interruption_report(config, workers=workers)
                 return ExecutionSummary(
-                    plan.expected, len(plan.selected), plan.completed,
+                    plan.expected, len(plan.selected), plan.skipped,
                     succeeded, failures, True,
                 )
             except Exception as error:
@@ -260,7 +269,7 @@ def execute_campaign(
                     executor.shutdown(wait=False, cancel_futures=True)
                 _write_interruption_report(config, workers=workers)
                 return ExecutionSummary(
-                    plan.expected, len(plan.selected), plan.completed,
+                    plan.expected, len(plan.selected), plan.skipped,
                     succeeded, failures, True,
                 )
         finally:
@@ -269,10 +278,10 @@ def execute_campaign(
         if broken:
             _write_interruption_report(config, workers=workers)
             return ExecutionSummary(
-                plan.expected, len(plan.selected), plan.completed,
+                plan.expected, len(plan.selected), plan.skipped,
                 succeeded, failures, True,
             )
     return ExecutionSummary(
-        plan.expected, len(plan.selected), plan.completed,
+        plan.expected, len(plan.selected), plan.skipped,
         succeeded, failures, False,
     )

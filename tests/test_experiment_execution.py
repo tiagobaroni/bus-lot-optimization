@@ -250,3 +250,37 @@ def test_worker_death_does_not_consume_the_single_attempt(
     assert resumed.succeeded == 8
     assert resumed.failed == 0
     assert build_plan(config).completed == 8
+
+
+def test_skipped_counts_the_selected_scope_and_not_the_whole_campaign(
+    tmp_path: Path,
+) -> None:
+    """F6-11: `skipped` recebia a contagem de concluídos da campanha inteira.
+
+    O valor errado é gravado no diário do lote, onde ele afirma quantos cenários
+    a sessão encontrou prontos. Com seleção por lote, concluídos fora do escopo
+    nunca estiveram diante da sessão.
+    """
+
+    config = _campaign(tmp_path, seeds="[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]")
+    scenarios = expand_scenarios(config)
+    assert len(scenarios) == 10
+
+    for scenario in scenarios[:2]:
+        execute_campaign(
+            config, scenario_id=scenario.scenario_id, allow_unversioned=True
+        )
+    assert build_plan(config).completed == 2
+
+    scope = scenarios[2:5]
+    first = execute_campaign(config, selected_scenarios=scope, allow_unversioned=True)
+    assert first.selected == 3
+    assert first.succeeded == 3
+    assert first.skipped == 0
+
+    second = execute_campaign(config, selected_scenarios=scope, allow_unversioned=True)
+    assert second.selected == 0
+    assert second.succeeded == 0
+    assert second.skipped == 3
+    assert build_plan(config).completed == 5
+    assert build_plan(config, selected_scenarios=scope).skipped == 3

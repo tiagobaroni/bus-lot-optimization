@@ -95,8 +95,13 @@ def test_saturated_execute_covers_the_whole_batch(toy_benchmark, monkeypatch, ca
         "execute", "--config", str(config.source_path), "--batch", "1",
     ]) == 0
     output = json.loads(capsys.readouterr().out)
+    # `skipped` conta o que a sessão encontrou pronto **dentro do escopo
+    # selecionado**, que é o lote de 324 menos os 3 apagados acima, e não a
+    # campanha inteira. O valor anterior, 645, era 648 menos 3, isto é a campanha
+    # toda: registrava no diário operacional cenários que a sessão nunca teve
+    # diante de si. É o achado F6-11.
     assert output["summary"] == {
-        "expected": 648, "selected": 3, "skipped": 645,
+        "expected": 648, "selected": 3, "skipped": 321,
         "succeeded": 3, "failed": 0, "interrupted": False,
     }
     operation = output["operation"]

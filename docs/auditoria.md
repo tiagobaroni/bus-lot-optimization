@@ -3249,8 +3249,21 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   do relatório.
 - **Decisão:** corrigir, contando `skipped` sobre o escopo selecionado.
 - **Onda:** B.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com correção de código e três testes novos, no commit de
+  conclusão do pacote B14. `CampaignPlan` ganhou o campo `skipped`, contado sobre o
+  **escopo selecionado** e não sobre a campanha inteira, e os quatro sítios de
+  `execute_campaign` que construíam `ExecutionSummary` passaram a usá-lo no lugar
+  de `plan.completed`. **Evidência:** num lote de 324 cenários com 3 apagados, o
+  resumo publicava `skipped = 645`, que é a campanha inteira de 648 menos os 3,
+  e passou a publicar `321`, que é o lote de 324 menos os 3. O valor antigo
+  registrava no diário operacional cenários que a sessão nunca teve diante de si.
+  A asserção de `tests/test_benchmark_cli.py` que fixava o valor anterior foi
+  atualizada com o motivo escrito ao lado, e esse arquivo foi acrescentado ao
+  escopo do pacote com autorização do usuário, por ser troca de um literal cuja
+  correção já estava demonstrada.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
+  42 cenários devolveu "impressão digital idêntica" com saída 0, o que era o
+  esperado porque nada em `src/metaheuristica/` é tocado.
 
 #### F6-12. `--allow-unversioned` mascara worktree suja e apaga o commit da proveniência
 
