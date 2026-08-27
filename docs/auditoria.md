@@ -223,10 +223,25 @@ depois da soma ponderada.
   avaliação parcial na ordem natural da instância, de modo que o par publicado
   seja autoconsistente.
 - **Onda:** B, com prioridade, junto de F1-07 que é o irmão de cobertura.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Se a correção mudar bits, o diff fica confinado
-  a cenários `greedy:*`, que sob o ruling de cascata por escopo não invalidam
-  tuning nem piloto.
+- **Situação:** fechado no commit `5f2774a`, do pacote B6. A avaliação publicada
+  passa a ser calculada sobre a solução canônica, na ordem natural da instância,
+  pelo mesmo caminho de `evaluate_solution`, num ponto único de publicação que
+  também absorveu o ramo `budget == 0`, o qual avaliava rótulos crus e carregava o
+  mesmo defeito latente. A chamada não passa pelo `FitnessEvaluator` e por isso não
+  debita unidade alguma de orçamento: o contador segue exatamente `K(N-K)`, com a
+  guarda existente intacta. `solution`, `processing_order` e `trace` não mudam, e o
+  `partial_cost` do último passo permanece o valor da ordem de construção, com
+  comentário explícito no código.
+- **Impressão digital:** diff não zero, **conforme previsto**. Foram 37 campos de
+  `evaluation` divergentes, distribuídos pelos 9 cenários `greedy:*`, de 3 a 6
+  campos por cenário, sem tocar `solution`, `processing_order`, `evaluations` ou
+  qualquer campo de `trace`, e com diff zero nos 33 cenários `tabu:*`, `aco:*` e
+  `pso:*`. O envelope observado coincide com o previsto, verificado por dois
+  caminhos independentes: script sobre a saída de `compare` e caminhada estrutural
+  por `float.hex()` do documento antigo contra o regravado. A linha de base foi
+  regravada no mesmo commit, com o conjunto completo dos 42 cenários. Classe `D3`
+  mantida: a reclassificação automática da seção 7 da especificação é a fronteira
+  entre `D1` e `D2` e não alcança `D3`, e o Passo H não se aplica.
 
 #### F1-02. A tolerância de `_same_evaluation` admite divergência real entre o checkpoint 100 e o resultado final
 
@@ -545,8 +560,17 @@ depois da soma ponderada.
 - **Decisão:** corrigir. Estender o teste às instâncias oficiais, no mesmo commit
   da correção de F1-01, para que ele passe a discriminar.
 - **Onda:** B, na onda do defeito associado F1-01, e não na Onda C.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Teste novo não altera resultado de campanha.
+- **Situação:** fechado no commit `5f2774a`, do pacote B6. O teste passou a cobrir
+  as 18 combinações oficiais com três asserções por combinação: igualdade de
+  dataclass sem tolerância, contagem de avaliações igual a `K(N-K)` e igualdade
+  campo a campo por `float.hex()`. Como a correção de F1-01 torna a primeira
+  asserção quase tautológica, o teste ganhou o caso negativo obrigatório, que
+  injeta a permutação antiga por monkeypatch, prova por marcador de contagem de
+  chamadas que o ponto de injeção foi percorrido, e confere que a autoconsistência
+  se quebra em `N=20` com `K=3`. Um vigésimo caso cobre o ramo `K == N`, que nenhum
+  teste exercitava.
+- **Impressão digital:** zero, **como previsto**. Nenhuma das 37 diferenças
+  observadas no pacote vem de `tests/`. Classe `M2` mantida.
 
 #### F1-08. Código morto em `objective.py`
 
