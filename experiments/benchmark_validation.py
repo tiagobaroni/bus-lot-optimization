@@ -82,6 +82,17 @@ def _validate_operations(config: CampaignConfig, batch: int, expected_ids: set[s
             summary_path = config.repository_root / session["resource_summary"]
             _require(summary_path.is_file(), "resumo de recursos ausente")
             summary = read_json(summary_path)
+            # A barreira não pode aceitar veredito calculado sobre a série
+            # acumulada: os critérios valem por sessão, e um resumo sem
+            # identificação de sessão não diz sobre qual janela ele decidiu.
+            _require(
+                bool(summary.get("session_id")),
+                "resumo de recursos sem identificação de sessão",
+            )
+            _require(
+                int(summary.get("samples_session", 0)) >= 1,
+                "resumo de recursos sem amostra da sessão",
+            )
             _require(summary.get("passed") is True, "critério de recursos não satisfeito")
     return operations
 

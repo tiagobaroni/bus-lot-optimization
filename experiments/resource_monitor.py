@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 import threading
@@ -12,8 +12,18 @@ from typing import Any, Iterable
 
 from metaheuristica.errors import ConfigurationError
 
+from experiments.provenance import utc_now
+
 
 GIB = 1024 ** 3
+# Amostra gravada antes de existir coluna de sessão. Ela nunca é confundida com
+# uma sessão real, e a série acumulada continua no arquivo apenas como histórico.
+LEGACY_SESSION = "legado"
+TEXT_FIELDS = ("session_id", "sampled_at")
+
+
+def _session_of(row: dict[str, Any]) -> str:
+    return str(row.get("session_id") or LEGACY_SESSION)
 
 
 def _read_meminfo(proc_root: Path) -> dict[str, int]:
@@ -127,21 +137,37 @@ def sample_process_tree(
 
 
 def summarize_samples(samples: Iterable[dict[str, Any]], *, workers: int) -> dict[str, Any]:
+    """Resume **a sessão atual**, e não a série acumulada do arquivo.
+
+    O monitor recarrega do CSV as amostras de sessões anteriores, e os critérios
+    eram calculados sobre a série inteira: a memória mínima era o mínimo de todas
+    as linhas e a variação de swap comparava a primeira amostra da primeira
+    sessão com a última da sessão atual. Entre as duas há um intervalo de duração
+    arbitrária em que nada foi amostrado, e o que aconteceu na máquina durante
+    esse intervalo reprovava um lote inteiro já concluído. A sessão atual é a da
+    última amostra; a série acumulada permanece no arquivo como histórico e
+    aparece no resumo apenas como `samples_total`.
+    """
+
     rows = list(samples)
     if not rows:
         raise ConfigurationError("monitor de recursos não produziu amostras")
-    memory_total = int(rows[0]["memory_total_bytes"])
+    session_id = _session_of(rows[-1])
+    current = [row for row in rows if _session_of(row) == session_id]
+    if not current:
+        raise ConfigurationError("resumo de recursos sem amostra da sessão atual")
+    memory_total = int(current[0]["memory_total_bytes"])
     minimum_required = max(int(memory_total * 0.10), 2 * GIB)
-    minimum_available = min(int(row["memory_available_bytes"]) for row in rows)
+    minimum_available = min(int(row["memory_available_bytes"]) for row in current)
     swap_delta = max(
-        0, int(rows[0]["swap_free_bytes"]) - int(rows[-1]["swap_free_bytes"])
+        0, int(current[0]["swap_free_bytes"]) - int(current[-1]["swap_free_bytes"])
     )
-    max_threads = max(int(row["max_optimizer_threads"]) for row in rows)
+    max_threads = max(int(row["max_optimizer_threads"]) for row in current)
     max_active_threads = max(
-        int(row["max_active_threads_per_optimizer"]) for row in rows
+        int(row["max_active_threads_per_optimizer"]) for row in current
     )
-    peak_cpu = max(float(row["cpu_percent"]) for row in rows)
-    remaining_optimizers = int(rows[-1]["optimizer_process_count"])
+    peak_cpu = max(float(row["cpu_percent"]) for row in current)
+    remaining_optimizers = int(current[-1]["optimizer_process_count"])
     checks = {
         "memory_margin": minimum_available >= minimum_required,
         "swap_unchanged": swap_delta == 0,
@@ -152,16 +178,21 @@ def summarize_samples(samples: Iterable[dict[str, Any]], *, workers: int) -> dic
     return {
         "schema_version": 1,
         "workers": workers,
-        "samples": len(rows),
-        "peak_rss_bytes": max(int(row["rss_bytes"]) for row in rows),
+        "session_id": session_id,
+        "samples": len(current),
+        # Publicados juntos de propósito: a diferença entre os dois é o que
+        # documenta, no próprio artefato, que houve sessão anterior.
+        "samples_total": len(rows),
+        "samples_session": len(current),
+        "peak_rss_bytes": max(int(row["rss_bytes"]) for row in current),
         "peak_descendant_rss_bytes": max(
-            int(row["descendant_rss_bytes"]) for row in rows
+            int(row["descendant_rss_bytes"]) for row in current
         ),
         "minimum_memory_available_bytes": minimum_available,
         "minimum_memory_required_bytes": minimum_required,
         "swap_consumed_bytes": swap_delta,
         "peak_cpu_percent": peak_cpu,
-        "max_process_count": max(int(row["process_count"]) for row in rows),
+        "max_process_count": max(int(row["process_count"]) for row in current),
         "max_optimizer_threads": max_threads,
         "max_active_optimizer_threads": max_active_threads,
         "remaining_optimizers": remaining_optimizers,
@@ -176,6 +207,10 @@ class ResourceMonitor:
     workers: int
     interval_seconds: float = 1.0
     root_pid: int = os.getpid()
+    # A coluna de sessão é a fronteira que faltava: sem ela, o CSV recarregado é
+    # uma série contínua fictícia, e o intervalo não monitorado entre sessões
+    # entra nos critérios como se tivesse sido observado.
+    session_id: str = field(default_factory=utc_now)
 
     def __post_init__(self) -> None:
         if not Path("/proc/self").exists():
@@ -189,8 +224,16 @@ class ResourceMonitor:
         self._last_thread_ticks: dict[str, int] = {}
 
     def _sample(self) -> None:
+        self._record(sample_process_tree(self.root_pid))
+
+    def _record(self, row: dict[str, Any]) -> None:
+        """Deriva as colunas de uma fotografia e a acrescenta à série.
+
+        Separada da coleta para que a contabilidade de threads ativas seja
+        exercitável sobre uma árvore de processos sintética.
+        """
+
         now = time.monotonic()
-        row = sample_process_tree(self.root_pid)
         ticks = int(row.pop("cpu_ticks"))
         thread_ticks = row.pop("optimizer_thread_ticks")
         cpu_percent = 0.0
@@ -201,17 +244,34 @@ class ResourceMonitor:
             )
         self._last_ticks = ticks
         self._last_sample_at = now
+        row["session_id"] = self.session_id
+        # `elapsed_seconds` é tempo monitorado acumulado e não tempo decorrido:
+        # numa retomada o relógio da série é deslocado para que a primeira
+        # amostra nova caia um intervalo depois da última antiga, e a parada real
+        # desaparece da coluna. `sampled_at` é o instante absoluto, e só o par
+        # das duas permite reconstruir o intervalo não monitorado.
         row["elapsed_seconds"] = now - self._started
+        row["sampled_at"] = utc_now()
         row["cpu_percent"] = max(cpu_percent, 0.0)
         active_by_pid: dict[str, int] = {}
         for identifier, value in thread_ticks.items():
-            if value > self._last_thread_ticks.get(identifier, value):
+            previous = self._last_thread_ticks.get(identifier)
+            # `tid` visto pela primeira vez era comparado consigo mesmo, e por
+            # isso nunca contado como ativo na amostra em que aparecia. Um `tid`
+            # novo é ativo quando já acumulou tempo de CPU.
+            active = value > previous if previous is not None else value > 0
+            if active:
                 pid = identifier.split(":", 1)[0]
                 active_by_pid[pid] = active_by_pid.get(pid, 0) + 1
         row["active_optimizer_threads"] = sum(active_by_pid.values())
         row["max_active_threads_per_optimizer"] = max(
             active_by_pid.values(), default=0
         )
+        # O total acumulado por thread, e não apenas o delta, porque a resolução
+        # de `utime + stime` é de um tick e um delta nulo não distingue thread
+        # ociosa de thread abaixo do piso do relógio.
+        row["optimizer_thread_ticks_total"] = sum(thread_ticks.values())
+        row["optimizer_thread_count"] = len(thread_ticks)
         self._last_thread_ticks = thread_ticks
         self._samples.append(row)
 
@@ -246,9 +306,15 @@ class ResourceMonitor:
         self._sample()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_suffix(self.path.suffix + ".tmp")
-        fieldnames = list(self._samples[0])
+        # A união preserva a ordem e admite CSV anterior sem as colunas novas,
+        # que são gravadas vazias para as linhas herdadas.
+        fieldnames: list[str] = []
+        for sample in self._samples:
+            for name in sample:
+                if name not in fieldnames:
+                    fieldnames.append(name)
         with temporary.open("w", encoding="utf-8", newline="") as stream:
-            writer = csv.DictWriter(stream, fieldnames=fieldnames)
+            writer = csv.DictWriter(stream, fieldnames=fieldnames, restval="")
             writer.writeheader()
             writer.writerows(self._samples)
             stream.flush()
@@ -261,6 +327,7 @@ def read_samples(path: Path) -> list[dict[str, Any]]:
         "rss_bytes", "descendant_rss_bytes", "process_count", "descendant_count",
         "optimizer_process_count", "max_optimizer_threads",
         "active_optimizer_threads", "max_active_threads_per_optimizer",
+        "optimizer_thread_ticks_total", "optimizer_thread_count",
         "memory_total_bytes",
         "memory_available_bytes",
         "swap_total_bytes", "swap_free_bytes",
@@ -268,8 +335,14 @@ def read_samples(path: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8", newline="") as stream:
         for raw in csv.DictReader(stream):
-            rows.append({
-                key: int(value) if key in integer_fields else float(value)
-                for key, value in raw.items()
-            })
+            row: dict[str, Any] = {}
+            for key, value in raw.items():
+                if key in TEXT_FIELDS:
+                    row[key] = value
+                elif value is None or value == "":
+                    # Coluna nova ausente numa linha herdada de sessão anterior.
+                    row[key] = None
+                else:
+                    row[key] = int(value) if key in integer_fields else float(value)
+            rows.append(row)
     return rows

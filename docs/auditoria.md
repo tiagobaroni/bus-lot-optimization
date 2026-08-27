@@ -3585,8 +3585,33 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
 - **Decisão:** corrigir, calculando os dois critérios por sessão e não sobre a série
   acumulada.
 - **Onda:** B, com prioridade, porque o disparo custa um lote inteiro.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com correção de código e dois testes novos, no commit do
+  pacote B16. A fronteira de sessão, que não existia como dado, passou a ser uma
+  coluna: `ResourceMonitor` recebeu `session_id`, gerado por instante UTC na
+  construção, e toda amostra o carrega. `summarize_samples` manteve a assinatura,
+  porque três chamadores vivem fora deste pacote, e passou a identificar a sessão
+  atual pela **última** amostra da série, reduzindo os critérios apenas a ela; a
+  série acumulada continua no arquivo e aparece no resumo como `samples_total`,
+  ao lado de `samples_session`, e é a diferença entre os dois que documenta no
+  artefato que houve sessão anterior. **A redução é por sessão em todos os campos
+  do resumo, e não apenas nos dois critérios do achado**, porque um pico de RSS ou
+  de CPU de uma sessão anterior descreveria a janela errada com a mesma
+  impropriedade; o campo `samples`, que já existia, passa a contar a sessão e não
+  o arquivo, e quem quiser o número antigo tem `samples_total`. Linha sem coluna
+  de sessão recebe o rótulo
+  `legado`, e uma série inteiramente legada é resumida como sessão única, de modo
+  que o CSV real do piloto, com 10.467 amostras, continua sendo resumido e
+  aprovado. `benchmark_validation` passou a exigir que o resumo declare sessão e
+  ao menos uma amostra dela, para que a barreira não aceite veredito calculado
+  sobre a série acumulada. **Evidência:** série sintética com duas sessões
+  separadas por um salto de 1 GiB em `swap_free_bytes` e por uma amostra antiga
+  de memória disponível igual a 1 byte reprovava com `swap_unchanged` falso;
+  passou a aprovar, com `swap_consumed_bytes` igual a zero, `samples_total` igual
+  a 4 e `samples_session` igual a 2.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
+  42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
+  do pacote. O monitor não participa do caminho científico do oráculo. Classe
+  prevista `D3`, classe observada `D3`, sem reclassificação.
 
 #### F7-6. `elapsed_seconds` é sintético depois de uma retomada e esconde o intervalo real
 
@@ -3621,8 +3646,25 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
 - **Decisão:** corrigir, renomeando a coluna para tempo monitorado acumulado ou
   registrando o instante absoluto de cada amostra.
 - **Onda:** B.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com correção de código e um teste novo, no commit do
+  pacote B16, **pelo segundo ramo da decisão**. Cada amostra passou a registrar
+  `sampled_at`, o instante absoluto em UTC, ao lado de `elapsed_seconds`, e é o
+  par das duas colunas que permite reconstruir o intervalo não monitorado; o
+  comentário no ponto da escrita diz que `elapsed_seconds` é tempo monitorado
+  acumulado e não tempo decorrido. **Do primeiro ramo, a renomeação da coluna,
+  fica registrado o motivo de não ter sido adotado:**
+  `experiments/pilot_reporting.py` consome `samples["elapsed_seconds"]` no
+  gráfico de recursos e não pertence à lista de arquivos deste pacote; pior,
+  `tests/test_pilot_reporting.py` monta o próprio quadro com o nome antigo, de
+  modo que a renomeação deixaria a suíte verde e o relatório do piloto quebrado.
+  A decisão registrada admite os dois ramos com "ou", e o ramo executado fecha o
+  achado sozinho. **Evidência:** duas sessões consecutivas sobre o mesmo CSV; o
+  relógio da série continua contínuo, com a primeira amostra da segunda sessão
+  logo depois da última da primeira, e o instante absoluto das duas difere e é
+  estritamente crescente.
+- **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
+  42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
+  do pacote. Classe prevista `D2`, classe observada `D2`, sem reclassificação.
 
 #### F7-7. A detecção de thread ativa tem uma janela cega de uma amostra e um piso de um tick
 
@@ -3660,9 +3702,22 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   forem maiores que zero, e registrando o total de ticks por thread em vez de apenas
   o delta.
 - **Onda:** B.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado **não** zero em campos de
-  telemetria.
+- **Situação:** fechado com correção de código e um teste novo, no commit do
+  pacote B16. O padrão `.get(identifier, value)`, que comparava um `tid` novo
+  consigo mesmo, foi substituído por comparação explícita contra `None`: `tid`
+  novo é ativo quando já acumulou ticks. A amostra passou a registrar
+  `optimizer_thread_ticks_total` e `optimizer_thread_count`, porque com resolução
+  de um tick um delta nulo não distingue thread ociosa de thread abaixo do piso
+  do relógio. A coleta foi separada da derivação, em `_record`, para que a
+  contabilidade seja exercitável sobre árvore de processos sintética sem tocar
+  `/proc`. **Evidência:** com dois `tid` novos, um com 7 ticks e outro com zero, a
+  contagem de threads ativas era `0` e passou a `1`, com o total de ticks em `7` e
+  a contagem de threads em `2`.
+- **Impressão digital:** zero, e a previsão de **não** zero registrada aqui é sobre
+  campos de telemetria de artefatos de campanha, que estão fora do alcance do
+  oráculo. `compare --workers 16` sobre os 42 cenários devolveu "impressão digital
+  idêntica" com saída 0, antes e depois do pacote. Classe prevista `D3`, classe
+  observada `D3`, sem reclassificação.
 
 #### F7-8. A verificação 7 do piloto, "o tempo medido exclui pré-processamento", não tem implementação
 
