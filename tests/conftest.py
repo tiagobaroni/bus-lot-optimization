@@ -1,7 +1,8 @@
-"""Fixtures compartilhadas da suíte."""
+"""Fixtures compartilhadas e disponibilidade do pacote-fonte ignorado."""
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import shutil
 
@@ -9,6 +10,40 @@ import pytest
 
 from experiments.config import load_campaign
 from tests.toy_repository import build_toy_repository, git, run_toy_batch
+
+
+PROJECT_ROOT = Path(__file__).parents[1]
+# `_temp/` é ignorado pelo Git, logo um clone limpo não tem o pacote-fonte da
+# geração de instâncias. Sem declaração explícita, os testes que dependem dele
+# quebravam a suíte integral do clone limpo, o que é o oposto da promessa de
+# reprodução por comandos explícitos.
+SOURCE_PACKAGE = PROJECT_ROOT / "_temp" / "dados_artesp"
+SOURCE_OPT_OUT = "BUS_LOT_SEM_PACOTE_FONTE"
+SOURCE_SKIP_REASON = (
+    f"pacote-fonte ausente em {SOURCE_PACKAGE.relative_to(PROJECT_ROOT)}, que o Git "
+    f"ignora; declare {SOURCE_OPT_OUT}=1 para aceitar a suíte sem a cobertura da "
+    "geração de instâncias"
+)
+
+
+def source_package_available() -> bool:
+    return (SOURCE_PACKAGE / "units.parquet").is_file()
+
+
+def source_opt_out_declared() -> bool:
+    return os.environ.get(SOURCE_OPT_OUT, "") == "1"
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Faz o motivo de todo teste pulado aparecer no sumário, inclusive com `-q`.
+
+    `skipif` silencioso é o mecanismo que produz suíte verde sem cobertura, que é
+    o padrão de defeito que esta correção existe para não introduzir.
+    """
+
+    reportchars = getattr(config.option, "reportchars", "") or ""
+    if "s" not in reportchars:
+        config.option.reportchars = reportchars + "s"
 
 
 @pytest.fixture(scope="session")

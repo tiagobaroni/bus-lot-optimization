@@ -5,18 +5,52 @@ from pathlib import Path
 
 import pandas as pd
 import pyogrio
+import pytest
 
 from experiments.generate_instances import SEED, generate_instances
+from tests.conftest import (
+    SOURCE_OPT_OUT,
+    SOURCE_PACKAGE,
+    SOURCE_SKIP_REASON,
+    source_opt_out_declared,
+    source_package_available,
+)
 
 
 PROJECT_ROOT = Path(__file__).parents[1]
-SOURCE_DIR = PROJECT_ROOT / "_temp" / "dados_artesp"
+SOURCE_DIR = SOURCE_PACKAGE
+
+# Os três testes abaixo confrontam o gerador com o pacote-fonte bruto, e é essa
+# confrontação que eles existem para fazer: derivá-los do que está versionado
+# seria compará-los com a própria saída do gerador, isto é trocar o oráculo pelo
+# objeto medido. O recuo é declarado, e nunca silencioso: o motivo aparece no
+# sumário da suíte e a ausência do pacote precisa ser declarada por variável de
+# ambiente, senão o teste guardião abaixo reprova.
+requires_source_package = pytest.mark.skipif(
+    not source_package_available(), reason=SOURCE_SKIP_REASON
+)
+
+
+def test_the_absence_of_the_source_package_must_be_declared() -> None:
+    """F2-16: a suíte integral precisa rodar num clone limpo, e dizer o que perdeu.
+
+    `_temp/` é ignorado pelo Git. Com o pacote-fonte presente, este guardião
+    passa pela primeira alternativa e os três testes abaixo rodam. Sem ele, a
+    suíte só pode ficar verde se a perda de cobertura tiver sido declarada.
+    """
+
+    assert source_package_available() or source_opt_out_declared(), (
+        f"{SOURCE_SKIP_REASON}. Três testes da geração de instâncias foram pulados "
+        "sem que a ausência do pacote-fonte tivesse sido declarada, o que deixaria "
+        "a suíte verde sem a cobertura correspondente."
+    )
 
 
 def _read(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+@requires_source_package
 def test_generated_instances_are_nested_and_spatially_distributed(tmp_path: Path) -> None:
     generate_instances(SOURCE_DIR, tmp_path, SEED)
 
@@ -57,6 +91,7 @@ def test_generated_instances_are_nested_and_spatially_distributed(tmp_path: Path
         assert terminals["id_terminal"].is_unique
 
 
+@requires_source_package
 def test_tiny_instance_has_manual_optimum_and_geopackage(tmp_path: Path) -> None:
     generate_instances(SOURCE_DIR, tmp_path, SEED)
 
@@ -71,6 +106,7 @@ def test_tiny_instance_has_manual_optimum_and_geopackage(tmp_path: Path) -> None
     assert len(pyogrio.read_dataframe(tmp_path / "tiny_manual.gpkg", layer="paradas")) == 8
 
 
+@requires_source_package
 def test_generation_is_reproducible(tmp_path: Path) -> None:
     first = tmp_path / "first"
     second = tmp_path / "second"

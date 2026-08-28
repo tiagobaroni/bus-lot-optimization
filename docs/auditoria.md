@@ -1341,9 +1341,27 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   pacote-fonte, ou derivar os fixtures do que está versionado. Colide com o
   critério de saída da B13 e precisa entrar antes dele.
 - **Onda:** B, com prioridade.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Alteração restrita a `tests/`, sem efeito em
-  resultado de campanha.
+- **Situação:** fechado com um teste novo, no commit do pacote B18, **pelo
+  primeiro ramo da decisão, com o recuo declarado**. A derivação dos fixtures do
+  que está versionado foi examinada e recusada com motivo: os arquivos de
+  `data/instances/` são a **saída** do próprio gerador, e os três testes existem
+  para confrontar o gerador com a fonte bruta; derivá-los seria trocar o oráculo
+  pelo objeto medido, que é o padrão de defeito `F2-02`. Os três receberam
+  `pytest.mark.skipif` por presença do pacote-fonte, com motivo explícito, e
+  `tests/conftest.py` passou a acrescentar `s` aos caracteres de relatório, de
+  modo que o motivo de cada pulo aparece no sumário mesmo com `-q`, porque
+  `skipif` silencioso é justamente o mecanismo que produz suíte verde sem
+  cobertura. O pacote acrescenta um teste guardião que **reprova** quando o
+  pacote-fonte está ausente e a variável `BUS_LOT_SEM_PACOTE_FONTE` não foi
+  declarada. **Evidência:** com `_temp/dados_artesp` removido e sem a declaração,
+  a suíte devolve `1 failed, 409 passed, 3 skipped`, com o guardião apontando os
+  três pulos e os três motivos visíveis no sumário; com a mesma remoção e a
+  variável declarada, devolve `410 passed, 3 skipped`; com o pacote-fonte
+  presente, `413 passed`, com os três testes efetivamente executados.
+- **Impressão digital:** zero, conforme previsto. Nada fora de `tests/` foi
+  tocado, e o controle barato prescrito, `compare --workers 16` restrito a três
+  cenários `greedy:*`, um por instância, devolveu "impressão digital idêntica"
+  com saída 0. Classe prevista `D3`, classe observada `D3`, sem reclassificação.
 
 ### 3.3. Frente F3 - PSO com Random Keys
 
