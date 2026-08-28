@@ -213,7 +213,17 @@ def _project_position(
                 break
             projected[index] = np.nextafter(projected[index], midpoint)
         else:
-            projected[index] = midpoint
+            # A6: aqui o ramo substituía a chave por `(lote + 0,5)/K`, fixando
+            # `u = 0,5` e descartando em silêncio a fração interna que a seção 16
+            # da formulação manda preservar, sem registrar diagnóstico algum do
+            # descarte. O ramo tem zero acionamentos em 13.268.820 coordenadas
+            # projetadas nas dez execuções oficiais, logo levantar não introduz
+            # risco na campanha congelada e converte um descarte silencioso de
+            # informação prescrita em falha alta e visível.
+            raise SolutionValidationError(
+                "projeção esgotou os dezesseis passos sem decodificar o rótulo "
+                f"reparado da unidade {index}: a fração interna seria descartada"
+            )
     decoded = decode_position(projected, n_units=len(projected), k=k)
     if not np.array_equal(decoded, repaired):
         raise SolutionValidationError("posição projetada não decodifica a solução reparada")

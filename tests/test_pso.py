@@ -16,7 +16,7 @@ from metaheuristica.errors import (
     EvaluationLimitReached,
     SolutionValidationError,
 )
-from metaheuristica.instances import load_tiny_instance
+from metaheuristica.instances import load_artesp_instance, load_tiny_instance
 from metaheuristica.pso import (
     VELOCITY_LIMIT,
     _Best,
@@ -31,6 +31,7 @@ from metaheuristica.problem import EvaluationResult
 
 
 TINY = load_tiny_instance(Path(__file__).parents[1] / "data/instances/tiny_manual.json")
+INSTANCES = Path(__file__).parents[1] / "data/instances"
 
 
 def evaluation(cost: float) -> EvaluationResult:
@@ -429,3 +430,69 @@ def test_repairing_run_keeps_the_evaluation_identity() -> None:
         == result.evaluations
         == 100
     )
+
+
+def test_projection_that_exhausts_the_sixteen_steps_fails_explicitly() -> None:
+    """Achado A6: o recuo ao ponto médio descartava a fração prescrita em silêncio.
+
+    O ramo `for ... else` de `_project_position` nunca é percorrido pelos 42
+    cenários da impressão digital, e por isso este teste é o único oráculo
+    disponível. Ele monta `position`, `original_labels` e `repaired_solution` à
+    mão, com um rótulo reparado fora do intervalo `[0, K)`, que é a única forma
+    de entrada que impede o laço de decodificar o alvo: a chave projetada cai
+    sempre dentro da célula do rótulo pedido, e a única folga em contrato é de
+    poucos ULP na fronteira, absorvida em dois ou três dos dezesseis passos.
+    Sob a forma anterior, o ramo substituía a chave por `(lote + 0,5)/K`,
+    descartando a fração que a seção 16 manda preservar, e a execução só falhava
+    depois, com a mensagem enganosa de posição fora de `[0, 1]`.
+    """
+
+    with pytest.raises(SolutionValidationError, match="fração interna"):
+        _project_position([0.2, 0.7], [0, 1], [0, 3], k=2)
+
+
+def test_projection_within_the_sixteen_steps_stays_intact() -> None:
+    """O contorno: o caminho normal continua preservando a fração interna.
+
+    O lado negativo da guarda nova. Sem ele, levantar incondicionalmente em
+    `_project_position` passaria neste arquivo, e a falha só apareceria na
+    impressão digital.
+    """
+
+    projected = _project_position([0.2, 0.7], [0, 1], [1, 0], k=2)
+    assert decode_position(projected, n_units=2, k=2).tolist() == [1, 0]
+    fractions = 2.0 * projected - np.array([1.0, 0.0])
+    assert np.allclose(fractions, [0.4, 0.4], rtol=0.0, atol=1e-15)
+
+
+def test_the_midpoint_fallback_is_not_reached_by_a_normal_scenario(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Alcançabilidade: a sonda que sustenta a previsão de diff zero do pacote.
+
+    Com a guarda nova, esgotar os dezesseis passos levanta, logo uma execução
+    que termina normalmente é prova de que o ramo não foi atingido em nenhuma
+    das coordenadas projetadas. O espião existe para que a asserção tenha
+    denominador medido em vez de ser verdadeira por vacuidade: sem projeção
+    alguma, não haveria o que sondar.
+    """
+
+    instance = load_artesp_instance(INSTANCES, 20)
+    original = pso_module._project_position
+    coordinates = 0
+
+    def spy(position: Any, original_labels: Any, repaired: Any, *, k: int) -> Any:
+        nonlocal coordinates
+        coordinates += len(np.asarray(position))
+        return original(position, original_labels, repaired, k=k)
+
+    monkeypatch.setattr(pso_module, "_project_position", spy)
+    result = run_pso(
+        instance,
+        RunConfig(k=5, seed=7, budget=600),
+        PsoConfig(20, 0.4, 2.0, 1.5),
+    )
+
+    assert result.diagnostics["repairs_completed"] > 0
+    assert coordinates >= 1000
+    assert result.evaluations == 600

@@ -1792,8 +1792,43 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   levantando erro em vez de descartar silenciosamente a fração que o documento
   manda preservar.
 - **Onda:** B, com prioridade.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero, porque o ramo nunca aciona.
+- **Situação:** fechado com correção de código e três testes novos, no commit do
+  pacote B10. O ramo `for ... else` de `_project_position` passa a **levantar
+  `SolutionValidationError`** em vez de substituir a chave por `(lote + 0,5)/K`.
+  A opção de apenas registrar diagnóstico é a segunda declarada e não foi
+  tomada: o ramo tem zero acionamentos em 13.268.820 coordenadas medidas, logo
+  levantar não introduz risco operacional algum na campanha congelada e converte
+  um descarte silencioso de informação prescrita em falha alta e visível. A
+  mensagem nomeia a unidade e diz que a fração interna seria descartada, no lugar
+  da mensagem enganosa que aparecia depois, sobre posição fora de `[0, 1]`, vinda
+  de `decode_position` e não do descarte.
+  **Os três testes exigidos, e os dois lados da guarda.** O primeiro esgota os
+  dezesseis passos montando `position`, `original_labels` e `repaired_solution` à
+  mão, com rótulo reparado fora de `[0, K)`, que é a única forma de entrada capaz
+  de impedir o laço de decodificar o alvo: em contrato, a chave projetada cai
+  sempre dentro da célula do rótulo pedido e a única folga é de poucos ULP na
+  fronteira, absorvida em dois ou três dos dezesseis passos. Este é o oráculo,
+  porque o ramo não é percorrido pelos 42 cenários. O segundo é de contorno e fixa
+  que o caminho normal continua preservando a fração, o que impede que a guarda
+  passe a acusar o que não deve. O terceiro é de alcançabilidade: espiona
+  `_project_position` numa execução real sobre `artesp_rmsp_20` com `K=5`, conta as
+  coordenadas projetadas e assevera que a execução termina, o que, com a guarda que
+  levanta, é prova de que o ramo não foi atingido em nenhuma delas.
+  **Uma inconsistência que este pacote não fecha, e que fica registrada sem destino
+  alocado:** `gpu/src/metaheuristica_gpu/pso.py` tem cópia própria de
+  `_project_position`, com o mesmo recuo silencioso ao ponto médio, e continua com
+  ele. O arquivo está fora da lista declarada do B10, e nada em `gpu/` reprova por
+  causa disso, porque o ramo não é atingido em cenário algum, logo o portão do
+  pacote não é afetado. O pacote B20 já declara esse arquivo.
+  **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação **bate**
+  com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** diff **zero nos 42 cenários**, **conforme previsto**,
+  conferido contra a linha de base regravada pelo pacote B9, com
+  `content_sha256` `7fc8dbcead9d0254848bdebbc6e3473720bc261954a5d465f0b2ff4896ef9902`.
+  A conferência intermediária pelo subconjunto de quatro cenários `pso:*` da Tarefa
+  17 também deu idêntica, e o veredito é o da comparação completa. O zero é a
+  confirmação independente da não ocorrência do ramo, medida antes por contagem de
+  coordenadas.
 
 #### A7. A canonicalização da posição viva não está documentada e é decisiva
 
