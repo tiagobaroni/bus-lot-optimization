@@ -1700,8 +1700,9 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   `particles_evaluated + repair_evaluations == context.evaluations` e é chamada em
   todos os caminhos de esgotamento, que são como toda execução do PSO termina;
   pular a chamada de `context.evaluate` e ainda incrementar `particles_evaluated`
-  quebraria a identidade em `repairs_completed` e faria todo cenário `pso:*`
-  levantar `ConfigurationError`. A forma correta move a unidade de coluna, e
+  quebraria a identidade em `repairs_completed` e faria levantar `ConfigurationError`
+  todo cenário `pso:*` **que repara**, que são quatro dos onze. Os outros sete têm
+  `repairs_completed` igual a zero e não seriam afetados. A forma correta move a unidade de coluna, e
   `repair_evaluations` recebe as consumidas menos uma quando houve
   reaproveitamento. Com o A3 avaliando o estado viável sobre o vetor canônico, o
   reaproveitamento é **bit a bit exato nos sete campos**, o que está asseverado por
@@ -1722,6 +1723,13 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   `tests/test_benchmark_validation.py`, de assunto alheio e com diagnóstico opaco.
   O espelho de GPU recebeu a mesma correção no mesmo commit, pelo alargamento de
   escopo registrado no A3.
+  **Consequência do espelho sobre os diagnósticos de GPU, registrada depois da
+  revisão independente:** a partícula reparada passa a ser confirmada diretamente,
+  com a avaliação reaproveitada, em vez de entrar no lote da GPU. Ela deixa,
+  portanto, de contribuir para `verify_batch`, `max_numerical_difference` e
+  `gpu_timing`. São `0,0444` do orçamento na configuração congelada. O efeito
+  material é tornar a réplica de GPU **mais** fiel à de CPU, e não menos, mas o
+  significado desses três diagnósticos mudou e por isso fica dito aqui.
   **Passo G.** Classe prevista `M1`; classe observada `M1`; a observação **bate**
   com a previsão. Sem reclassificação, e o Passo H não se aplica.
 - **Impressão digital:** diff **não zero**, **conforme previsto**, e indistinguível
