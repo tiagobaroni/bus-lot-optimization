@@ -342,7 +342,11 @@ grava as suas tabelas em `results/operational/benchmark_batches/`, fora da
 permanece executável.
 
 Uma repetição integral deve usar uma cópia da configuração com outro
-`output_root`; não se apagam nem sobrescrevem resultados oficiais válidos.
+`output_root`; não se apagam nem sobrescrevem resultados oficiais válidos. O
+mecanismo cobre os artefatos de campanha, e **não** cobre
+`experiments/configs/frozen_parameters.toml`, cujo caminho é fixo na raiz do
+repositório: para conferir a análise do tuning sem escrever, use o modo de
+verificação descrito adiante.
 
 Os JSON individuais ficam em `results/raw/` e não entram no Git. As tabelas
 Parquet e o manifesto em `results/tables/` são os artefatos consolidados. Um
@@ -367,6 +371,35 @@ uv run python -m experiments.analyze_tuning \
 
 O comando recusa campanha incompleta ou não oficial e gera resumo, efeitos
 marginais descritivos, seleção auditável e `frozen_parameters.toml`.
+
+A análise é reprodutível byte a byte: sobre os mesmos insumos, e com as mesmas
+versões de `pandas` e de `pyarrow`, cujas marcas os arquivos Parquet carregam,
+ela produz os mesmos quatro artefatos, com os mesmos resumos. Isso importa
+porque `frozen_parameters.toml` está entre os arquivos protegidos pelo
+congelamento, e o seu caminho é fixo: ao contrário dos demais artefatos, ele
+**não** acompanha `output_root`, de modo que a repetição integral por uma cópia
+da configuração com outro `output_root` não protege este arquivo. Sob
+congelamento, portanto, não se reexecuta a análise para conferir; confere-se
+com:
+
+```bash
+uv run python -m experiments.analyze_tuning \
+  --config experiments/configs/tuning.toml --verify
+```
+
+O modo de verificação produz os artefatos num diretório descartável fora da raiz
+e apenas os compara com os oficiais. Ele não escreve nada. Sai com código 0 e
+`artefatos idênticos aos oficiais` quando tudo confere, e com código 1 e a lista
+dos caminhos divergentes quando não confere. Artefato ausente conta como
+divergente. O documento de seleção recomputado sai na saída padrão nos dois
+modos; o instante da execução sai na saída de erro, e de propósito não entra no
+documento, porque o resumo dele é embutido no arquivo protegido.
+
+Enquanto o tuning não for refeito, `--verify` responde 1 sobre os artefatos
+versionados hoje, que foram produzidos antes das correções da auditoria: o
+documento de seleção em disco ainda traz o carimbo de tempo e a tolerância
+escalar. Os vencedores e as fontes são idênticos, e os dois arquivos Parquet
+saem byte a byte iguais.
 
 Exemplo mínimo de carregamento e avaliação:
 
