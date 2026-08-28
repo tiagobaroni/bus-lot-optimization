@@ -1362,7 +1362,7 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   pacote entrega é **independência do pacote-fonte `_temp/`**, com a perda de
   cobertura declarada e o guardião provado. Ele **não** torna a suíte executável
   em clone limpo, e o registro anterior deixava essa inferência disponível ao
-  leitor. Medido pela revisão em `git worktree` limpo de `b9d22c7`, com
+  leitor. Medido pela revisão em `git worktree` limpo de `4e2c77f`, com
   `BUS_LOT_SEM_PACOTE_FONTE=1`: `2 failed, 409 passed, 3 skipped`. O número de
   aprovados acompanha o tamanho da suíte e envelhece; o que não muda são as duas
   falhas e a causa delas. As duas falhas são
