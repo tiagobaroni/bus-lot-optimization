@@ -4877,9 +4877,53 @@ e só `tabu_tenure` com três. A substância do achado dirigido não muda.
   rodar o comando literal** do próprio dossiê e espelhou a raiz no scratchpad, o que
   foi a decisão certa.
 - **Onda:** B, com prioridade, porque interage com o congelamento.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero em conteúdo de decisão, e
-  **não** zero em hash de artefato, o que é precisamente o achado.
+- **Situação:** fechado com correção de código e **seis** testes novos em
+  `tests/test_analyze_tuning.py`, no commit do pacote B17, **pelo primeiro ramo da
+  decisão**, que é o único que também restaura a reprodutibilidade byte a byte. A
+  correção tem duas metades. Primeira, o carimbo de tempo saiu de dentro do que o
+  sha256 resume: `_selection_document` não grava mais `selected_at`, e o instante
+  da execução passa a ser informado pela CLI no erro padrão, fora do documento,
+  porque a saída padrão é o próprio documento e o sha256 dele está embutido no TOML
+  protegido. Segunda, a análise ganhou **modo de verificação**, `--verify`, que
+  produz os quatro artefatos num diretório descartável fora da raiz e apenas os
+  compara com os oficiais, devolvendo a lista dos divergentes, código de saída 1
+  quando há divergência e 0 quando não há; artefato ausente conta como divergente.
+  O destino da escrita passou a ser parâmetro interno de `_produce`, enquanto os
+  caminhos gravados dentro do documento e do TOML continuam sendo os lógicos, da
+  raiz oficial, de modo que os bytes dos dois modos são diretamente comparáveis. É
+  o procedimento que o auditor da frente F9 executou à mão, ao **recusar-se a rodar
+  o comando literal do dossiê** e espelhar a raiz no scratchpad, agora
+  automatizado. **Evidência do poder discriminante.** O teste de igualdade byte a
+  byte é autodemonstrável e falhava antes da correção: duas execuções sobre os
+  mesmos insumos davam sha256 diferentes para `tuning_selection.json` e para
+  `experiments/configs/frozen_parameters.toml`, com os dois Parquet já idênticos,
+  que é exatamente o quadro da evidência acima. Os dois casos negativos do modo de
+  verificação foram **provados por mutação, não presumidos**: fazer a verificação
+  produzir na própria raiz, em vez do diretório descartável, mantém o conteúdo
+  igual e troca o inode, e o teste acusa; fazer a comparação devolver sempre
+  igualdade deixa a lista de divergentes vazia, e os três casos de divergência
+  acusam. **`schema_version` permanece em 1**, deliberadamente: retirar um campo do
+  documento levanta a questão da versão do esquema, que é decisão do usuário e está
+  adiada para a Tarefa 20, junto das demais. **Passo G.** Classe prevista `D3`;
+  classe observada `D3`; a observação **bate** com a previsão. Sem reclassificação,
+  e o Passo H não se aplica. **Consequência operacional que não desaparece com a
+  correção:** a Tarefa 19B, passo 3, ainda deve contar com mudança de hash do
+  `frozen_parameters.toml`, porque o retuning da decisão 1 reescreve o arquivo de
+  todo modo. A correção elimina a mudança espúria, não a legítima.
+- **Impressão digital:** zero, conforme previsto, conferido no conjunto completo
+  dos 42 cenários, uma vez, com `impressão digital idêntica` e saída 0. O pacote
+  não reexecuta a análise oficial e **não regrava**
+  `experiments/configs/frozen_parameters.toml`: toda execução da análise nos testes
+  roda em raiz sintética descartável. O arquivo protegido segue com o sha256
+  `4fc1c42d75ce123aa818d7770aad44fc651e356bd513c92d017f5896df7e8a2f`, que é o valor
+  oficial citado na evidência acima, de modo que **os parâmetros congelados lidos
+  pela impressão digital não mudaram** e o campo `fingerprint_parameters` dos 33
+  cenários estocásticos permanece idêntico ao da linha de base. A previsão de "não
+  zero em hash de artefato" descreve **o achado**, e não uma mudança que este
+  pacote devesse cometer; a mudança legítima do hash pertence à Tarefa 19B, depois
+  do retuning. **Passo G.** Diff previsto zero em conteúdo de decisão; diff
+  observado zero, inclusive em hash de artefato; a observação **bate** com a
+  previsão.
 
 #### Achado F9-4. Com dois níveis por parâmetro, o tuning não distingue melhor valor de melhor extremo testado
 

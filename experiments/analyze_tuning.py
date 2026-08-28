@@ -7,6 +7,7 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
 from typing import Any
 
@@ -14,12 +15,28 @@ import pandas as pd
 
 from metaheuristica.errors import ConfigurationError
 
-from experiments.config import ALGORITHM_FIELDS, load_campaign
+from experiments.config import ALGORITHM_FIELDS, CampaignConfig, load_campaign
 from experiments.consolidation import _atomic_parquet
 from experiments.provenance import utc_now
 from experiments.scenarios import canonical_json, file_sha256
 from experiments.storage import atomic_write_json, read_json
 from experiments.tuning_analysis import TOLERANCES, parameter_effects, summarize_tuning
+
+
+FROZEN_RELATIVE = "experiments/configs/frozen_parameters.toml"
+MANIFEST_NAME = "tuning_manifest.json"
+
+
+def _artifact_paths(root: Path, output_root: str) -> dict[str, Path]:
+    """Os quatro artefatos escritos pela análise, sob a raiz dada."""
+
+    tables = root / output_root / "tables"
+    return {
+        "summary": tables / "tuning_summary.parquet",
+        "parameter_effects": tables / "tuning_parameter_effects.parquet",
+        "selection": tables / "tuning_selection.json",
+        "frozen": root / FROZEN_RELATIVE,
+    }
 
 
 def _atomic_text(path: Path, content: str) -> None:
@@ -85,16 +102,31 @@ def _campaign_metadata(runs: pd.DataFrame) -> tuple[str, int]:
     return commits.pop(), workers.pop()
 
 
+def _sources(
+    entries: dict[str, tuple[Path, Path]], repository_root: Path
+) -> dict[str, Any]:
+    """Caminho lógico na raiz oficial e sha256 dos bytes efetivamente produzidos.
+
+    Os dois coincidem na análise oficial. No modo de verificação os bytes vivem
+    num diretório descartável, e o documento continua nomeando os caminhos
+    oficiais, de modo que o que é comparado é o conteúdo e não o destino.
+    """
+
+    return {
+        name: {
+            "path": str(logical.relative_to(repository_root)),
+            "sha256": file_sha256(produced),
+        }
+        for name, (logical, produced) in entries.items()
+    }
+
+
 def _selection_document(
     summary: pd.DataFrame,
     *,
     commit: str,
     workers: int,
-    manifest_path: Path,
-    runs_path: Path,
-    summary_path: Path,
-    effects_path: Path,
-    repository_root: Path,
+    sources: dict[str, Any],
 ) -> dict[str, Any]:
     winners: dict[str, Any] = {}
     for algorithm in sorted(ALGORITHM_FIELDS):
@@ -129,23 +161,24 @@ def _selection_document(
         "n_runs": int(summary["n_runs"].sum()),
         "campaign_commit": commit,
         "campaign_workers": workers,
-        "selected_at": utc_now(),
-        "sources": {
-            "manifest": {"path": str(manifest_path.relative_to(repository_root)), "sha256": file_sha256(manifest_path)},
-            "runs": {"path": str(runs_path.relative_to(repository_root)), "sha256": file_sha256(runs_path)},
-            "summary": {"path": str(summary_path.relative_to(repository_root)), "sha256": file_sha256(summary_path)},
-            "parameter_effects": {"path": str(effects_path.relative_to(repository_root)), "sha256": file_sha256(effects_path)},
-        },
+        # Sem carimbo de tempo, de propósito. O sha256 deste documento é embutido
+        # em `frozen_parameters.toml`, que o congelamento protege; um instante de
+        # execução aqui dentro faz o hash de um arquivo protegido mudar a cada
+        # reexecução, sem que decisão alguma tenha mudado, e bloqueia a campanha.
+        # O instante da execução é informado pela CLI, fora do que entra no hash.
+        "sources": sources,
         "winners": winners,
     }
 
 
-def _frozen_toml(selection: dict[str, Any], selection_path: Path, root: Path) -> str:
+def _frozen_toml(
+    selection: dict[str, Any], *, selection_path: str, selection_sha256: str
+) -> str:
     lines = [
         "schema_version = 1",
         f'campaign_commit = "{selection["campaign_commit"]}"',
-        f'selection_path = "{selection_path.relative_to(root)}"',
-        f'selection_sha256 = "{file_sha256(selection_path)}"',
+        f'selection_path = "{selection_path}"',
+        f'selection_sha256 = "{selection_sha256}"',
         f'manifest_path = "{selection["sources"]["manifest"]["path"]}"',
         f'manifest_sha256 = "{selection["sources"]["manifest"]["sha256"]}"',
         'change_policy = "requires_new_tuning"',
@@ -161,43 +194,123 @@ def _frozen_toml(selection: dict[str, Any], selection_path: Path, root: Path) ->
     return "\n".join(lines)
 
 
-def analyze(config_path: str | Path) -> dict[str, Any]:
+def _load(config_path: str | Path) -> CampaignConfig:
     config = load_campaign(config_path)
     if config.purpose != "tuning":
         raise ConfigurationError("análise requer configuração de tuning")
-    manifest, runs, runs_path, _ = _validate_sources(config)
+    return config
+
+
+def _produce(config: CampaignConfig, destination: Path) -> dict[str, Any]:
+    """Produz os quatro artefatos sob `destination` e devolve a seleção.
+
+    `destination` é a própria raiz do repositório na análise oficial e um
+    diretório descartável no modo de verificação. Os caminhos gravados dentro do
+    documento e do TOML são sempre os lógicos, relativos à raiz oficial, de modo
+    que os bytes produzidos pelos dois modos são comparáveis diretamente.
+    """
+
+    _, runs, runs_path, _ = _validate_sources(config)
     commit, workers = _campaign_metadata(runs)
     summary = summarize_tuning(runs, config)
     effects = parameter_effects(summary)
+    logical = _artifact_paths(config.repository_root, config.output_root)
+    produced = _artifact_paths(destination, config.output_root)
     tables = config.repository_root / config.output_root / "tables"
-    summary_path = tables / "tuning_summary.parquet"
-    effects_path = tables / "tuning_parameter_effects.parquet"
-    selection_path = tables / "tuning_selection.json"
-    frozen_path = config.repository_root / "experiments/configs/frozen_parameters.toml"
-    _atomic_parquet(summary_path, summary)
-    _atomic_parquet(effects_path, effects)
+    manifest_path = tables / MANIFEST_NAME
+    _atomic_parquet(produced["summary"], summary)
+    _atomic_parquet(produced["parameter_effects"], effects)
     selection = _selection_document(
         summary, commit=commit, workers=workers,
-        manifest_path=tables / "tuning_manifest.json", runs_path=runs_path,
-        summary_path=summary_path, effects_path=effects_path,
-        repository_root=config.repository_root,
+        sources=_sources(
+            {
+                "manifest": (manifest_path, manifest_path),
+                "runs": (runs_path, runs_path),
+                "summary": (logical["summary"], produced["summary"]),
+                "parameter_effects": (
+                    logical["parameter_effects"], produced["parameter_effects"]
+                ),
+            },
+            config.repository_root,
+        ),
     )
-    atomic_write_json(selection_path, selection)
-    _atomic_text(frozen_path, _frozen_toml(selection, selection_path, config.repository_root))
-    if file_sha256(selection_path) not in frozen_path.read_text(encoding="utf-8"):
+    atomic_write_json(produced["selection"], selection)
+    selection_sha256 = file_sha256(produced["selection"])
+    _atomic_text(
+        produced["frozen"],
+        _frozen_toml(
+            selection,
+            selection_path=str(
+                logical["selection"].relative_to(config.repository_root)
+            ),
+            selection_sha256=selection_sha256,
+        ),
+    )
+    if selection_sha256 not in produced["frozen"].read_text(encoding="utf-8"):
         raise ConfigurationError("TOML congelado diverge da seleção")
     return selection
+
+
+def analyze(config_path: str | Path) -> dict[str, Any]:
+    config = _load(config_path)
+    return _produce(config, config.repository_root)
+
+
+def _identical(produced: Path, official: Path) -> bool:
+    if not official.is_file():
+        return False
+    return file_sha256(produced) == file_sha256(official)
+
+
+def verify_analysis(config_path: str | Path) -> tuple[dict[str, Any], list[str]]:
+    """Reexecuta a análise sem escrever e nomeia os artefatos divergentes.
+
+    É o modo que permite conferir a análise oficial sob congelamento: os
+    artefatos são produzidos num diretório descartável, fora da raiz, e apenas
+    comparados com os oficiais. Artefato ausente conta como divergente.
+    """
+
+    config = _load(config_path)
+    logical = _artifact_paths(config.repository_root, config.output_root)
+    with tempfile.TemporaryDirectory(prefix="analyze_tuning_verify_") as name:
+        destination = Path(name)
+        selection = _produce(config, destination)
+        produced = _artifact_paths(destination, config.output_root)
+        divergent = sorted(
+            str(logical[key].relative_to(config.repository_root))
+            for key in logical
+            if not _identical(produced[key], logical[key])
+        )
+    return selection, divergent
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Analisa o tuning oficial")
     parser.add_argument("--config", required=True, type=Path)
+    parser.add_argument(
+        "--verify", action="store_true",
+        help="compara os artefatos em vez de escrevê-los; não grava nada",
+    )
     args = parser.parse_args(argv)
+    divergent: list[str] = []
     try:
-        selection = analyze(args.config)
+        if args.verify:
+            selection, divergent = verify_analysis(args.config)
+        else:
+            selection = analyze(args.config)
     except ConfigurationError as error:
         parser.error(str(error))
     print(json.dumps(selection, ensure_ascii=False, sort_keys=True))
+    # O instante da execução vai para o erro padrão, e não para dentro do
+    # documento: a saída padrão é o documento de seleção, resumido por sha256 no
+    # TOML congelado, e qualquer carimbo ali dentro reabre o achado F9-3.
+    print(f"análise executada em {utc_now()}", file=sys.stderr)
+    if not args.verify:
+        return 0
+    if divergent:
+        print("artefatos divergentes: " + ", ".join(divergent), file=sys.stderr)
+        return 1
+    print("artefatos idênticos aos oficiais", file=sys.stderr)
     return 0
 
 

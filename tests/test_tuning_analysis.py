@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from experiments.config import ALGORITHM_FIELDS, load_campaign
+from experiments.config import ALGORITHM_FIELDS, CampaignConfig, load_campaign
 from experiments.scenarios import canonical_json, expand_scenarios
 from experiments import tuning_analysis
 from experiments.tuning_analysis import (
@@ -24,9 +24,16 @@ ROOT = Path(__file__).parents[1]
 CONFIG = load_campaign(ROOT / "experiments/configs/tuning.toml")
 
 
-def synthetic_runs() -> pd.DataFrame:
+def synthetic_runs(config: CampaignConfig = CONFIG) -> pd.DataFrame:
+    """Execuções sintéticas de tuning para a campanha dada.
+
+    O parâmetro existe para que `tests/test_analyze_tuning.py` monte as mesmas
+    440 execuções sobre uma raiz sintética em `tmp_path`, sem depender de
+    `results/`, que o Git ignora.
+    """
+
     rows = []
-    for scenario in expand_scenarios(CONFIG):
+    for scenario in expand_scenarios(config):
         payload = scenario.payload
         parameters = payload["parameters"]
         parameter_signal = sum(float(value) for value in parameters.values()) * 1e-3
