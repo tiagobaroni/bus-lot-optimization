@@ -9,29 +9,32 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 28/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Quinze dos 29 pacotes fechados**:
-  A1, B1, B2, B3, B4, B5, B6, o lote L1 com B7, B8 e B12, o lote L2 com B14, B15,
-  B16 e B18, e o lote L3 com B17. Restam 14, que são B9, B10, B11, B13, B19, B20,
-  B21 e C1 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B,
-  porque altera o `scenario_id` que nomeia os artefatos de campanha. A contagem foi
-  reconciliada em 28/08/2026: a redação anterior dizia treze e restavam dezesseis,
-  o que somava 29 mas contava o B13 entre os restantes e perdia um fechado.
+- **Fase do bloco ativo:** Fase 2, correção. **Dezessete dos 29 pacotes fechados**:
+  A1, B1 a B10, B12 e B14 a B18. Restam 12, que são B11, B13, B19, B20, B21 e C1 a
+  C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B, porque altera
+  o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
+  enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
+  a redação anterior já esteve errada por um.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o lote L3, com o pacote B17 sozinho, fechou o
-  achado F9-3. O carimbo de tempo saiu do documento cujo resumo o arquivo congelado
-  embute, e a análise ganhou modo de verificação, que compara sem escrever. Commit
-  do executor em `3dd0775`, revisão independente sem bloqueantes, acabamento em
-  `4bd23d1` e documentação do novo modo em `44ea64c`. Fica registrado que a
-  reprodutibilidade byte a byte depende também das versões das bibliotecas que
-  gravam os arquivos Parquet, cujas marcas os bytes carregam, e que essa dependência
-  não tem destino alocado.
-- **Próxima ação atômica:** despachar o lote **L4**, que é B9 e B10, nessa ordem,
+- **Última decisão concluída:** o lote L4, com os pacotes B9 e B10, fechou os
+  achados A3, A4 e A6. A avaliação de reparo integralmente viável passou a competir
+  pelo incumbente, a partícula reparada deixou de pagar uma segunda unidade de
+  orçamento pela mesma solução, e o recuo silencioso da projeção do enxame virou
+  falha explícita. Commits em `25403ba` e `3ddb539`, revisão independente sem
+  bloqueantes, acabamento em `f9a7841` e `aa29b21`. É o primeiro lote com diff não
+  zero na conferência: o efeito ficou contido em quatro dos onze cenários do enxame,
+  com zero diferenças nos demais algoritmos, e a linha de base foi regravada só
+  depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
+  usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
+  cópia própria dos mesmos dois defeitos.
+- **Próxima ação atômica:** despachar o lote **L5**, que é o pacote B11 sozinho,
   pelo agrupamento em dez lotes descrito em
-  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`. O B9 regrava a linha de
-  base da impressão digital, que é o oráculo, e por isso exige worktree isolada se
-  qualquer outra coisa estiver em execução.
+  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`. Como o B9, ele regrava a
+  linha de base da conferência, que é o oráculo, e por isso exige árvore isolada se
+  qualquer outra coisa estiver em execução, e a regravação só pode vir depois de
+  provada a contenção do efeito.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
   manifesto de congelamento está divergente de propósito, em dez arquivos
   protegidos, e não deve ser renovado antes do fechamento da auditoria.
