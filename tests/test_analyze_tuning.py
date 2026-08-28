@@ -145,6 +145,59 @@ def test_analise_repetida_produz_artefatos_byte_a_byte_identicos(tuning_root) ->
     assert first == second
 
 
+INSTANTE = frozenset({
+    "timestamp", "datetime", "date", "utc", "clock",
+    "started", "finished", "generated", "created", "modified",
+})
+
+
+def _chaves_de_instante(node: object, prefix: str = "") -> list[str]:
+    """Nomes de campo que sugerem instante de execução, em qualquer profundidade.
+
+    A varredura é recursiva e por vocabulário, e não só pelo sufixo `_at` no
+    primeiro nível: um carimbo reintroduzido dentro de `sources`, ou batizado
+    `timestamp` ou `generated`, reabre o `F9-3` do mesmo jeito, e o caso de
+    igualdade byte a byte só o pegaria quando as duas execuções caíssem em
+    instantes diferentes.
+
+    O casamento é por **token**, e não por substring, senão `mean_runtime_seconds`
+    entraria por conter "time" e a guarda acusaria o documento correto. Duração
+    não é instante.
+    """
+
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            caminho = f"{prefix}.{key}" if prefix else key
+            tokens = set(key.lower().split("_"))
+            if key.lower().endswith("_at") or tokens & INSTANTE:
+                found.append(caminho)
+            found.extend(_chaves_de_instante(value, caminho))
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            found.extend(_chaves_de_instante(value, f"{prefix}[{index}]"))
+    return found
+
+
+def test_a_guarda_de_instante_reconhece_carimbo_aninhado_e_de_outro_nome() -> None:
+    """Caso negativo da própria guarda, para ela não passar por vácuo.
+
+    Sem isto, `_chaves_de_instante` poderia devolver lista vazia sempre e o caso
+    acima continuaria verde, que é a forma canônica do padrão `F2-02`.
+    """
+
+    assert _chaves_de_instante({"selected_at": "x"}) == ["selected_at"]
+    assert _chaves_de_instante({"sources": {"run": {"timestamp": 1}}}) == [
+        "sources.run.timestamp"
+    ]
+    assert _chaves_de_instante({"winners": [{"generated": 1}]}) == [
+        "winners[0].generated"
+    ]
+    assert _chaves_de_instante({"campaign_commit": "0" * 40, "n_runs": 440}) == []
+    # Duração não é instante, e o casamento por substring erraria aqui.
+    assert _chaves_de_instante({"tolerance": {"mean_runtime_seconds": 0.1}}) == []
+
+
 def test_documento_de_selecao_nao_carrega_carimbo_de_tempo(tuning_root) -> None:
     """O carimbo não pode voltar para dentro do que o sha256 resume.
 
@@ -160,7 +213,7 @@ def test_documento_de_selecao_nao_carrega_carimbo_de_tempo(tuning_root) -> None:
     )
     assert document == selection
     assert "selected_at" not in document
-    assert not [key for key in document if key.endswith("_at")]
+    assert not _chaves_de_instante(document)
 
 
 def _tree_snapshot(root: Path) -> dict[str, tuple[int, int, str]]:
@@ -259,3 +312,32 @@ def test_cli_de_verificacao_devolve_zero_no_identico_e_um_no_divergente(
     assert main(arguments) == 1
     assert "experiments/configs/frozen_parameters.toml" in capsys.readouterr().err
     assert _tree_snapshot(root) == before
+
+
+def test_cli_oficial_escreve_os_artefatos_e_devolve_zero(tuning_root, capsys) -> None:
+    """O ramo sem `--verify` é o comando que o `README.md` documenta.
+
+    Ele não tinha teste algum: a impressão do documento na saída padrão, o
+    instante na saída de erro e o código de retorno passariam verdes se
+    quebrassem.
+    """
+
+    root, config_path = tuning_root
+    arguments = ["--config", str(config_path)]
+
+    assert main(arguments) == 0
+
+    captured = capsys.readouterr()
+    documento = json.loads(captured.out)
+    assert documento["campaign_commit"] == COMMIT
+    assert not _chaves_de_instante(documento)
+    assert "análise executada em " in captured.err
+    assert "divergentes" not in captured.err
+
+    # O instante fica fora do documento, que é o ponto do achado, mas precisa
+    # aparecer em algum lugar: é o que a segunda metade da correção prometeu.
+    assert captured.err.strip().endswith("Z")
+
+    digests = _digests(root)
+    assert main(arguments) == 0
+    assert _digests(root) == digests

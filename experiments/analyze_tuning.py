@@ -57,7 +57,7 @@ def _atomic_text(path: Path, content: str) -> None:
 
 def _validate_sources(config) -> tuple[dict[str, Any], pd.DataFrame, Path, Path]:
     tables = config.repository_root / config.output_root / "tables"
-    manifest_path = tables / "tuning_manifest.json"
+    manifest_path = tables / MANIFEST_NAME
     manifest = read_json(manifest_path)
     if not manifest.get("complete") or not manifest.get("official"):
         raise ConfigurationError("manifesto do tuning deve ser completo e oficial")
@@ -246,7 +246,12 @@ def _produce(config: CampaignConfig, destination: Path) -> dict[str, Any]:
             selection_sha256=selection_sha256,
         ),
     )
-    if selection_sha256 not in produced["frozen"].read_text(encoding="utf-8"):
+    # Relê o documento em vez de reaproveitar o sha calculado acima: a checagem
+    # existe para confrontar os dois arquivos como eles ficaram em disco, e o
+    # valor reaproveitado não veria o documento mudar entre as duas gravações.
+    if file_sha256(produced["selection"]) not in produced["frozen"].read_text(
+        encoding="utf-8"
+    ):
         raise ConfigurationError("TOML congelado diverge da seleção")
     return selection
 

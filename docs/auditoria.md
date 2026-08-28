@@ -4910,6 +4910,30 @@ e só `tabu_tenure` com três. A substância do achado dirigido não muda.
   correção:** a Tarefa 19B, passo 3, ainda deve contar com mudança de hash do
   `frozen_parameters.toml`, porque o retuning da decisão 1 reescreve o arquivo de
   todo modo. A correção elimina a mudança espúria, não a legítima.
+  **O que o campo `Código` acima lista e que esta correção não endereçou, por
+  decisão de escopo:** `:176`, o `frozen_path` ancorado na raiz do repositório, que
+  **ignora `output_root`**, e `:177-188`, a sobrescrita sem checagem de existência.
+  Os dois permanecem. A consequência é que o mecanismo de repetição por outro
+  `output_root` continua **não protegendo** este arquivo, e a saída segura para
+  quem precisa conferir a análise sob congelamento passa a ser o `--verify`, que é
+  o que esta correção acrescentou. Enquanto o `README.md` não for qualificado, ele
+  segue instruindo a repetição por outro `output_root` sem essa ressalva.
+  **Resíduo de não determinismo, fora do gatilho corrigido e verificado nos três
+  elos.** Os bytes dos dois Parquet carregam a versão das bibliotecas que os
+  gravaram, hoje `parquet-cpp-arrow version 25.0.1` e `"pandas_version": "3.0.5"`;
+  os sha256 dos dois entram no bloco `sources` do documento de seleção; e o sha256
+  do documento é a linha `selection_sha256` de `frozen_parameters.toml`, que é o
+  único dos quatro artefatos da análise que consta de `protected_files`. Logo uma
+  troca de versão de `pandas` ou de `pyarrow`, sem que decisão alguma mude, move o
+  hash do arquivo protegido pela mesma mecânica do achado, e faz o `--verify`
+  acusar os **quatro** artefatos, e não apenas o documento e o TOML como no quadro
+  descrito na evidência. Dois fatos delimitam a exposição, e nenhum a elimina:
+  `pyproject.toml` declara `pandas>=3.0` e `pyarrow>=23.0`, especificadores
+  abertos, mas `uv.lock` fixa as versões **e ele próprio consta de
+  `protected_files`**, de modo que a troca de versão já é recusada pelo
+  congelamento por via direta, com diagnóstico correto, antes de chegar a esta via
+  indireta. O resíduo é de assinatura, e não de detecção. Sem destino alocado: a
+  alocação a um pacote ou a uma tarefa é decisão que não pertence a este registro.
 - **Impressão digital:** zero, conforme previsto, conferido no conjunto completo
   dos 42 cenários, uma vez, com `impressão digital idêntica` e saída 0. O pacote
   não reexecuta a análise oficial e **não regrava**
