@@ -2275,9 +2275,50 @@ não presumida herdada do protótipo descartado.
   qualquer retuning que amplie a grade de `rho`, ou de instância futura com
   orçamento maior.
 - **Onda:** B, com prioridade.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero, porque a campanha congelada
-  não aciona o caminho.
+- **Situação:** fechado com correção de código e cinco casos de teste novos, no
+  commit do pacote B11. A evaporação passa a ter piso explícito no **menor
+  subnormal positivo**, `np.nextafter(0.0, 1.0)`, aplicado por
+  `np.maximum(decayed, _TAU_FLOOR, out=decayed)` em `_update_pheromone`, depois da
+  multiplicação por `(1 - rho)` e antes dos depósitos. Das duas opções do registro
+  foi tomada a primeira, o piso, e não a conversão da guarda em terminação
+  controlada: a guarda de positividade continua onde estava, e o que muda é que a
+  evaporação pura deixa de conseguir alcançá-la.
+  **Por que o menor subnormal, e não um piso "razoável".** Qualquer piso acima dele
+  mudaria valores de `tau` na campanha congelada e na grade de tuning, e portanto
+  moveria a impressão digital. No subnormal a correção é bit a bit preservadora,
+  porque com `rho` de 0,1 e de 0,3 a multiplicação já satura nesse mesmo valor.
+  **Os cinco casos, e o alvo asseverado dentro do próprio teste.** Três reproduzem
+  o aborto, com `rho` de 0,5, 0,6 e 0,9 e orçamento de 1075, 814 e 324 avaliações
+  com uma formiga por geração, que são exatamente as gerações medidas na Evidência.
+  Cada um assevera, antes de executar, que a evaporação pura é positiva na geração
+  anterior e cai exatamente em zero na geração alvo, de modo que o caso não perde o
+  alvo numa edição futura. Os outros dois asseveram por `float.hex()`, com `rho` de
+  0,1 e de 0,3, que a matriz `tau` final é idêntica com e sem o piso, em cinquenta
+  gerações e também no regime de saturação, com a célula já no subnormal.
+  **A asserção de igualdade recebeu controle negativo na mesma execução e com o
+  mesmo comparador**, porque igualdade de bits só discrimina se existir vizinho em
+  que os bits se movem: sobre a mesma matriz saturada, com `rho = 0.5`, a versão com
+  piso devolve o subnormal e a versão sem piso devolve zero, e o caso assevera a
+  divergência. Provado por mutação sobre cópia fora da árvore de trabalho, com
+  marcador que assevera o caminho do módulo carregado: removida a linha do piso,
+  reprovam os cinco de cinco.
+  **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação **bate**
+  com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** diff **zero**, **conforme previsto**, dentro do diff não
+  zero conferido no conjunto completo dos 42 cenários no Passo F do pacote B11.
+  Nenhuma das oito diferenças observadas é atribuível a esta metade, e a prova é
+  direta: nos onze cenários `aco:*` a evaporação pura vale `0,9^100 = 2,656e-05`,
+  ou `0,9^2 = 0,81` no `tiny_manual`, cerca de 319 ordens de grandeza acima do
+  menor subnormal. O que o piso limita, porém, é o mínimo de `decayed` **em cada
+  geração**, e não o valor final, de modo que a grandeza a conferir é o mínimo da
+  execução inteira. Ele foi medido, instrumentando `_update_pheromone` em
+  `aco:artesp_rmsp_20:3`, `aco:artesp_rmsp_20:8` e `aco:tiny_manual:2` com a
+  semente e o orçamento do oráculo: o mínimo de `decayed` ao longo de todas as
+  gerações coincide bit a bit com a evaporação pura final, e o piso atuou em
+  **zero** gerações. É o esperado, porque os depósitos são não negativos e a
+  evaporação é monótona, logo a célula sem depósito é piso pontual da trajetória.
+  O envelope completo e a regravação da linha de base estão registrados no campo
+  correspondente de F4-4.
 
 #### F4-4. `final_tau_min` é um diagnóstico degenerado
 
@@ -2306,9 +2347,51 @@ não presumida herdada do protótipo descartado.
   alcançáveis, ou removendo o campo. `final_tau_max` é informativo e deve ser
   mantido.
 - **Onda:** B.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff **esperado não zero** no campo de
-  diagnóstico, que a impressão digital compara.
+- **Situação:** fechado com correção de código e um caso de teste novo, no commit
+  do pacote B11. Das duas opções do registro foi tomada a primeira, restringir o
+  mínimo às células estruturalmente alcançáveis, e não a remoção do campo:
+  `final_tau_min` passa a ser `float(np.min(tau[reachable]))`, com
+  `reachable = np.tril(np.ones(tau.shape, dtype=bool))`. `final_tau_max`
+  **permanece** tomado sobre a matriz inteira, por ser informativo. A máscara
+  depende apenas de `tau.shape`, que não muda ao longo da execução, e por isso é
+  calculada **uma vez por execução**, em `_aco_search`, e guardada em
+  `_AcoDiagnostics`: `publish` é chamado por formiga, e calculá-la lá dentro
+  custaria uma matriz booleana por avaliação.
+  **O caso de teste novo** assevera que `final_tau_min` é estritamente maior que
+  `(1 - rho)^G`, sobre `tiny_manual` com `K=2`, `rho = 0.1` e cinquenta gerações,
+  que é uma configuração em que o produto iterado e a potência coincidem bit a bit
+  e a asserção literal do registro portanto discrimina. Assevera também, sobre uma
+  matriz montada à mão, que existe célula com `j > i` estritamente abaixo do mínimo
+  alcançável, e **assevera dentro do próprio teste que o fixture discrimina**, isto
+  é que todas as sete células alcançáveis receberam ao menos um depósito: sem essa
+  cobertura alguma delas ficaria na evaporação pura e a comparação seria entre dois
+  valores iguais. Provado por mutação sobre cópia fora da árvore de trabalho, com
+  marcador que assevera o caminho do módulo carregado: devolvido o mínimo à matriz
+  inteira, o caso reprova.
+  **Passo G.** Classe prevista `D1`, por reclassificação esperada, conforme a
+  seção 3 do adendo; classe observada `D1`, porque o diff em campo de diagnóstico
+  foi confirmado; a observação **bate** com a previsão. A reclassificação de `D2`
+  para `D1` é a esperada, com o ramo 3 da cascata já comprado pela decisão 1, e por
+  isso o Passo H, cuja precondição é previsão `D2`, **não** é acionado.
+- **Impressão digital:** diff **não zero**, **conforme previsto** e confinado ao
+  escopo. Foram **oito** diferenças: o `content_sha256` e
+  `diagnostics.final_tau_min` em **sete** dos onze cenários `aco:*`. **Zero** nos 31
+  cenários `tabu:*`, `pso:*` e `greedy:*`, e zero em `solution`, nos sete campos de
+  `evaluation`, nos 100 `checkpoints`, em `evaluations`, em `final_tau_max` e em
+  todos os demais diagnósticos. Movem `aco:artesp_rmsp_20:3` e `:5`,
+  `aco:artesp_rmsp_60:3` e `:5`, `aco:artesp_rmsp_60:5` no segundo colocado,
+  `aco:artesp_rmsp_150:3` e `aco:tiny_manual:2`. **Não movem quatro**,
+  `aco:artesp_rmsp_20:8`, `aco:artesp_rmsp_60:8`, `aco:artesp_rmsp_150:5` e
+  `aco:artesp_rmsp_150:8`, e a razão foi medida: com `K` grande sobram células
+  alcançáveis que nenhuma formiga visita em todo o orçamento, 19 das 132 em
+  `artesp_rmsp_20` com `K=8` e 24 das 452 em `artesp_rmsp_60` com `K=8`, de modo
+  que o mínimo alcançável coincide bit a bit com a evaporação pura e com o mínimo
+  da matriz inteira. Isso está **dentro** do envelope previsto, que proíbe campo a
+  mais e cenário a mais, e não cenário a menos. Nos onze cenários o valor antigo era
+  exatamente o produto iterado `(1 - rho)^G`, o que confirma por medição a
+  degenerescência descrita na Evidência. Linha de base regravada: o `content_sha256`
+  passa de `7fc8dbcead9d0254848bdebbc6e3473720bc261954a5d465f0b2ff4896ef9902` para
+  `792e344a3ad254838b145c47a5989e8b907518784cfb72cda09c5532918158f9`.
 
 #### F4-5. O teste do estado parcial ancora uma igualdade exata que só vale no caso de três unidades
 

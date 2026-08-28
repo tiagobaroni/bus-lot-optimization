@@ -421,3 +421,127 @@ def test_aco_is_reproducible_except_for_runtime() -> None:
     first = run_aco(TINY, run, config)
     second = run_aco(TINY, run, config)
     assert first.reproducible_data() == second.reproducible_data()
+
+
+ABORT_GENERATIONS = ((0.5, 1075), (0.6, 814), (0.9, 324))
+
+
+def _covering_ants() -> tuple[_EvaluatedAnt, ...]:
+    """Formigas que juntas depositam nas sete células alcançáveis de 4 por 2."""
+
+    return (
+        _EvaluatedAnt(np.array([0, 0, 1, 1]), _evaluation(0.25)),
+        _EvaluatedAnt(np.array([0, 1, 0, 1]), _evaluation(0.75)),
+        _EvaluatedAnt(np.array([0, 1, 1, 0]), _evaluation(0.5)),
+    )
+
+
+@pytest.mark.parametrize(("rho", "generations"), ABORT_GENERATIONS)
+def test_evaporation_floor_keeps_high_rho_runs_alive(
+    rho: float, generations: int
+) -> None:
+    """F4-3: sem piso, a evaporação pura chegava a zero e matava a execução."""
+
+    # Alvo do teste, asseverado aqui para que ele não perca o alvo numa edição
+    # futura: a geração escolhida é exatamente a primeira em que a evaporação
+    # pura de uma célula com j > i produziria zero se não houvesse piso.
+    evaporated = 1.0
+    for _ in range(generations - 1):
+        evaporated *= 1.0 - rho
+    assert evaporated > 0.0
+    assert evaporated * (1.0 - rho) == 0.0
+
+    result = run_aco(
+        TINY,
+        RunConfig(k=2, seed=7, budget=generations),
+        AcoConfig(alpha=1, beta=1, rho=rho, n_ants=1),
+    )
+    assert result.diagnostics["generations_completed"] == generations
+    assert result.termination_reason is TerminationReason.BUDGET_EXHAUSTED
+    assert result.evaluations == generations
+
+
+def _update_pheromone_without_floor(
+    tau: np.ndarray, ants: tuple[_EvaluatedAnt, ...], *, rho: float
+) -> np.ndarray:
+    """Réplica de `_update_pheromone` sem o piso, para servir de controle."""
+
+    updated = np.array(tau * (1.0 - rho), dtype=np.float64, copy=True)
+    rows = np.arange(tau.shape[0], dtype=np.int64)
+    for ant in ants:
+        updated[rows, ant.solution] += _deposit_amount(ant.evaluation.total_cost)
+    return updated
+
+
+def _hex_matrix(matrix: np.ndarray) -> list[str]:
+    return [float(value).hex() for value in np.ravel(matrix)]
+
+
+@pytest.mark.parametrize("rho", [0.1, 0.3])
+def test_evaporation_floor_moves_no_bit_on_the_frozen_grid(rho: float) -> None:
+    """F4-3: o piso é inerte na campanha congelada e na grade de tuning."""
+
+    ants = _covering_ants()
+    floored = _initial_pheromone(4, 2)
+    floorless = _initial_pheromone(4, 2)
+    for _ in range(50):
+        floored = _update_pheromone(floored, ants, rho=rho)
+        floorless = _update_pheromone_without_floor(floorless, ants, rho=rho)
+    assert _hex_matrix(floored) == _hex_matrix(floorless)
+
+    # Regime de saturação, que é o pior caso de `rho` de 0,1 e 0,3: mesmo com a
+    # célula já no menor subnormal o piso continua inerte, porque a
+    # multiplicação arredonda de volta para o próprio subnormal.
+    subnormal = float(np.nextafter(0.0, 1.0))
+    saturated = _initial_pheromone(4, 2)
+    saturated[0, 1] = subnormal
+    assert _hex_matrix(_update_pheromone(saturated, ants, rho=rho)) == _hex_matrix(
+        _update_pheromone_without_floor(saturated, ants, rho=rho)
+    )
+
+    # Controle negativo, na mesma execução e com o mesmo comparador. Uma
+    # asserção de igualdade de bits só discrimina se existir vizinho em que os
+    # bits se movem: com `rho = 0.5` o subnormal cai exatamente no meio, o
+    # arredondamento para par o leva a zero sem o piso, e as duas matrizes
+    # divergem na célula (0, 1), de índice 1 no arranjo achatado.
+    moved = _update_pheromone(saturated, ants, rho=0.5)
+    unfloored = _update_pheromone_without_floor(saturated, ants, rho=0.5)
+    assert _hex_matrix(moved) != _hex_matrix(unfloored)
+    assert _hex_matrix(unfloored)[1] == (0.0).hex()
+    assert _hex_matrix(moved)[1] == subnormal.hex()
+
+
+def test_final_tau_min_ignores_structurally_unreachable_cells() -> None:
+    """F4-4: o mínimo publicado media evaporação pura, e não o feromônio real."""
+
+    rho = 0.1
+    result = run_aco(
+        TINY,
+        RunConfig(k=2, seed=7, budget=1000),
+        AcoConfig(alpha=1, beta=1, rho=rho, n_ants=20),
+    )
+    generations = result.diagnostics["generations_completed"]
+    assert generations == 50
+    evaporated = 1.0
+    for _ in range(generations):
+        evaporated *= 1.0 - rho
+    # Toda célula com j > i vale exatamente a evaporação pura, porque nunca
+    # recebe depósito. O mínimo publicado tem de ficar estritamente acima dela.
+    assert result.diagnostics["final_tau_min"] > (1.0 - rho) ** generations
+    assert result.diagnostics["final_tau_min"] > evaporated
+
+    # E a célula inalcançável existe mesmo, abaixo do mínimo alcançável. A
+    # máscara é recalculada aqui de forma independente, para que o teste não
+    # compare a produção consigo mesma.
+    tau = _initial_pheromone(4, 2)
+    ants = _covering_ants()
+    for _ in range(generations):
+        tau = _update_pheromone(tau, ants, rho=rho)
+    reachable = np.tril(np.ones(tau.shape, dtype=bool))
+    assert not reachable[0, 1]
+    # O fixture só discrimina se todas as células alcançáveis receberem ao
+    # menos um depósito; sem isto alguma delas ficaria na evaporação pura e a
+    # comparação abaixo passaria a ser entre dois valores iguais.
+    assert bool((tau[reachable] > evaporated).all())
+    assert float(np.min(tau)) == float(tau[0, 1]) == evaporated
+    assert float(np.min(tau)) < float(np.min(tau[reachable]))

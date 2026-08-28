@@ -23,6 +23,12 @@ from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemIn
 
 FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int64]
+BoolArray = NDArray[np.bool_]
+
+# Piso de feromônio no menor subnormal positivo. Ver o comentário em
+# `_update_pheromone`: é o único valor que preserva bit a bit a campanha
+# congelada e a grade de tuning.
+_TAU_FLOOR = np.nextafter(0.0, 1.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -424,7 +430,15 @@ def _update_pheromone(
         raise ConfigurationError("tau deve ser matriz positiva e finita")
     if not ants:
         raise ConfigurationError("atualização requer ao menos uma formiga")
-    updated = np.array(tau * (1.0 - rho), dtype=np.float64, copy=True)
+    decayed = np.array(tau * (1.0 - rho), dtype=np.float64, copy=True)
+    # Piso no menor subnormal positivo. Células com j > i nunca recebem
+    # depósito e sofrem apenas evaporação: com rho >= 0,5 o arredondamento para
+    # par leva o subnormal a 0,0 exato, a guarda de positividade abaixo levanta
+    # ConfigurationError, que não é BudgetExhausted, e a execução morre. Com rho
+    # de 0,1 e 0,3 a multiplicação já satura neste mesmo valor, logo o piso é
+    # inerte na campanha congelada e na grade de tuning.
+    np.maximum(decayed, _TAU_FLOOR, out=decayed)
+    updated = decayed
     rows = np.arange(tau.shape[0], dtype=np.int64)
     for ant in ants:
         solution = validate_solution(
@@ -438,6 +452,7 @@ def _update_pheromone(
 
 @dataclass(slots=True)
 class _AcoDiagnostics:
+    reachable: BoolArray
     generations_completed: int = 0
     ants_evaluated: int = 0
     pheromone_updates: int = 0
@@ -453,7 +468,7 @@ class _AcoDiagnostics:
             forced_assignments=self.forced_assignments,
             probabilistic_assignments=self.probabilistic_assignments,
             global_improvements=self.global_improvements,
-            final_tau_min=float(np.min(tau)),
+            final_tau_min=float(np.min(tau[self.reachable])),
             final_tau_max=float(np.max(tau)),
         )
 
@@ -471,7 +486,14 @@ def _aco_search(
     run_config: RunConfig,
 ) -> None:
     tau = _initial_pheromone(instance.n_units, run_config.k)
-    diagnostics = _AcoDiagnostics()
+    # Somente células alcançáveis: com crescimento restrito, tau[i, j] com j > i
+    # nunca recebe depósito e vale (1-rho)^G para todas, o que fazia
+    # final_tau_min medir evaporação pura em vez do piso real do feromônio.
+    # A máscara depende apenas de tau.shape, que não muda ao longo da execução,
+    # e é calculada uma vez aqui porque publish é chamado por formiga.
+    # final_tau_max permanece tomado sobre a matriz inteira, por ser informativo.
+    reachable = np.tril(np.ones(tau.shape, dtype=bool))
+    diagnostics = _AcoDiagnostics(reachable)
     diagnostics.publish(context, tau)
 
     while True:

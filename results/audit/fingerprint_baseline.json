@@ -5,7 +5,7 @@
     "tabu": 25007,
     "tiny": 101
   },
-  "content_sha256": "7fc8dbcead9d0254848bdebbc6e3473720bc261954a5d465f0b2ff4896ef9902",
+  "content_sha256": "792e344a3ad254838b145c47a5989e8b907518784cfb72cda09c5532918158f9",
   "scenarios": {
     "aco:artesp_rmsp_150:3:frozen": {
       "algorithm": "aco",
@@ -1316,7 +1316,7 @@
       "diagnostics": {
         "ants_evaluated": 4007,
         "final_tau_max": 343.2728013557679,
-        "final_tau_min": 2.6561398887587544e-05,
+        "final_tau_min": 0.00019317694007457055,
         "forced_assignments": 4007,
         "generations_completed": 100,
         "global_improvements": 32,
@@ -5801,7 +5801,7 @@
       "diagnostics": {
         "ants_evaluated": 4007,
         "final_tau_max": 345.7591312517566,
-        "final_tau_min": 2.6561398887587544e-05,
+        "final_tau_min": 6.104793650620773e-05,
         "forced_assignments": 4007,
         "generations_completed": 100,
         "global_improvements": 9,
@@ -7166,7 +7166,7 @@
       "diagnostics": {
         "ants_evaluated": 4007,
         "final_tau_max": 278.2501178250926,
-        "final_tau_min": 2.6561398887587544e-05,
+        "final_tau_min": 3.852084712094537e-05,
         "forced_assignments": 4920,
         "generations_completed": 100,
         "global_improvements": 14,
@@ -9896,7 +9896,7 @@
       "diagnostics": {
         "ants_evaluated": 4007,
         "final_tau_max": 343.14779132875725,
-        "final_tau_min": 2.6561398887587544e-05,
+        "final_tau_min": 4.858608022138469e-05,
         "forced_assignments": 4007,
         "generations_completed": 100,
         "global_improvements": 17,
@@ -11301,7 +11301,7 @@
       "diagnostics": {
         "ants_evaluated": 4007,
         "final_tau_max": 279.6049033175149,
-        "final_tau_min": 2.6561398887587544e-05,
+        "final_tau_min": 4.393476440772526e-05,
         "forced_assignments": 4007,
         "generations_completed": 100,
         "global_improvements": 22,
@@ -12706,7 +12706,7 @@
       "diagnostics": {
         "ants_evaluated": 4007,
         "final_tau_max": 256.1184005389397,
-        "final_tau_min": 2.6561398887587544e-05,
+        "final_tau_min": 4.3161598875459066e-05,
         "forced_assignments": 4007,
         "generations_completed": 100,
         "global_improvements": 13,
@@ -15516,7 +15516,7 @@
       "diagnostics": {
         "ants_evaluated": 101,
         "final_tau_max": 69.57333333333334,
-        "final_tau_min": 0.81,
+        "final_tau_min": 3.401250000000001,
         "forced_assignments": 105,
         "generations_completed": 2,
         "global_improvements": 0,
