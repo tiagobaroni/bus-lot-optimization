@@ -9,8 +9,13 @@ import numpy as np
 import pytest
 
 from metaheuristica import PsoConfig, RunConfig, run_pso
+from metaheuristica import optimizer as optimizer_module
 from metaheuristica import pso as pso_module
-from metaheuristica.errors import ConfigurationError, SolutionValidationError
+from metaheuristica.errors import (
+    ConfigurationError,
+    EvaluationLimitReached,
+    SolutionValidationError,
+)
 from metaheuristica.instances import load_tiny_instance
 from metaheuristica.pso import (
     VELOCITY_LIMIT,
@@ -353,3 +358,74 @@ def test_pso_uses_a_single_global_best_snapshot_per_iteration(
         if np.array_equal(committed, blocks[index + 1][0][1])
     ]
     assert mid_iteration_updates
+
+
+def repairing_run() -> tuple[Any, ...]:
+    """Cenário de `tiny_manual` que efetivamente repara, ao contrário do de baixo.
+
+    Com `seed=7` e vinte partículas o `tiny_manual` completa cinco reparos no
+    orçamento de 100 avaliações, o que torna as asserções sobre reparo não
+    vazias.
+    """
+
+    return (
+        TINY,
+        RunConfig(k=2, seed=7, budget=100),
+        PsoConfig(20, 0.4, 2.0, 1.5),
+    )
+
+
+def test_repaired_candidate_is_not_evaluated_twice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Achado A4: o candidato vencedor do reparo não é reavaliado pelo contexto.
+
+    O espião conta apenas as avaliações completas, isto é as que consumiram
+    orçamento e devolveram resultado, incluindo a última, que sai por
+    `EvaluationLimitReached`. Sob a forma anterior, cada partícula reparada
+    pagava uma segunda unidade de orçamento pela mesma solução, e a contagem
+    coincidia com `particles_evaluated`.
+    """
+
+    calls: list[tuple[int, ...]] = []
+    original = optimizer_module.OptimizationContext.evaluate
+
+    def spy(self: Any, solution: Any) -> Any:
+        key = tuple(int(value) for value in np.asarray(solution))
+        try:
+            result = original(self, solution)
+        except EvaluationLimitReached:
+            calls.append(key)
+            raise
+        calls.append(key)
+        return result
+
+    monkeypatch.setattr(optimizer_module.OptimizationContext, "evaluate", spy)
+    result = run_pso(*repairing_run())
+    diagnostics = result.diagnostics
+
+    assert diagnostics["repairs_completed"] == 5
+    assert len(calls) == diagnostics["particles_evaluated"] - diagnostics["repairs_completed"]
+
+
+def test_repairing_run_keeps_the_evaluation_identity() -> None:
+    """A identidade de contagem continua valendo num cenário que repara.
+
+    `test_run_pso_exhausts_budget_and_produces_consistent_diagnostics` verifica
+    a mesma identidade de forma vazia, porque o cenário dele não tem reparo
+    algum: é o achado F2-01, alocado à Onda C e **não** fechado aqui. Este
+    cenário repara cinco vezes, e a identidade precisa sobreviver ao
+    reaproveitamento da avaliação vencedora, que move uma unidade da coluna de
+    reparo para a coluna de partículas sem mudar o total.
+    """
+
+    result = run_pso(*repairing_run())
+    diagnostics = result.diagnostics
+
+    assert diagnostics["repairs_completed"] == 5
+    assert diagnostics["repair_evaluations"] > 0
+    assert (
+        diagnostics["particles_evaluated"] + diagnostics["repair_evaluations"]
+        == result.evaluations
+        == 100
+    )

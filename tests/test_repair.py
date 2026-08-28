@@ -9,12 +9,28 @@ from metaheuristica import (
     FitnessEvaluator,
     ProblemInstance,
     RepairBudgetExhausted,
+    RunConfig,
+    evaluate_solution,
 )
 from metaheuristica.instances import load_tiny_instance
-from metaheuristica.repair import repair_empty_lots
+from metaheuristica.evaluator import _viable_key
+from metaheuristica.metrics import ConvergenceRecorder
+from metaheuristica.repair import (
+    repair_empty_lots,
+    repair_empty_lots_with_evaluation,
+)
 
 
 TINY = load_tiny_instance(Path(__file__).parents[1] / "data/instances/tiny_manual.json")
+EVALUATION_FIELDS = (
+    "total_cost",
+    "c_demand",
+    "c_production",
+    "c_territorial",
+    "c_affinity",
+    "cv_demand",
+    "cv_production",
+)
 
 
 def equal_instance(n_units: int) -> ProblemInstance:
@@ -64,3 +80,152 @@ def test_budget_exhaustion_discards_partial_repair() -> None:
     with pytest.raises(RepairBudgetExhausted, match="durante o reparo"):
         repair_empty_lots([0, 0, 0, 0], evaluator)
     assert evaluator.evaluations == 2
+
+
+def unbalanced_instance() -> ProblemInstance:
+    """Instância de quatro unidades cujo reparo tem vencedor único.
+
+    Demanda e produção proporcionais e distintas fazem as quatro candidaturas
+    de reparo terem custos estritamente diferentes, o que remove os empates de
+    `tiny_manual`, onde a simetria da produção faz duas doadoras empatarem.
+    """
+
+    zero = np.zeros((4, 4))
+    sizes = np.array([1.0, 2.0, 4.0, 8.0])
+    return ProblemInstance(
+        name="desequilibrada",
+        unit_ids=("A", "B", "C", "D"),
+        demand=sizes,
+        production=sizes,
+        s_territorial=zero,
+        t_terminal=zero,
+        i_integration=zero,
+        o_market=zero,
+    )
+
+
+def test_viable_repair_evaluation_becomes_the_incumbent() -> None:
+    """Achado A3: a avaliação de reparo integralmente viável compete pelo incumbente.
+
+    O estado `[0, 0, 0, 0]` com `K=2` tem um lote vazio, logo cada candidata do
+    reparo já é uma solução completa e viável. A vencedora, `[0, 0, 0, 1]`, é
+    mais barata que o incumbente estabelecido antes do reparo, e nenhuma das
+    outras três candidatas é. Sob a forma anterior, que notificava toda
+    avaliação de reparo como inelegível, o incumbente não se movia.
+    """
+
+    instance = unbalanced_instance()
+    recorder = ConvergenceRecorder(RunConfig(k=2, seed=1, budget=100).thresholds)
+    evaluator = FitnessEvaluator(instance, k=2, budget=100, observer=recorder.observe)
+    evaluator.evaluate([0, 1, 0, 1])
+    assert recorder.incumbent_solution == (0, 1, 0, 1)
+    initial_cost = recorder.incumbent_evaluation.total_cost
+
+    repaired = repair_empty_lots([0, 0, 0, 0], evaluator)
+
+    assert repaired.tolist() == [0, 0, 0, 1]
+    assert recorder.incumbent_solution == (0, 0, 0, 1)
+    assert recorder.incumbent_evaluation.total_cost < initial_cost
+    expected = evaluate_solution(instance, [0, 0, 0, 1], k=2)
+    assert recorder.incumbent_evaluation.total_cost == expected.total_cost
+
+
+def test_repair_state_with_an_empty_lot_stays_ineligible() -> None:
+    """O lado negativo do achado A3: estado incompleto não pode virar incumbente.
+
+    Com `K=3` e quatro unidades, `[0, 0, 0, 0]` tem dois lotes vazios, e cada
+    candidata da primeira rodada ainda deixa um lote vazio. Nenhuma delas é
+    solução, então nenhuma pode ser notificada com chave nem disputar o
+    incumbente. Sem este caso, a asserção do teste acima seria compatível com
+    tornar elegível toda avaliação de reparo.
+    """
+
+    instance = unbalanced_instance()
+    observed: list[tuple[tuple[int, ...] | None, bool]] = []
+
+    def spy(
+        evaluations: int,
+        solution: tuple[int, ...] | None,
+        result: object,
+        eligible: bool,
+    ) -> None:
+        observed.append((solution, eligible))
+
+    evaluator = FitnessEvaluator(instance, k=3, budget=100, observer=spy)
+    repaired = repair_empty_lots([0, 0, 0, 0], evaluator)
+
+    assert len(set(repaired.tolist())) == 3
+    first_round = observed[:4]
+    assert len(first_round) == 4
+    assert all(key is None and not eligible for key, eligible in first_round)
+
+
+def test_viable_key_separates_complete_states_from_states_with_empty_lots() -> None:
+    """Os dois lados da guarda nova do achado A3.
+
+    O estado completo produz chave canônica, e o estado com lote vazio produz
+    `None`. Sem o segundo caso, a guarda seria compatível com produzir chave
+    para qualquer estado; sem o primeiro, seria compatível com nunca produzir
+    chave, que é a forma anterior ao pacote.
+    """
+
+    instance = unbalanced_instance()
+    assert _viable_key(instance, [1, 0, 0, 0], k=2) == (0, 1, 1, 1)
+    assert _viable_key(instance, [0, 0, 0, 0], k=2) is None
+    assert _viable_key(instance, [0, 1, 2, 0], k=3) == (0, 1, 2, 0)
+    assert _viable_key(instance, [0, 1, 1, 0], k=3) is None
+
+
+def test_repair_returns_the_winning_provisional_evaluation() -> None:
+    """A avaliação devolvida é a do estado final, e não a de outra candidata."""
+
+    instance = unbalanced_instance()
+    evaluator = FitnessEvaluator(instance, k=2, budget=4)
+    repaired, winner = repair_empty_lots_with_evaluation([0, 0, 0, 0], evaluator)
+
+    assert repaired.tolist() == [0, 0, 0, 1]
+    assert winner is not None
+    expected = evaluate_solution(instance, [0, 0, 0, 1], k=2)
+    # Igualdade bit a bit nos sete campos, e não só no custo total: o
+    # reaproveitamento publica esta avaliação ao lado da solução canônica, logo
+    # o par precisa ser exatamente o que a reavaliação da solução publicada
+    # produz. Comparar apenas `total_cost` deixaria passar divergência de
+    # último bit nos componentes.
+    assert all(
+        getattr(winner, field).hex() == getattr(expected, field).hex()
+        for field in EVALUATION_FIELDS
+    )
+    assert evaluator.evaluations == 4
+
+
+def test_repair_without_empty_lots_returns_no_evaluation() -> None:
+    """O lado negativo: sem reparo não há avaliação a reaproveitar."""
+
+    evaluator = FitnessEvaluator(TINY, k=2, budget=1)
+    repaired, winner = repair_empty_lots_with_evaluation([1, 1, 0, 0], evaluator)
+
+    assert repaired.tolist() == [0, 0, 1, 1]
+    assert winner is None
+    assert evaluator.evaluations == 0
+
+
+def test_multiple_rounds_return_the_evaluation_of_the_last_round() -> None:
+    """Com mais de uma rodada, a vencedora devolvida é a da última.
+
+    Sem esta asserção, devolver a vencedora da primeira rodada passaria
+    despercebido, e o reaproveitamento publicaria a avaliação de um estado que
+    ainda tinha lote vazio.
+    """
+
+    instance = unbalanced_instance()
+    evaluator = FitnessEvaluator(instance, k=3, budget=100)
+    repaired, winner = repair_empty_lots_with_evaluation([0, 0, 0, 0], evaluator)
+
+    assert len(set(repaired.tolist())) == 3
+    assert evaluator.evaluations == 7
+    assert winner is not None
+    expected = evaluate_solution(instance, repaired, k=3)
+    assert all(
+        getattr(winner, field).hex() == getattr(expected, field).hex()
+        for field in EVALUATION_FIELDS
+    )

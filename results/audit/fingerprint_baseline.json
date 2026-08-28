@@ -5,7 +5,7 @@
     "tabu": 25007,
     "tiny": 101
   },
-  "content_sha256": "b73fdd82d210c451bdacf9a30a3335d0b01d75ffd785e387a95180821dc0c569",
+  "content_sha256": "7fc8dbcead9d0254848bdebbc6e3473720bc261954a5d465f0b2ff4896ef9902",
   "scenarios": {
     "aco:artesp_rmsp_150:3:frozen": {
       "algorithm": "aco",
@@ -27419,11 +27419,11 @@
       "diagnostics": {
         "global_best_updates": 83,
         "iterations_completed": 93,
-        "particles_evaluated": 3767,
-        "personal_best_updates": 502,
+        "particles_evaluated": 3779,
+        "personal_best_updates": 504,
         "position_clips": 17173,
         "repair_attempts": 12,
-        "repair_evaluations": 240,
+        "repair_evaluations": 228,
         "repairs_completed": 12,
         "strict_global_improvements": 7,
         "velocity_clips": 10028
@@ -27601,13 +27601,13 @@
         },
         {
           "evaluation": {
-            "c_affinity": 0.5678991082870931,
-            "c_demand": 0.33650405921390947,
-            "c_production": 0.3366606985000118,
-            "c_territorial": 0.33033272429764465,
-            "cv_demand": 0.5071682259506054,
-            "cv_production": 0.5075241248916377,
-            "total_cost": 0.3928491475746647
+            "c_affinity": 0.6322737777817796,
+            "c_demand": 0.34120305226209535,
+            "c_production": 0.3244365679069912,
+            "c_territorial": 0.24938749811399888,
+            "cv_demand": 0.5179183865888817,
+            "cv_production": 0.4802458991923709,
+            "total_cost": 0.3868252240162163
           },
           "evaluations": 401,
           "index": 10
@@ -27822,13 +27822,13 @@
         },
         {
           "evaluation": {
-            "c_affinity": 0.21715971960063446,
-            "c_demand": 0.3687675977575465,
-            "c_production": 0.2912781606481902,
-            "c_territorial": 0.177279728889638,
-            "cv_demand": 0.5842025796640021,
-            "cv_production": 0.41099080693575124,
-            "total_cost": 0.2636213017240023
+            "c_affinity": 0.14479523742947412,
+            "c_demand": 0.3461881466083471,
+            "c_production": 0.33304381341441947,
+            "c_territorial": 0.13289755964111455,
+            "cv_demand": 0.5294920011200378,
+            "cv_production": 0.4993488629581591,
+            "total_cost": 0.2392311892733388
           },
           "evaluations": 1082,
           "index": 27
@@ -28238,26 +28238,26 @@
         },
         {
           "evaluation": {
-            "c_affinity": 0.14479523742947412,
-            "c_demand": 0.3461881466083471,
-            "c_production": 0.33304381341441947,
-            "c_territorial": 0.13289755964111455,
-            "cv_demand": 0.5294920011200378,
-            "cv_production": 0.4993488629581591,
-            "total_cost": 0.2392311892733388
+            "c_affinity": 0.1526086127865223,
+            "c_demand": 0.3306889281562989,
+            "c_production": 0.28818829263337764,
+            "c_territorial": 0.11187077693334845,
+            "cv_demand": 0.494073596071517,
+            "cv_production": 0.4048659071646103,
+            "total_cost": 0.22083915262738682
           },
           "evaluations": 2365,
           "index": 59
         },
         {
           "evaluation": {
-            "c_affinity": 0.14479523742947412,
-            "c_demand": 0.3461881466083471,
-            "c_production": 0.33304381341441947,
-            "c_territorial": 0.13289755964111455,
-            "cv_demand": 0.5294920011200378,
-            "cv_production": 0.4993488629581591,
-            "total_cost": 0.2392311892733388
+            "c_affinity": 0.1526086127865223,
+            "c_demand": 0.3306889281562989,
+            "c_production": 0.28818829263337764,
+            "c_territorial": 0.11187077693334845,
+            "cv_demand": 0.494073596071517,
+            "cv_production": 0.4048659071646103,
+            "total_cost": 0.22083915262738682
           },
           "evaluations": 2405,
           "index": 60
@@ -28459,26 +28459,26 @@
         },
         {
           "evaluation": {
-            "c_affinity": 0.1526086127865223,
-            "c_demand": 0.3306889281562989,
-            "c_production": 0.28818829263337764,
-            "c_territorial": 0.11187077693334845,
-            "cv_demand": 0.494073596071517,
-            "cv_production": 0.4048659071646103,
-            "total_cost": 0.22083915262738682
+            "c_affinity": 0.07561105018564317,
+            "c_demand": 0.3304468049620571,
+            "c_production": 0.29088725893398093,
+            "c_territorial": 0.0484643335642748,
+            "cv_demand": 0.49353331058831096,
+            "cv_production": 0.41021299165586295,
+            "total_cost": 0.18635236191148902
           },
           "evaluations": 3046,
           "index": 76
         },
         {
           "evaluation": {
-            "c_affinity": 0.1526086127865223,
-            "c_demand": 0.3306889281562989,
-            "c_production": 0.28818829263337764,
-            "c_territorial": 0.11187077693334845,
-            "cv_demand": 0.494073596071517,
-            "cv_production": 0.4048659071646103,
-            "total_cost": 0.22083915262738682
+            "c_affinity": 0.07561105018564317,
+            "c_demand": 0.3304468049620571,
+            "c_production": 0.29088725893398093,
+            "c_territorial": 0.0484643335642748,
+            "cv_demand": 0.49353331058831096,
+            "cv_production": 0.41021299165586295,
+            "total_cost": 0.18635236191148902
           },
           "evaluations": 3086,
           "index": 77
@@ -28785,15 +28785,15 @@
       ],
       "diagnostics": {
         "global_best_updates": 21,
-        "iterations_completed": 40,
-        "particles_evaluated": 1640,
-        "personal_best_updates": 316,
-        "position_clips": 2605,
-        "repair_attempts": 119,
-        "repair_evaluations": 2367,
-        "repairs_completed": 118,
+        "iterations_completed": 41,
+        "particles_evaluated": 1682,
+        "personal_best_updates": 320,
+        "position_clips": 2683,
+        "repair_attempts": 123,
+        "repair_evaluations": 2325,
+        "repairs_completed": 123,
         "strict_global_improvements": 11,
-        "velocity_clips": 3310
+        "velocity_clips": 3364
       },
       "evaluation": {
         "c_affinity": 0.07561105018564317,
@@ -30152,15 +30152,15 @@
       ],
       "diagnostics": {
         "global_best_updates": 2,
-        "iterations_completed": 7,
-        "particles_evaluated": 357,
-        "personal_best_updates": 99,
-        "position_clips": 489,
-        "repair_attempts": 164,
-        "repair_evaluations": 3650,
-        "repairs_completed": 163,
+        "iterations_completed": 8,
+        "particles_evaluated": 371,
+        "personal_best_updates": 101,
+        "position_clips": 561,
+        "repair_attempts": 172,
+        "repair_evaluations": 3636,
+        "repairs_completed": 171,
         "strict_global_improvements": 2,
-        "velocity_clips": 651
+        "velocity_clips": 724
       },
       "evaluation": {
         "c_affinity": 0.4959027689357603,
@@ -35024,13 +35024,13 @@
         },
         {
           "evaluation": {
-            "c_affinity": 0.8530804812373467,
-            "c_demand": 0.21254257879084812,
-            "c_production": 0.17837725787308137,
-            "c_territorial": 0.7995008827709531,
-            "cv_demand": 0.2699099317198459,
-            "cv_production": 0.2171036033049909,
-            "total_cost": 0.5108753001680573
+            "c_affinity": 0.8529299895610418,
+            "c_demand": 0.1583899994234653,
+            "c_production": 0.1817468283130026,
+            "c_territorial": 0.8324197350499489,
+            "cv_demand": 0.18819880861083177,
+            "cv_production": 0.2221156417130582,
+            "total_cost": 0.5063716380868646
           },
           "evaluations": 1844,
           "index": 46
@@ -35622,13 +35622,13 @@
         },
         {
           "evaluation": {
-            "c_affinity": 0.8529299895610418,
-            "c_demand": 0.1583899994234653,
-            "c_production": 0.1817468283130026,
-            "c_territorial": 0.8324197350499489,
-            "cv_demand": 0.18819880861083177,
-            "cv_production": 0.2221156417130582,
-            "total_cost": 0.5063716380868646
+            "c_affinity": 0.8107161953149602,
+            "c_demand": 0.1887423296076703,
+            "c_production": 0.18652531543752707,
+            "c_territorial": 0.7733717698850515,
+            "cv_demand": 0.23265398466604723,
+            "cv_production": 0.2292945545537777,
+            "total_cost": 0.4898389025613023
           },
           "evaluations": 3687,
           "index": 92

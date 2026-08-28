@@ -1596,9 +1596,61 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   seja integralmente viável, ou declarar explicitamente na formulação que
   avaliações de reparo não competem pelo incumbente.
 - **Onda:** B, com prioridade.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado **não** zero se a elegibilidade
-  mudar, porque o incumbente pode passar a absorver custo provisório.
+- **Situação:** fechado com correção de código e oito testes novos, no commit do
+  pacote B9. `evaluate_provisional_for_repair` passa a notificar a chave canônica
+  do estado avaliado e `eligible` verdadeiro quando os `K` lotes estão todos
+  ocupados, em vez de `(None, False)` incondicional. A decisão fica em
+  `_viable_key`, função nova no mesmo módulo, que confere a ocupação por
+  `np.bincount` sobre os rótulos já validados e **não** recorre a
+  `validate_solution`, porque este recusa lote vazio com exceção, e lote vazio é
+  exatamente o estado que `_evaluate_provisional_solution` existe para tratar.
+  **A implementação diverge da forma literal do corpo prescrito no adendo, e a
+  divergência é necessária.** O corpo escrito mantinha
+  `result = _evaluate_provisional_solution(..., solution)`, calculado sobre os
+  rótulos crus, e o notificava ao lado da chave **canônica**. As duas metades não
+  são satisfazíveis ao mesmo tempo: `optimizer.py:150` publica
+  `canonicalize_solution(incumbent_solution)` ao lado de `incumbent_evaluation`, e
+  `experiments/pilot_validation.py:103` assevera
+  `recalculated_dict == result["evaluation"]`, isto é a reavaliação da solução
+  publicada precisa reproduzir a avaliação publicada. Renomear lotes permuta os
+  totais de `np.bincount`, e a soma em outra ordem move os últimos bits de
+  `c_demand`, `c_production`, `cv_demand` e `cv_production`: medido em 30% a 63%
+  das rotulações em sonda sobre as três instâncias e os três `K`, e em 5 de 21
+  reparos do caminho real, com `total_cost` estável em 21 de 21. Por isso o estado
+  integralmente viável passa a ser avaliado sobre o **vetor canônico**, pelo mesmo
+  caminho de `evaluate`, sem unidade de orçamento a mais. Sob a forma literal, nove
+  testes de `tests/test_benchmark_validation.py` reprovam com `reavaliação
+  divergente`, o que é corroboração e não a prova: a inconsistência é estrutural. É
+  o mesmo invariante de autoconsistência que o pacote B6 estabeleceu ao fechar o
+  F1-06. Divergência aprovada pelo usuário em 28/08/2026.
+  **Escopo do pacote alargado por decisão do usuário em 28/08/2026.** A lista
+  declarada do B9 omitia `gpu/src/metaheuristica_gpu/evaluator.py` e
+  `gpu/src/metaheuristica_gpu/pso.py`, que carregam cópia própria dos dois defeitos
+  e são exercitados por `gpu/tests/test_pso_gpu.py`, o qual compara CPU contra GPU
+  exigindo igualdade de `solution`, `evaluation` e `checkpoints`. Sem o espelho, o
+  cenário `artesp_rmsp_20` com `K=5`, `seed=7` e orçamento 600, que completa 12
+  reparos, diverge a partir do checkpoint 20 e a suíte de GPU cai de 27 para 26. É a
+  mesma lacuna de lista registrada no achado A1, e desta vez ela foi fechada no
+  próprio commit do pacote, em vez de migrar para outro. Os dois arquivos passam a
+  usar o mesmo `_viable_key` do núcleo, em vez de reescrever a regra de viabilidade,
+  para que os dois lados não divirjam em silêncio.
+  **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação **bate**
+  com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** diff **não zero**, **conforme previsto** e confinado ao
+  escopo. Foram 76 diferenças de campo mais o `content_sha256`, distribuídas por
+  **quatro** dos onze cenários `pso:*`, e **zero** nos 31 cenários `tabu:*`,
+  `aco:*` e `greedy:*`. Movem `pso:artesp_rmsp_20:3`, `:5` e `:8` e
+  `pso:artesp_rmsp_60:8`; os outros sete `pso:*` são idênticos. Os campos são 56 de
+  `checkpoints[i].evaluation`, em oito checkpoints ao todo, e 19 de `diagnostics`.
+  **`solution` e o `evaluation` de topo não mudaram em nenhum dos 42**, isto é o
+  incumbente final é bit a bit o mesmo, e a previsão do adendo era conservadora.
+  `evaluations` também não mudou em cenário algum: o orçamento é sempre esgotado,
+  então a unidade liberada por reparo não é economizada, é gasta em outra
+  partícula, e a mudança aparece como realocação entre `particles_evaluated` e
+  `repair_evaluations`, que é a identidade guardada por `_verify_diagnostics`.
+  Linha de base regravada: o `content_sha256` passa de
+  `b73fdd82d210c451bdacf9a30a3335d0b01d75ffd785e387a95180821dc0c569` para
+  `7fc8dbcead9d0254848bdebbc6e3473720bc261954a5d465f0b2ff4896ef9902`.
 
 #### A4. A solução reparada é reavaliada em duplicidade
 
@@ -1635,9 +1687,32 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   reaproveitar libera uma unidade de orçamento por reparo e portanto muda a
   trajetória.
 - **Onda:** B, junto de A3, por tocarem o mesmo bloco de reparo.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado **não** zero, porque o orçamento
-  liberado altera o número de candidatos avaliados.
+- **Situação:** fechado com correção de código no commit do pacote B9, junto do
+  A3. `repair_empty_lots_with_evaluation`, função nova em
+  `src/metaheuristica/repair.py`, devolve a solução canônica **e** a avaliação
+  vencedora da última rodada, que é o próprio estado final do reparo;
+  `repair_empty_lots` passa a delegar e mantém assinatura e semântica, porque é
+  exportada e usada pelo espelho de GPU. O PSO reaproveita essa avaliação em vez de
+  reavaliar a mesma solução por `context.evaluate`. **Atenção declarada:
+  reaproveitar libera uma unidade de orçamento por reparo e portanto muda a
+  trajetória**; a fração do orçamento gasta em reparo na configuração congelada é
+  `0,0444`. A contabilidade é a parte não óbvia: `_verify_diagnostics` exige
+  `particles_evaluated + repair_evaluations == context.evaluations` e é chamada em
+  todos os caminhos de esgotamento, que são como toda execução do PSO termina;
+  pular a chamada de `context.evaluate` e ainda incrementar `particles_evaluated`
+  quebraria a identidade em `repairs_completed` e faria todo cenário `pso:*`
+  levantar `ConfigurationError`. A forma correta move a unidade de coluna, e
+  `repair_evaluations` recebe as consumidas menos uma quando houve
+  reaproveitamento. Com o A3 avaliando o estado viável sobre o vetor canônico, o
+  reaproveitamento é **bit a bit exato nos sete campos**, o que está asseverado por
+  `float.hex()` em `tests/test_repair.py`. O espelho de GPU recebeu a mesma
+  correção no mesmo commit, pelo alargamento de escopo registrado no A3.
+  **Passo G.** Classe prevista `M1`; classe observada `M1`; a observação **bate**
+  com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** diff **não zero**, **conforme previsto**, e indistinguível
+  do diff do A3, porque os dois fecham no mesmo commit e no mesmo bloco de reparo.
+  O envelope, a lista de cenários e a regravação da linha de base estão registrados
+  no campo correspondente do A3.
 
 #### A5. Contadores de saturação incluem a iteração interrompida
 

@@ -5,12 +5,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from metaheuristica.canonical import canonicalize_solution, validate_k
+import numpy as np
+
+from metaheuristica.canonical import canonicalize_solution, solution_key, validate_k
 from metaheuristica.errors import BudgetExhausted, ConfigurationError
 from metaheuristica.objective import (
     _evaluate_labels,
     _evaluate_partial_assignment,
     _evaluate_provisional_solution,
+    _provisional_labels,
 )
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
 
@@ -18,6 +21,24 @@ from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemIn
 EvaluationObserver = Callable[
     [int, tuple[int, ...] | None, EvaluationResult, bool], None
 ]
+
+
+def _viable_key(
+    instance: ProblemInstance, solution: Any, *, k: int
+) -> tuple[int, ...] | None:
+    """Chave canônica de um estado de reparo, ou `None` se algum lote está vazio.
+
+    A3: o estado que entra no reparo pode ter lote vazio por construção, que é
+    exatamente o caso que `_evaluate_provisional_solution` existe para tratar,
+    logo esta função não pode delegar a decisão a `validate_solution`, que
+    recusa lote vazio com exceção. A ocupação é conferida antes, e só o estado
+    integralmente viável produz chave.
+    """
+
+    labels = _provisional_labels(solution, n_units=instance.n_units, k=k)
+    if np.count_nonzero(np.bincount(labels, minlength=k)) < k:
+        return None
+    return solution_key(labels, n_units=instance.n_units, k=k)
 
 
 class FitnessEvaluator:
@@ -134,13 +155,35 @@ class FitnessEvaluator:
         """Avalia um estado possivelmente vazio sem cache, somente para reparo."""
 
         self._consume()
-        result = _evaluate_provisional_solution(
-            self._instance,
-            solution,
-            k=self._k,
-            weights=self._weights,
-        )
-        self._notify(None, result, eligible=False)
+        # A3: avaliação de reparo integralmente viável compete pelo incumbente.
+        # Marcá-la inelegível descartava, por construção, solução viável mais
+        # barata que a incumbente, sem justificativa normativa. O gravador
+        # precisa da solução para registrar, então a chave canônica substitui o
+        # `None` anterior. Estado com lote vazio continua inelegível e sem chave.
+        key = _viable_key(self._instance, solution, k=self._k)
+        if key is None:
+            result = _evaluate_provisional_solution(
+                self._instance,
+                solution,
+                k=self._k,
+                weights=self._weights,
+            )
+        else:
+            # O estado integralmente viável é uma solução, e passa a ser avaliado
+            # sobre o vetor canônico, pelo mesmo caminho de `evaluate`. Sem isto o
+            # par publicado deixaria de ser autoconsistente: renomear lotes permuta
+            # os totais de `np.bincount` e a soma em outra ordem move os últimos
+            # bits de `c_demand`, `c_production` e dos dois coeficientes de
+            # variação, de modo que a reavaliação da solução canônica publicada
+            # não reproduziria a avaliação publicada. É o mesmo invariante que o
+            # pacote B6 estabeleceu para o guloso.
+            result = _evaluate_labels(
+                self._instance,
+                np.array(key, dtype=np.int64),
+                k=self._k,
+                weights=self._weights,
+            )
+        self._notify(key, result, eligible=key is not None)
         return result
 
     def evaluate_partial_for_greedy(

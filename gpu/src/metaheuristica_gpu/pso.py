@@ -11,10 +11,11 @@ import numpy as np
 
 from metaheuristica import (
     EvaluationResult, OptimizationResult, ProblemInstance, PsoConfig, RunConfig,
-    TerminationReason, canonicalize_solution, evaluate_solution, repair_empty_lots,
+    TerminationReason, canonicalize_solution, evaluate_solution,
     validate_solution,
 )
 from metaheuristica.errors import RepairBudgetExhausted, SolutionValidationError
+from metaheuristica.repair import repair_empty_lots_with_evaluation
 from metaheuristica.metrics import COST_TOLERANCE
 
 from metaheuristica_gpu.evaluator import HybridEvaluator
@@ -205,15 +206,28 @@ def run_pso_gpu(
                     repair_attempts += 1
                     before = evaluator.evaluations
                     try:
-                        repaired = repair_empty_lots(decoded, evaluator)
+                        repaired, reused = repair_empty_lots_with_evaluation(
+                            decoded, evaluator
+                        )
                     except RepairBudgetExhausted:
                         repair_evaluations += evaluator.evaluations - before
                         raise StopIteration
-                    repair_evaluations += evaluator.evaluations - before
+                    # A4, espelho da CPU: a unidade reaproveitada muda da coluna
+                    # de reparo para a de partículas, e a partícula reparada é
+                    # comprometida direto, sem entrar no lote da GPU, porque sua
+                    # avaliação já existe.
+                    repair_evaluations += (
+                        evaluator.evaluations - before - int(reused is not None)
+                    )
                     position = _project(trial.position, decoded, repaired, run_config.k)
-                    pending.append((particle, position, trial.velocity, repaired))
-                    if flush(pending):
-                        raise StopIteration
+                    if reused is not None:
+                        commit(particle, position, trial.velocity, repaired, reused)
+                        if evaluator.remaining == 0:
+                            raise StopIteration
+                    else:
+                        pending.append((particle, position, trial.velocity, repaired))
+                        if flush(pending):
+                            raise StopIteration
                 else:
                     position, solution = _canonical(
                         trial.position, decoded, instance.n_units, run_config.k

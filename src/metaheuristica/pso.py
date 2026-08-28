@@ -20,7 +20,7 @@ from metaheuristica.errors import (
 from metaheuristica.metrics import COST_TOLERANCE, OptimizationResult, RunConfig
 from metaheuristica.optimizer import OptimizationContext, execute_optimizer
 from metaheuristica.problem import EvaluationResult, ProblemInstance
-from metaheuristica.repair import repair_empty_lots
+from metaheuristica.repair import repair_empty_lots_with_evaluation
 
 
 FloatArray = NDArray[np.float64]
@@ -291,17 +291,29 @@ def _pso_search(
             )
             position = trial.position.copy()
             solution: IntArray
+            reused: EvaluationResult | None = None
             if np.count_nonzero(np.bincount(decoded, minlength=run_config.k)) < run_config.k:
                 diagnostics.repair_attempts += 1
                 before = context.evaluations
                 try:
-                    repaired = repair_empty_lots(decoded, context)
+                    repaired, reused = repair_empty_lots_with_evaluation(
+                        decoded, context
+                    )
                 except RepairBudgetExhausted:
                     diagnostics.repair_evaluations += context.evaluations - before
                     _verify_diagnostics(context, diagnostics)
                     diagnostics.publish(context)
                     raise
-                diagnostics.repair_evaluations += context.evaluations - before
+                # A4: o candidato vencedor do reparo é o próprio estado final e já
+                # foi avaliado pela mesma `_evaluate_labels`. Reavaliá-lo por
+                # `context.evaluate` gastava uma segunda unidade de orçamento pela
+                # mesma solução. A unidade reaproveitada muda de coluna, do reparo
+                # para a partícula, e por isso a identidade
+                # `particles_evaluated + repair_evaluations == evaluations`, que
+                # `_verify_diagnostics` guarda, continua valendo.
+                diagnostics.repair_evaluations += (
+                    context.evaluations - before - int(reused is not None)
+                )
                 diagnostics.repairs_completed += 1
                 position = _project_position(
                     position, decoded, repaired, k=run_config.k
@@ -321,7 +333,9 @@ def _pso_search(
             ):
                 raise SolutionValidationError("posição e solução candidata são incoerentes")
             try:
-                evaluation = context.evaluate(solution)
+                evaluation = (
+                    reused if reused is not None else context.evaluate(solution)
+                )
             except EvaluationLimitReached as exhausted:
                 evaluation = _limit_result(exhausted)
                 _commit_candidate(
