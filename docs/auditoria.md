@@ -1705,8 +1705,23 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   `repair_evaluations` recebe as consumidas menos uma quando houve
   reaproveitamento. Com o A3 avaliando o estado viável sobre o vetor canônico, o
   reaproveitamento é **bit a bit exato nos sete campos**, o que está asseverado por
-  `float.hex()` em `tests/test_repair.py`. O espelho de GPU recebeu a mesma
-  correção no mesmo commit, pelo alargamento de escopo registrado no A3.
+  `float.hex()` em `tests/test_repair.py`. **Ressalva sobre o alcance dessa
+  asserção, acrescentada depois da revisão independente:** os casos que a fazem
+  usam fixtures de quatro unidades com as quatro matrizes zeradas, e neles
+  renomear os lotes não move bit algum, de modo que a asserção era verdadeira mas
+  **não discriminava** entre avaliar os rótulos crus e avaliar o vetor canônico.
+  Medido: sobre `artesp_rmsp_20`, a mesma comparação move bits em 160 de 429
+  rotulações não canônicas com `K=3` e em 294 de 461 com `K=5`. O caso
+  `test_repair_evaluation_uses_the_canonical_vector_where_the_bits_move` foi
+  acrescentado para fechar a lacuna, sobre a instância real e num estado onde
+  `c_production`, `cv_demand` e `cv_production` se movem, e provado por mutação:
+  com a forma literal do adendo, ele é o **único** dos casos de
+  `tests/test_repair.py`, `tests/test_pso.py`, `tests/test_evaluator.py` e
+  `tests/test_optimizer.py` que reprova. Antes dele, a forma literal sobrevivia aos
+  quatro arquivos e só era acusada por nove testes de
+  `tests/test_benchmark_validation.py`, de assunto alheio e com diagnóstico opaco.
+  O espelho de GPU recebeu a mesma correção no mesmo commit, pelo alargamento de
+  escopo registrado no A3.
   **Passo G.** Classe prevista `M1`; classe observada `M1`; a observação **bate**
   com a previsão. Sem reclassificação, e o Passo H não se aplica.
 - **Impressão digital:** diff **não zero**, **conforme previsto**, e indistinguível

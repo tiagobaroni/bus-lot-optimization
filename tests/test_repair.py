@@ -12,7 +12,8 @@ from metaheuristica import (
     RunConfig,
     evaluate_solution,
 )
-from metaheuristica.instances import load_tiny_instance
+from metaheuristica.canonical import canonicalize_solution
+from metaheuristica.instances import load_artesp_instance, load_tiny_instance
 from metaheuristica.evaluator import _viable_key
 from metaheuristica.metrics import ConvergenceRecorder
 from metaheuristica.repair import (
@@ -229,3 +230,67 @@ def test_multiple_rounds_return_the_evaluation_of_the_last_round() -> None:
         getattr(winner, field).hex() == getattr(expected, field).hex()
         for field in EVALUATION_FIELDS
     )
+
+
+ARTESP_20_RAW_LABELS = (
+    2, 1, 1, 0, 0, 0, 0, 0, 0, 2, 1, 2, 1, 1, 2, 2, 1, 1, 1, 2,
+)
+ARTESP_20_K = 3
+
+
+def test_repair_evaluation_uses_the_canonical_vector_where_the_bits_move() -> None:
+    """Caso negativo da escolha do A3, num estado onde renomear lotes move bits.
+
+    Os demais casos deste arquivo usam fixtures de quatro unidades com as quatro
+    matrizes zeradas, e neles renomear os lotes **não move bit algum**: a
+    asserção por `float.hex()` passa igual com a avaliação sobre rótulos crus e
+    com a avaliação sobre o vetor canônico, isto é ela não guarda a escolha que o
+    pacote fez. Este caso fecha essa lacuna sobre a instância real de vinte
+    unidades, que é versionada e protegida pelo congelamento.
+
+    A rotulação abaixo é viável, ocupa os três lotes e **não** é canônica. Sobre
+    ela, `c_production`, `cv_demand` e `cv_production` diferem entre a avaliação
+    dos rótulos crus e a do vetor canônico, porque `np.bincount` devolve os
+    totais em outra ordem e as somas acumulam nessa ordem.
+    """
+
+    instance = load_artesp_instance(
+        Path(__file__).parents[1] / "data/instances", 20
+    )
+    raw = np.array(ARTESP_20_RAW_LABELS, dtype=np.int64)
+    canonical = np.array(
+        canonicalize_solution(raw, n_units=len(instance.unit_ids), k=ARTESP_20_K),
+        dtype=np.int64,
+    )
+
+    assert canonical.tolist() != raw.tolist(), "a rotulação escolhida já é canônica"
+
+    on_raw = evaluate_solution(instance, raw, k=ARTESP_20_K)
+    on_canonical = evaluate_solution(instance, canonical, k=ARTESP_20_K)
+    moved = [
+        field
+        for field in EVALUATION_FIELDS
+        if getattr(on_raw, field).hex() != getattr(on_canonical, field).hex()
+    ]
+    assert moved, (
+        "o caso perdeu poder discriminante: as duas avaliações coincidem bit a "
+        "bit, e então esta asserção passaria por vácuo, que é o padrão F2-02"
+    )
+
+    events: list[tuple[tuple[int, ...] | None, bool]] = []
+
+    def observe(evaluations, solution, result, eligible) -> None:
+        events.append((solution, eligible))
+
+    evaluator = FitnessEvaluator(
+        instance, k=ARTESP_20_K, budget=1, observer=observe, cache_enabled=False
+    )
+    published = evaluator.evaluate_provisional_for_repair(raw)
+
+    assert events == [(tuple(canonical.tolist()), True)]
+    assert evaluator.evaluations == 1, "a avaliação canônica não custa unidade a mais"
+
+    for field in EVALUATION_FIELDS:
+        assert getattr(published, field).hex() == getattr(on_canonical, field).hex()
+    for field in moved:
+        assert getattr(published, field).hex() != getattr(on_raw, field).hex()
