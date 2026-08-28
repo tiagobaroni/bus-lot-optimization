@@ -7,7 +7,7 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 27/08/2026
+- **Atualizado em:** 28/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
 - **Fase do bloco ativo:** Fase 2, correção. **Treze dos 29 pacotes fechados** com
   revisão independente: A1, B1, B2, B3, B4, B5, B6, o lote L1 com B7, B8 e B12, e o
