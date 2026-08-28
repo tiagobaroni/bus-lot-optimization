@@ -9,23 +9,29 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 28/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Treze dos 29 pacotes fechados** com
-  revisão independente: A1, B1, B2, B3, B4, B5, B6, o lote L1 com B7, B8 e B12, e o
-  lote L2 com B14, B15, B16 e B18. Restam 16, que são B9, B10, B11, B13, B17, B19,
-  B20, B21 e C1 a C7. O **B13 está diferido** para imediatamente antes da Tarefa
-  19B, porque altera o `scenario_id` que nomeia os artefatos de campanha.
+- **Fase do bloco ativo:** Fase 2, correção. **Quinze dos 29 pacotes fechados**:
+  A1, B1, B2, B3, B4, B5, B6, o lote L1 com B7, B8 e B12, o lote L2 com B14, B15,
+  B16 e B18, e o lote L3 com B17. Restam 14, que são B9, B10, B11, B13, B19, B20,
+  B21 e C1 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B,
+  porque altera o `scenario_id` que nomeia os artefatos de campanha. A contagem foi
+  reconciliada em 28/08/2026: a redação anterior dizia treze e restavam dezesseis,
+  o que somava 29 mas contava o B13 entre os restantes e perdia um fechado.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o B5 foi recuperado da branch
-  `b5-parcial-nao-verificado`, verificado com diff zero nos 42 cenários e oráculo
-  validado por marcador, commitado em `d297377`, revisado de forma independente e
-  fechado com as quatro condições da revisão em `5a94c23`. O B6 foi desenvolvido
-  em worktree isolada, integrado por cherry-pick em `5f2774a`, com o Passo G em
-  `f22372b`.
-- **Próxima ação atômica:** despachar o lote **L3**, que é o pacote B17 sozinho,
+- **Última decisão concluída:** o lote L3, com o pacote B17 sozinho, fechou o
+  achado F9-3. O carimbo de tempo saiu do documento cujo resumo o arquivo congelado
+  embute, e a análise ganhou modo de verificação, que compara sem escrever. Commit
+  do executor em `3dd0775`, revisão independente sem bloqueantes, acabamento em
+  `4bd23d1` e documentação do novo modo em `44ea64c`. Fica registrado que a
+  reprodutibilidade byte a byte depende também das versões das bibliotecas que
+  gravam os arquivos Parquet, cujas marcas os bytes carregam, e que essa dependência
+  não tem destino alocado.
+- **Próxima ação atômica:** despachar o lote **L4**, que é B9 e B10, nessa ordem,
   pelo agrupamento em dez lotes descrito em
-  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`.
+  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`. O B9 regrava a linha de
+  base da impressão digital, que é o oráculo, e por isso exige worktree isolada se
+  qualquer outra coisa estiver em execução.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
   manifesto de congelamento está divergente de propósito, em dez arquivos
   protegidos, e não deve ser renovado antes do fechamento da auditoria.
