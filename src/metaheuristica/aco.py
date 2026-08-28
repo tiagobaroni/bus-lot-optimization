@@ -492,6 +492,14 @@ def _aco_search(
     # A máscara depende apenas de tau.shape, que não muda ao longo da execução,
     # e é calculada uma vez aqui porque publish é chamado por formiga.
     # final_tau_max permanece tomado sobre a matriz inteira, por ser informativo.
+    #
+    # A equivalência entre triângulo inferior e alcançabilidade vale para
+    # K < n_units, que é o caso de todos os cenários da conferência e o escopo
+    # em que a correção foi prescrita. Com K == n_units, que validate_k aceita,
+    # cada unidade é forçada a abrir o próprio lote, só a diagonal é alcançável,
+    # e o triângulo volta a incluir células que nunca recebem depósito. A
+    # fronteira está asseverada em tests/test_aco.py e registrada em
+    # docs/auditoria.md; tratá-la pertence a um pacote que a declare.
     reachable = np.tril(np.ones(tau.shape, dtype=bool))
     diagnostics = _AcoDiagnostics(reachable)
     diagnostics.publish(context, tau)

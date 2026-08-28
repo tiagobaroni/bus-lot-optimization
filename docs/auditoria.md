@@ -54,8 +54,10 @@ do verificador sem apagar o do auditor.
 | **Total** | | **89** | |
 
 O único `D1` é o achado A1 da frente F3, o limite de velocidade do PSO que não
-limita o passo. Ele muda 10 de 10 resultados oficiais do tuning do PSO e é o único
-`D1` **hoje**, isto é o único cujo diff já foi **medido**.
+limita o passo. Ele muda 10 de 10 resultados oficiais do tuning do PSO, e foi o primeiro `D1`, isto é
+o primeiro cujo diff foi **medido**. **Atualização de 28/08/2026:** o **F4-4** também
+já teve o diff medido, no pacote B11, e reclassificou para `D1`; o A1 deixou de ser o
+único.
 
 **A Onda A não é necessariamente o único gatilho da cascata, e isso precisa ser dito
 aqui.** Três achados classificados `D2` publicam previsão de diff **não zero** na
@@ -65,10 +67,15 @@ impressão digital, todos em campo de diagnóstico: **A5** no PSO, **F4-4** no A
 alterado da cascata assume", os três **reclassificam para `D1`** se a impressão
 digital confirmar a previsão, e pelo ruling de cascata por escopo cada um toca um
 cenário `pso`, `aco` e `tabu` respectivamente, o que dispara o ramo alterado.
+**Atualização de 28/08/2026:** para o **F4-4** a confirmação já ocorreu. O pacote B11
+mediu sete diferenças, todas em `diagnostics.final_tau_min`, e o achado está fechado
+com classe observada `D1`. O A5 e o F5-3 continuam abertos e continuam no condicional.
 
-**A pergunta que discrimina, e ela está aberta:** a impressão digital dos 42 cenários
-compara o dicionário de diagnósticos, ou apenas o vetor de solução e os sete campos do
-`EvaluationResult`? A seção 9 da especificação diz "diff zero nos 42 cenários" sem
+**A pergunta que discrimina, e ela foi respondida em 28/08/2026:** a impressão digital
+dos 42 cenários compara o dicionário de diagnósticos, ou apenas o vetor de solução e os
+sete campos do `EvaluationResult`? **Compara os diagnósticos.** O pacote B11 mediu sete
+diferenças em `scenarios.<id>.diagnostics.final_tau_min`, o que resolve a pergunta pela
+via empírica. O texto abaixo registra o estado em que ela foi formulada. A seção 9 da especificação diz "diff zero nos 42 cenários" sem
 enumerar campos, e a Tarefa 14, que define o oráculo, ainda não existe. O oráculo
 privado que a frente F4 usou no protótipo **comparava** os diagnósticos, mas é artefato
 diferente. **Se o oráculo da Tarefa 14 cobrir diagnósticos, a Onda B carrega três
@@ -2319,6 +2326,16 @@ não presumida herdada do protótipo descartado.
   evaporação é monótona, logo a célula sem depósito é piso pontual da trajetória.
   O envelope completo e a regravação da linha de base estão registrados no campo
   correspondente de F4-4.
+  **Correção da justificativa da guarda de saída, depois da revisão independente.** A
+  guarda `np.any(updated <= 0.0)` de `_update_pheromone` foi mantida, e isso segue
+  certo, mas **não** pela razão registrada antes. Entrada não finita é impossível,
+  porque a guarda de entrada da própria função a rejeita, e com o piso a evaporação
+  nunca mais produz zero: por esses dois caminhos o ramo é código morto. O caminho
+  residual real é outro, e o piso passou a **mascará-lo**: `_update_pheromone` não
+  valida `rho`, e com `rho > 1` a evaporação produzia valores negativos que a guarda
+  pegava, ao passo que agora o piso os converte silenciosamente no subnormal. Não é
+  explorável em produção, porque `AcoConfig.__post_init__` exige `0 < rho < 1` e é o
+  único chamador real. **Sem destino alocado.**
 
 #### F4-4. `final_tau_min` é um diagnóstico degenerado
 
@@ -2357,6 +2374,18 @@ não presumida herdada do protótipo descartado.
   calculada **uma vez por execução**, em `_aco_search`, e guardada em
   `_AcoDiagnostics`: `publish` é chamado por formiga, e calculá-la lá dentro
   custaria uma matriz booleana por avaliação.
+  **Fronteira da caracterização, registrada depois da revisão independente.** O
+  triângulo inferior coincide **exatamente** com o conjunto de células alcançáveis
+  quando `K < n_units`, o que foi conferido por enumeração a partir de
+  `_choices_from_counts` e cobre os onze cenários `aco:*` da conferência e o escopo em
+  que o adendo prescreveu a correção. Com `K == n_units`, que `canonical.validate_k`
+  aceita, cada unidade é forçada a abrir o próprio lote, **apenas a diagonal é
+  alcançável**, e o triângulo volta a incluir células que nunca recebem depósito, de
+  modo que o defeito reaparece inteiro nessa configuração. Decisão do usuário em
+  28/08/2026: **documentar a condição em vez de alterar a máscara**, por a correção
+  estar dentro do que o pacote prescreveu e por ser fronteira que nenhum cenário
+  exercita. A fronteira está asseverada em `tests/test_aco.py` e comentada em
+  `src/metaheuristica/aco.py`. **Sem destino alocado.**
   **O caso de teste novo** assevera que `final_tau_min` é estritamente maior que
   `(1 - rho)^G`, sobre `tiny_manual` com `K=2`, `rho = 0.1` e cinquenta gerações,
   que é uma configuração em que o produto iterado e a potência coincidem bit a bit
@@ -2387,7 +2416,14 @@ não presumida herdada do protótipo descartado.
   `artesp_rmsp_20` com `K=8` e 24 das 452 em `artesp_rmsp_60` com `K=8`, de modo
   que o mínimo alcançável coincide bit a bit com a evaporação pura e com o mínimo
   da matriz inteira. Isso está **dentro** do envelope previsto, que proíbe campo a
-  mais e cenário a mais, e não cenário a menos. Nos onze cenários o valor antigo era
+  mais e cenário a mais, e não cenário a menos. **Consequência que precisa ficar dita,
+  acrescentada depois da revisão independente: nesses quatro cenários o diagnóstico
+  continua degenerado depois da correção**, isto é, `final_tau_min` segue bit a bit
+  igual a `(1 - rho)^G`. A máscara resolve a degenerescência **estrutural**, que é a
+  das células com `j > i` que nenhuma construção pode alcançar, e não a
+  **operacional**, que é a das células alcançáveis que nenhuma formiga visitou dentro
+  do orçamento. Quem ler `final_tau_min` desses quatro cenários está lendo evaporação
+  pura, e não o piso do feromônio. Nos onze cenários o valor antigo era
   exatamente o produto iterado `(1 - rho)^G`, o que confirma por medição a
   degenerescência descrita na Evidência. Linha de base regravada: o `content_sha256`
   passa de `7fc8dbcead9d0254848bdebbc6e3473720bc261954a5d465f0b2ff4896ef9902` para
@@ -5830,8 +5866,11 @@ vale aqui integralmente: A5, F4-4 e F5-3 são `D2` com previsão de diff **não 
 campo de diagnóstico, e reclassificam automaticamente para `D1` se o oráculo da Tarefa
 14 comparar diagnósticos. Se isso ocorrer, a Onda B carrega três gatilhos próprios e
 **a sobrevivência do tuning deixa de depender apenas da decisão sobre A1**.
+**Atualização de 28/08/2026:** o oráculo **compara** diagnósticos, e o **F4-4** já
+reclassificou para `D1` no pacote B11. O condicional desta passagem está, portanto,
+realizado para um dos três, e a Onda B já carrega um gatilho próprio.
 
-A1 é o único `D1` da auditoria hoje. A verificação dedicada mediu que corrigir a ordem
+A1 foi o primeiro `D1` da auditoria. A verificação dedicada mediu que corrigir a ordem
 de saturação **altera o `float.hex()` em 10 de 10 seeds** e leva a média de 0,274437
 para 0,280569. Isso é condição suficiente para invalidar o congelamento do tuning do
 PSO. Os outros três achados da Onda A, A10, F2-10 e F2-09, são cobertura de teste e
@@ -5887,7 +5926,10 @@ a suíte de detectar uma regressão futura na mesma região.
 **A sobrevivência do tuning nesse ramo, porém, não é automática.** Ela exige, além da
 emenda documental de A1, que a impressão digital feche com diff zero também nos três
 `D2` de previsão não zero, A5, F4-4 e F5-3, o que depende da decisão da Tarefa 14 sobre
-o escopo de campos do oráculo. Onda A vazia é resultado válido e desejável, e não sinal
+o escopo de campos do oráculo. **Atualização de 28/08/2026: essa condição já falhou
+para o F4-4**, que fechou com sete diferenças em `diagnostics.final_tau_min`. Pelos
+termos desta mesma frase, o ramo descrito aqui deixou de estar disponível, e a decisão
+já tomada de refazer o tuning torna a questão discutível. Onda A vazia é resultado válido e desejável, e não sinal
 de que a triagem falhou; mas "Onda A vazia" não implica, por si, "tuning sobrevive".
 
 ### 7.2. Onda B, com a ordenação obrigatória

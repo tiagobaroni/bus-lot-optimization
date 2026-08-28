@@ -20,6 +20,8 @@ from metaheuristica.aco import (
     _initial_pheromone,
     _update_pheromone,
     run_aco,
+    _AcoDiagnostics,
+    _choices_from_counts,
 )
 from metaheuristica.errors import ConfigurationError, SolutionValidationError
 from metaheuristica.instances import load_artesp_instance, load_tiny_instance
@@ -545,3 +547,101 @@ def test_final_tau_min_ignores_structurally_unreachable_cells() -> None:
     assert bool((tau[reachable] > evaporated).all())
     assert float(np.min(tau)) == float(tau[0, 1]) == evaporated
     assert float(np.min(tau)) < float(np.min(tau[reachable]))
+
+
+def _reachable_cells(n_units: int, k: int) -> set[tuple[int, int]]:
+    """Células que a construção de crescimento restrito pode depositar.
+
+    Enumeradas propagando os estados de `opened` possíveis a partir de
+    `_choices_from_counts`, que é a mesma aritmética que a construção usa. Não
+    reproduz a máscara da produção: deriva a propriedade que ela deveria ter.
+    """
+
+    cells: set[tuple[int, int]] = set()
+    states = {0}
+    for filled in range(n_units):
+        following = set()
+        for opened in states:
+            allowed = _choices_from_counts(
+                filled=filled, opened=opened, n_units=n_units, k=k
+            ).allowed
+            for lot in allowed:
+                cells.add((filled, int(lot)))
+                following.add(max(opened, int(lot) + 1))
+        states = following
+    return cells
+
+
+def test_published_minimum_uses_exactly_the_reachable_mask() -> None:
+    """A máscara de produção não pode alargar **nem estreitar**.
+
+    O caso anterior prende só o teto: asseverar que o mínimo publicado fica
+    acima da evaporação pura fica mais fácil, e não mais difícil, quando a
+    máscara encolhe. Estreitá-la descartando a diagonal principal, que são as
+    células mais depositadas da matriz, muda o valor publicado e passava
+    despercebido pela suíte inteira. Este caso prende os dois lados, comparando
+    a máscara que a produção constrói com a enumeração independente das células
+    que a construção pode alcançar.
+
+    A comparação é com `K < n_units`. Nessa faixa, e só nela, o triângulo
+    inferior coincide exatamente com o conjunto alcançável; ver o caso seguinte.
+    """
+
+    capturadas: list[np.ndarray] = []
+    original = _AcoDiagnostics.__init__
+
+    def capturar(self, reachable, *args, **kwargs):
+        capturadas.append(np.array(reachable, copy=True))
+        return original(self, reachable, *args, **kwargs)
+
+    n_units, k = 4, 2
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(_AcoDiagnostics, "__init__", capturar)
+        run_aco(
+            TINY,
+            RunConfig(k=k, seed=7, budget=200),
+            AcoConfig(alpha=1, beta=1, rho=0.1, n_ants=4),
+        )
+
+    assert len(capturadas) == 1, "a máscara deve ser construída uma vez por execução"
+    mascara = capturadas[0]
+    assert mascara.shape == (n_units, k)
+
+    esperada = _reachable_cells(n_units, k)
+    obtida = {(int(i), int(j)) for i, j in np.argwhere(mascara)}
+    assert obtida == esperada, (
+        f"máscara alargada em {sorted(obtida - esperada)} e "
+        f"estreitada em {sorted(esperada - obtida)}"
+    )
+
+
+def test_the_reachable_mask_is_the_lower_triangle_only_below_k_equals_n() -> None:
+    """A equivalência entre triângulo inferior e alcançabilidade tem fronteira.
+
+    Com `K == n_units`, que `validate_k` aceita, cada unidade é forçada a abrir
+    o próprio lote e só a diagonal é alcançável: o triângulo inferior passa a
+    conter células que nunca recebem depósito, e o mínimo publicado volta a
+    medir evaporação pura. Nenhum dos 42 cenários da conferência usa essa
+    configuração, e a especificação escopou a garantia a `K < n_units`, mas a
+    fronteira fica asseverada aqui para não se perder.
+    """
+
+    for n_units, k in ((4, 2), (4, 3), (6, 3), (10, 9)):
+        triangulo = {
+            (int(i), int(j))
+            for i, j in np.argwhere(np.tril(np.ones((n_units, k), dtype=bool)))
+        }
+        assert triangulo == _reachable_cells(n_units, k), (n_units, k)
+
+    for n_units in (4, 5, 10):
+        k = n_units
+        triangulo = {
+            (int(i), int(j))
+            for i, j in np.argwhere(np.tril(np.ones((n_units, k), dtype=bool)))
+        }
+        alcancavel = _reachable_cells(n_units, k)
+        assert alcancavel == {(i, i) for i in range(n_units)}
+        assert triangulo > alcancavel, (
+            "com K == n_units o triângulo inferior deixa de caracterizar o "
+            "conjunto alcançável, e esta é a fronteira que o pacote não cobre"
+        )
