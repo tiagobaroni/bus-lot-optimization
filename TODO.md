@@ -9,16 +9,22 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 28/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Dezessete dos 29 pacotes fechados**:
-  A1, B1 a B10, B12 e B14 a B18. Restam 12, que são B11, B13, B19, B20, B21 e C1 a
-  C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B, porque altera
+- **Fase do bloco ativo:** Fase 2, correção. **Dezoito dos 29 pacotes fechados**:
+  A1, B1 a B12 exceto o B13, e B14 a B18. Restam 11, que são B13, B19, B20, B21 e
+  C1 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B, porque altera
   o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
   enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
   a redação anterior já esteve errada por um.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o lote L4, com os pacotes B9 e B10, fechou os
+- **Última decisão concluída:** o lote L5, com o pacote B11, fechou os achados F4-3
+  e F4-4. A evaporação do feromônio ganhou piso no menor subnormal positivo, o que
+  impede o aborto da execução com taxas de evaporação altas, e o mínimo publicado
+  passou a ser tomado sobre as células que a construção pode alcançar. A medição
+  confirmou a degenerescência: antes da correção o campo valia o mesmo número em dez
+  dos onze cenários, porque media apenas evaporação. Commit em `84d6d46`, revisão
+  independente sem bloqueantes, acabamento em `cc6971e`. O lote anterior, L4, fechou os
   achados A3, A4 e A6. A avaliação de reparo integralmente viável passou a competir
   pelo incumbente, a partícula reparada deixou de pagar uma segunda unidade de
   orçamento pela mesma solução, e o recuo silencioso da projeção do enxame virou
@@ -29,12 +35,12 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** despachar o lote **L5**, que é o pacote B11 sozinho,
+- **Próxima ação atômica:** despachar o lote **L6**, que é B19 e B20, nessa ordem,
   pelo agrupamento em dez lotes descrito em
-  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`. Como o B9, ele regrava a
-  linha de base da conferência, que é o oráculo, e por isso exige árvore isolada se
-  qualquer outra coisa estiver em execução, e a regravação só pode vir depois de
-  provada a contenção do efeito.
+  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`. Os dois preveem diferença
+  nula na conferência e nenhum regrava a linha de base. É também o lote em que as
+  observações sem destino alocado deixadas pelos dois lotes anteriores sobre a réplica
+  em placa gráfica podem ser recolhidas, o que depende de decisão do usuário.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
   manifesto de congelamento está divergente de propósito, em dez arquivos
   protegidos, e não deve ser renovado antes do fechamento da auditoria.
