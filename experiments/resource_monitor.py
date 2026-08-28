@@ -20,6 +20,13 @@ GIB = 1024 ** 3
 # uma sessão real, e a série acumulada continua no arquivo apenas como histórico.
 LEGACY_SESSION = "legado"
 TEXT_FIELDS = ("session_id", "sampled_at")
+# As únicas colunas numéricas que o esquema admite vazias. Elas nasceram depois
+# das demais e faltam nas linhas herdadas de sessões anteriores, que o monitor
+# regrava com `restval`. Célula vazia em qualquer outra coluna é CSV corrompido e
+# precisa ser recusada na leitura: tolerá-la em toda coluna adia o erro para
+# dentro de `summarize_samples`, como `TypeError`, ou para o Parquet, como coluna
+# de tipo objeto.
+OPTIONAL_NUMERIC_FIELDS = ("optimizer_thread_ticks_total", "optimizer_thread_count")
 
 
 def _session_of(row: dict[str, Any]) -> str:
@@ -176,7 +183,12 @@ def summarize_samples(samples: Iterable[dict[str, Any]], *, workers: int) -> dic
         "no_persistent_optimizers": remaining_optimizers == 0,
     }
     return {
-        "schema_version": 1,
+        # Versão 2: `samples` deixou de contar o arquivo e passou a contar a
+        # sessão, e o resumo ganhou `session_id`, `samples_total` e
+        # `samples_session`. O artefato versionado do piloto ainda está na versão
+        # 1, com a semântica antiga de `samples` e sem os três campos; o número
+        # existe para que os dois não sejam comparados em silêncio.
+        "schema_version": 2,
         "workers": workers,
         "session_id": session_id,
         "samples": len(current),
@@ -340,6 +352,11 @@ def read_samples(path: Path) -> list[dict[str, Any]]:
                 if key in TEXT_FIELDS:
                     row[key] = value
                 elif value is None or value == "":
+                    if key not in OPTIONAL_NUMERIC_FIELDS:
+                        raise ConfigurationError(
+                            "amostra de recursos com célula vazia na coluna "
+                            f"obrigatória {key} em {path}"
+                        )
                     # Coluna nova ausente numa linha herdada de sessão anterior.
                     row[key] = None
                 else:

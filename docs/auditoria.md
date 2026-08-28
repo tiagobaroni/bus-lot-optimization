@@ -1358,6 +1358,39 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   três pulos e os três motivos visíveis no sumário; com a mesma remoção e a
   variável declarada, devolve `410 passed, 3 skipped`; com o pacote-fonte
   presente, `413 passed`, com os três testes efetivamente executados.
+  **Delimitação do alcance, corrigida depois da revisão do lote L2.** O que este
+  pacote entrega é **independência do pacote-fonte `_temp/`**, com a perda de
+  cobertura declarada e o guardião provado. Ele **não** torna a suíte executável
+  em clone limpo, e o registro anterior deixava essa inferência disponível ao
+  leitor. Medido pela revisão em `git worktree` limpo de `b9d22c7`, com
+  `BUS_LOT_SEM_PACOTE_FONTE=1`: `2 failed, 409 passed, 3 skipped`. O número de
+  aprovados acompanha o tamanho da suíte e envelhece; o que não muda são as duas
+  falhas e a causa delas. As duas falhas são
+  `tests/test_benchmark_freeze.py::test_revalidation_rejects_altered_objective_function`
+  e `tests/test_benchmark_freeze.py::test_revalidation_rejects_verdict_with_foreign_commit`.
+  A causa é uma segunda dependência ignorada pelo Git, de outra família:
+  `.gitignore:21` ignora `results/raw/`, `git ls-files results/raw` devolve zero
+  arquivo, e os 18 documentos do piloto que `_load_official_documents` lê **não
+  são versionados**. As duas falhas são anteriores a este lote, reproduzidas em
+  `git worktree` de `d5fba97`, e não são regressão do pacote.
+  **Consequência: o critério de saída do B13, que exige clone limpo rodando a
+  suíte integral, continua não desbloqueado.**
+  **Pendência aberta, deliberadamente não corrigida:** a versionação de
+  `results/raw/pilot/` não é achado catalogado entre os 89, amarra com o pacote
+  B13, que está diferido, e a escolha entre versionar os 18 documentos, derivar
+  um substituto ou restringir os dois testes de revalidação é decisão do usuário.
+  Fica registrada aqui e nada foi alterado a respeito.
+  **Defeito do plano.** A enumeração de saídas parou em duas opções onde havia
+  três, e a primeira opção prescrita pelo adendo, derivar os fixtures do que está
+  versionado, **não era executável dentro deste pacote**: derivar fixture exige
+  criar fixture, e a lista de arquivos declarada admite apenas
+  `tests/test_generate_instances.py` e `tests/conftest.py`, de modo que arquivo
+  novo seria recusa pela regra do próprio pacote. A terceira opção, um
+  pacote-fonte sintético em miniatura e versionado, cobriria
+  `test_generation_is_reproducible`, que usa a fonte bruta como **entrada** e não
+  como oráculo, e reduziria a perda de cobertura de três testes para dois; ela
+  também caía fora da lista. O recuo foi declarado, que é o procedimento correto,
+  mas a lista declarada ficou aquém do que o texto do adendo exige.
 - **Impressão digital:** zero, conforme previsto. Nada fora de `tests/` foi
   tocado, e o controle barato prescrito, `compare --workers 16` restrito a três
   cenários `greedy:*`, um por instância, devolveu "impressão digital idêntica"
@@ -3205,7 +3238,7 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   `os.replace` em `_atomic_parquet`.
 - **Onda:** B.
 - **Situação:** fechado com correção de código e dois testes novos, no commit do
-  pacote B14. `_atomic_parquet` passou a chamar `_fsync_directory(path.parent)`
+  pacote B14. `_atomic_parquet` passou a chamar `fsync_directory(path.parent)`
   logo depois do `os.replace`, reusando a rotina de `experiments/storage.py` em
   vez de duplicá-la, e o descritor de sincronização do arquivo passou a ser
   aberto em `rb+`, porque sincronizar sobre descritor somente leitura funciona no
@@ -3215,6 +3248,15 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   **Evidência:** sem a correção a sequência observada era `[False]` numa escrita
   e `[False, False]` em duas escritas sucessivas; com a correção passou a
   `[False, True]` e `[False, True, False, True]`.
+  **Duas observações da revisão do lote L2, uma corrigida e uma registrada.** A
+  rotina reusada atravessava a fronteira de módulo com nome privado,
+  `_fsync_directory`, o que é contrato por acidente; foi promovida a nome público,
+  `fsync_directory`, nos dois arquivos. E ela **engole `OSError` em silêncio**, de
+  modo que a durabilidade acrescentada é melhor esforço e falha de sincronização
+  não vira recusa; o teste, que instrumenta `os.fsync`, não consegue ver essa
+  diferença. É comportamento pré-existente e herdado, não introduzido pelo
+  pacote, e corrigi-lo é mudança de comportamento que precisa de decisão própria:
+  fica registrado aqui e não foi alterado.
 - **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
   42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
   do pacote. A correção vive em `experiments/`, fora do caminho dos 42 cenários.
@@ -3454,12 +3496,48 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   depois da escrita, o registro herdado volta a devolver `{"1"}` em qualquer
   ambiente, que é exatamente a cegueira do achado. A observação devolveu
   `threads_with_ticks` igual a 1 e `arrow_cpu_count` igual a 1.
-  **Resíduo declarado:** os dois registros novos do worker não chegam ao
-  documento publicado, porque `_publish_success` copia do worker apenas
-  `thread_limits`, e `experiments/execution.py` não pertence à lista deste
-  pacote. O campo `inherited_thread_limits` chega ao documento pelo lado da
-  proveniência do orquestrador, que é onde ele documenta a configuração recebida
-  pela campanha.
+  **Resíduo levantado pela revisão do lote L2 e corrigido na rodada de
+  correções.** A contagem observada era calculada a cada cenário e **descartada**:
+  `_publish_success` copiava do worker apenas `thread_limits`, isto é justamente
+  o campo que este achado acusa de tautológico, e o registro publicado tinha duas
+  partes onde o enunciado da garantia exige três. `experiments/execution.py`
+  passou a copiar `observed_threads` para a proveniência combinada, e o documento
+  de cada cenário carrega agora as três partes: o valor declarado, o valor
+  herdado capturado pelo orquestrador antes da escrita das sete variáveis, e a
+  contagem observada depois da otimização.
+  **O `inherited_thread_limits` do worker continua fora, de propósito.** Os
+  workers nascem por `spawn` e herdam o `os.environ` do orquestrador, que já
+  escreveu as sete em `1` ao importar `experiments`; medido, esse campo vale
+  sempre `{"1"}` em campanha real e não documenta configuração alguma. Publicá-lo
+  por simetria reinstauraria a cegueira do achado numa forma nova. Quem documenta
+  o ambiente de disparo é a captura do lado do orquestrador, que já chega ao
+  documento.
+  **`observed_threads` não entra na comparação de ambiente do congelamento, e a
+  decisão é escrita e não implícita.** `benchmark_freeze._environment` compara a
+  proveniência do processo **orquestrador**, devolvida por `capture_provenance`,
+  onde o campo não existe; e o seu conteúdo é medição do processo, que varia de
+  uma execução para outra por causa de threads auxiliares do alocador e do Arrow.
+  Compará-lo converteria ruído de ambiente em recusa do manifesto congelado. O
+  contraditório da contagem observada é feito por cenário, no documento de
+  resultado, e pelo monitor de recursos.
+  **Separação das duas asserções da validação do piloto, que o registro anterior
+  listava no mesmo fôlego.** A que fecha a parte observável deste achado é
+  `max_active_optimizer_threads` menor ou igual a um: vem do monitor por `/proc`,
+  é medição, e pode falhar. A outra, `set(inherited) == set(THREAD_VARIABLES)`,
+  não podia falhar, porque `THREAD_VARIABLES` é a mesma tupla sobre a qual
+  `capture_provenance` monta o dicionário, e o `if ... is not None` fazia a
+  ausência do campo não verificar nada; foi removida, com o motivo no lugar dela.
+  **Pendência, com a medição que a sustenta:** a versão útil dessa asserção, a
+  exigência **incondicional** de presença do campo, ainda não é aplicável. Os 18
+  documentos oficiais do piloto foram produzidos antes de o campo existir e não o
+  têm, e `_validate_result` é reexecutado sobre eles por
+  `benchmark_freeze._revalidate_pilot_behaviour`; medido, torná-la incondicional
+  hoje reprova `test_revalidation_rejects_altered_objective_function`. Ela passa a
+  ser aplicável depois da regeração do piloto na Tarefa 19B.
+  **Evidência da correção:** teste novo em `tests/test_experiment_execution.py`,
+  que lê o documento publicado e exige `threads_with_ticks` maior ou igual a um e
+  menor ou igual a `threads_total`, mais os dois contadores do Arrow em um; sem a
+  cópia em `_publish_success` ele levanta `KeyError: 'observed_threads'`.
 - **Impressão digital:** zero, conforme previsto e conforme a distinção que o
   próprio registro já antecipava. `compare --workers 16` sobre os 42 cenários
   devolveu "impressão digital idêntica" com saída 0, antes e depois do pacote. A
@@ -3521,6 +3599,21 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   herdado em `8`; sem o bloco, o mesmo subprocesso observa `8`. Medição
   independente confirmou o mecanismo do achado: fora do ponto de entrada, o
   processo GPU chega a 36 threads.
+  **Correção depois da revisão do lote L2.** Dos dois testes novos, um era
+  inteiramente sem poder discriminante, padrão `F2-02`, dentro do pacote cujo
+  tema é registro que não pode falhar: comparava as chaves de
+  `thread_limits` com a mesma tupla sobre a qual a compreensão que o constrói
+  itera, exigia `threads_total` não nulo, o que é incondicional em Linux, e
+  comparava duas contagens incrementadas no mesmo laço. As quatro asserções foram
+  trocadas por duas que podem falhar, no mesmo teste e sem mudar a contagem da
+  suíte: que `thread_limits` reflita o valor **vivo** da variável no instante da
+  inspeção, o que separa leitura do ambiente de captura congelada na importação,
+  e que a contagem de threads com tempo de CPU acumulado seja de ao menos uma.
+  **Evidência por mutação:** congelar `thread_limits` em `"1"` reprova a primeira;
+  fazer o laço de `/proc/self/task` não reconhecer tempo de CPU acumulado reprova
+  a segunda, com `0 >= 1`. O irmão
+  `test_gpu_entrypoint_fixes_the_seven_variables_before_importing`, que já era
+  discriminante, permanece intacto.
 - **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
   42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
   do pacote. O oráculo é da CPU e não toca `gpu/`. Classe prevista `D3`, classe
@@ -3573,9 +3666,13 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   reproduz as três combinações em subprocesso, asseverando que só
   `ARROW_NUM_THREADS` deixa `pa.cpu_count()` acima de um, que só
   `OMP_NUM_THREADS` o leva a um, e que o ambiente do worker leva `cpu_count` e
-  `io_thread_count` a um. **Redação da restrição global pendente de aprovação:**
-  a emenda ao enunciado em `superpowers/B11B_plan.md` foi proposta ao usuário e
-  não aplicada, porque plano aprovado não é emendado sem aprovação.
+  `io_thread_count` a um. **Redação da restrição global:** a emenda ao enunciado
+  foi aprovada pelo usuário e está em vigor. Ela enuncia que o registro oficial
+  tem três partes, o valor declarado, o valor herdado do processo pai capturado
+  antes da escrita e a contagem observada de threads com tempo de CPU acumulado;
+  esteve suspensa enquanto a terceira parte não chegava a artefato algum, e a
+  suspensão foi levantada quando a publicação de `observed_threads` fechou o
+  resíduo registrado no dossiê de F7-2.
 - **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
   42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
   do pacote. Classe prevista `D2`, classe observada `D2`, sem reclassificação.
@@ -3639,6 +3736,28 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   de memória disponível igual a 1 byte reprovava com `swap_unchanged` falso;
   passou a aprovar, com `swap_consumed_bytes` igual a zero, `samples_total` igual
   a 4 e `samples_session` igual a 2.
+  **Três consequências registradas depois da revisão do lote L2, duas delas
+  corrigidas.** Primeira: a tolerância a célula vazia introduzida em
+  `read_samples` para admitir linha herdada sem as colunas novas havia sido
+  aplicada a **todas** as colunas, e com isso a leitura deixou de recusar CSV
+  corrompido, porque a célula virava `None` e o erro reaparecia tarde, como
+  `TypeError` dentro de `summarize_samples` ou como coluna de tipo objeto no
+  Parquet. A tolerância passou a valer apenas para as colunas que o esquema
+  declara opcionais, `optimizer_thread_ticks_total` e `optimizer_thread_count`,
+  além das duas colunas de texto; célula vazia em qualquer outra coluna é recusa
+  na leitura, com o nome da coluna e o caminho do arquivo na mensagem. Segunda: o
+  campo `samples` mudou de significado, de contagem do arquivo para contagem da
+  sessão, e o resumo ganhou três campos, sob a mesma versão de esquema; o
+  `schema_version` do resumo passou a `2`. Nenhum código lê esses campos hoje,
+  mas `results/tables/pilot_resource_summary.json` é versionado, está na versão
+  `1` com a semântica antiga, e muda de forma na regeneração da Tarefa 20: o
+  número existe para que os dois não sejam comparados em silêncio. Terceira, sem
+  correção e apenas registrada: `benchmark_validation` passou a exigir
+  `session_id` e `samples_session` maior ou igual a um em **todo** resumo de
+  sessão do diário de lote. Não existe hoje resumo operacional de lote na árvore,
+  de modo que nada quebra, mas um lote já executado sob o formato anterior
+  passaria a ser recusado pela barreira, e essa consequência não estava
+  declarada.
 - **Impressão digital:** zero, conforme previsto. `compare --workers 16` sobre os
   42 cenários devolveu "impressão digital idêntica" com saída 0, antes e depois
   do pacote. O monitor não participa do caminho científico do oráculo. Classe
@@ -3744,6 +3863,24 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
   `/proc`. **Evidência:** com dois `tid` novos, um com 7 ticks e outro com zero, a
   contagem de threads ativas era `0` e passou a `1`, com o total de ticks em `7` e
   a contagem de threads em `2`.
+  **Risco de composição registrado depois da revisão do lote L2, sem alteração de
+  limiar.** No mesmo lote, o pacote B15 acrescentou a `validate_pilot` a exigência
+  de `max_active_optimizer_threads` menor ou igual a um, e este pacote mudou como
+  esse número é contado: `tid` novo com ticks acumulados passou a contar como
+  ativo, e `_last_thread_ticks` começa vazio a cada sessão, de modo que na
+  primeira amostra de qualquer sessão **toda** thread é nova. O limiar foi
+  calibrado contra a definição antiga. O efeito hoje é nulo e isso foi medido: o
+  CSV real do piloto carrega valores da semântica antiga,
+  `max_active_optimizer_threads` vale `1` e o resumo continua aprovado. Mas em
+  campanha nova o valor `2` passa a ser alcançável onde antes não era, e a
+  consequência seria reprovar um piloto por artefato de contagem, não por
+  paralelismo real. **Nenhum limiar foi alterado nesta rodada**, deliberadamente:
+  afrouxá-lo sem medida seria trocar um risco por outro.
+  **Consequência operacional para a Tarefa 19B: medir uma sessão real curta, com
+  o monitor na definição nova, antes de disparar a campanha, e só então decidir
+  entre manter o limiar em um, elevá-lo ou descartar a primeira amostra de cada
+  sessão da estatística.** Enquanto isso não for feito, a aprovação do piloto
+  depende de uma calibração que a definição vigente não teve.
 - **Impressão digital:** zero, e a previsão de **não** zero registrada aqui é sobre
   campos de telemetria de artefatos de campanha, que estão fora do alcance do
   oráculo. `compare --workers 16` sobre os 42 cenários devolveu "impressão digital

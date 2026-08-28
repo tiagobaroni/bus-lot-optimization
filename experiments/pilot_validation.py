@@ -21,7 +21,6 @@ from metaheuristica.errors import ConfigurationError
 from experiments.config import CampaignConfig
 from experiments.consolidation import _atomic_parquet
 from experiments.execution import build_plan, execute_campaign
-from experiments.provenance import THREAD_VARIABLES
 from experiments.resource_monitor import read_samples, summarize_samples
 from experiments.scenarios import (
     Scenario, canonical_json, expand_scenarios, file_sha256,
@@ -113,15 +112,20 @@ def _validate_result(config: CampaignConfig, scenario: Scenario, document: dict[
     limits = document["provenance"].get("thread_limits", {})
     # Esta igualdade é registro de declaração, não de comportamento: o worker
     # escreve as sete variáveis e relê as mesmas chaves do mesmo `os.environ`,
-    # no mesmo processo. Ela é mantida porque documenta a intenção, e as duas
-    # verificações abaixo é que podem falhar.
+    # no mesmo processo. Ela é mantida porque documenta a intenção, e quem pode
+    # falhar é a verificação observada dos recursos, em `validate_pilot`:
+    # `max_active_optimizer_threads` menor ou igual a um vem do monitor por
+    # `/proc`, é medição e não declaração, e é ela que fecha a parte observável
+    # do achado F7-2 nesta validação.
     _require(limits and set(limits.values()) == {"1"}, "limites de threads divergentes")
-    inherited = document["provenance"].get("inherited_thread_limits")
-    if inherited is not None:
-        _require(
-            set(inherited) == set(THREAD_VARIABLES),
-            "registro do ambiente herdado incompleto",
-        )
+    # Aqui existia `set(inherited) == set(THREAD_VARIABLES)`, que não podia
+    # falhar: `capture_provenance` monta o dicionário iterando exatamente essa
+    # tupla, e o `if ... is not None` fazia a ausência do campo não verificar
+    # nada. A exigência incondicional de presença, que seria a versão útil da
+    # asserção, ainda não é aplicável: os 18 documentos oficiais do piloto foram
+    # produzidos antes do campo existir e não o têm, e esta mesma função é
+    # reexecutada sobre eles por `benchmark_freeze._revalidate_pilot_behaviour`.
+    # Ela passa a ser aplicável quando o piloto for regerado.
 
 
 def _timing_window_report(

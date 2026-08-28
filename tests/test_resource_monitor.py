@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
+import pytest
+
 from experiments.resource_monitor import ResourceMonitor, read_samples, summarize_samples
+from metaheuristica.errors import ConfigurationError
 
 
 def _sample(**changes):
@@ -155,3 +159,47 @@ def test_a_new_thread_with_accumulated_ticks_counts_as_active(tmp_path: Path) ->
     assert sample["max_active_threads_per_optimizer"] == 1
     assert sample["optimizer_thread_ticks_total"] == 7
     assert sample["optimizer_thread_count"] == 2
+
+
+def _write_csv(path: Path, fieldnames: list[str], row: dict) -> None:
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fieldnames, restval="")
+        writer.writeheader()
+        writer.writerow(row)
+
+
+def test_reading_refuses_an_empty_cell_in_a_required_column(tmp_path: Path) -> None:
+    """A tolerância a célula vazia vale só para as colunas opcionais.
+
+    Aplicada a todas as colunas, ela fazia `read_samples` deixar de recusar CSV
+    corrompido: a célula virava `None` e o erro reaparecia tarde, como
+    `TypeError` dentro de `summarize_samples` ou como coluna de tipo objeto no
+    Parquet.
+    """
+
+    path = tmp_path / "resources.csv"
+    row = dict(_sample())
+    row["rss_bytes"] = ""
+    _write_csv(path, list(_sample()), row)
+    with pytest.raises(ConfigurationError, match="rss_bytes"):
+        read_samples(path)
+
+
+def test_reading_tolerates_the_new_columns_absent_from_an_inherited_row(
+    tmp_path: Path,
+) -> None:
+    """Linha de sessão anterior, regravada com as colunas novas vazias."""
+
+    path = tmp_path / "resources.csv"
+    fieldnames = [
+        *_sample(), "session_id", "sampled_at",
+        "optimizer_thread_ticks_total", "optimizer_thread_count",
+    ]
+    _write_csv(path, fieldnames, dict(_sample()))
+    rows = read_samples(path)
+    assert rows[0]["optimizer_thread_ticks_total"] is None
+    assert rows[0]["optimizer_thread_count"] is None
+    assert rows[0]["rss_bytes"] == 1_000
+    summary = summarize_samples(rows, workers=16)
+    assert summary["session_id"] == "legado"
+    assert summary["schema_version"] == 2

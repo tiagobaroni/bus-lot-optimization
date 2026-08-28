@@ -284,3 +284,35 @@ def test_skipped_counts_the_selected_scope_and_not_the_whole_campaign(
     assert second.skipped == 3
     assert build_plan(config).completed == 5
     assert build_plan(config, selected_scenarios=scope).skipped == 3
+
+
+def test_published_document_carries_the_observed_thread_count(tmp_path: Path) -> None:
+    """F7-2: a parte observada do registro tem de chegar ao documento.
+
+    `observed_threads` era medido pelo worker a cada cenário e descartado:
+    `_publish_success` copiava do worker apenas `thread_limits`, que é releitura
+    do que o próprio processo acabou de escrever e por isso não pode divergir.
+    Sem a cópia, a chave não existe na proveniência publicada e o acesso abaixo
+    levanta `KeyError`.
+    """
+
+    config = _campaign(tmp_path)
+    execute_campaign(config, allow_unversioned=True)
+    scenario = expand_scenarios(config)[0]
+    document = json.loads(
+        artifact_paths(tmp_path / "out", "pilot", scenario).result.read_text(
+            encoding="utf-8"
+        )
+    )
+    provenance = document["provenance"]
+    observed = provenance["observed_threads"]
+    assert observed["threads_with_ticks"] >= 1
+    assert observed["threads_with_ticks"] <= observed["threads_total"]
+    assert observed["arrow_cpu_count"] == 1
+    assert observed["arrow_io_thread_count"] == 1
+    # As outras duas partes continuam no documento e vêm de onde devem: o
+    # declarado, do worker, e o herdado, da captura do orquestrador feita antes
+    # da escrita das sete variáveis. O herdado **do worker** não é publicado,
+    # porque sob `spawn` ele vale sempre `{"1"}` e não documenta configuração.
+    assert set(provenance["thread_limits"].values()) == {"1"}
+    assert "inherited_thread_limits" in provenance

@@ -35,15 +35,27 @@ def test_real_gpu_environment_supports_float64_cuda12() -> None:
     assert environment.float64_kernel_passed is True
 
 
-def test_environment_records_the_thread_variables_and_the_observed_threads() -> None:
+def test_environment_reads_the_live_variables_and_measures_the_process(
+    monkeypatch,
+) -> None:
+    """F7-2: o registro do ambiente tem de poder divergir do enunciado.
+
+    As asserções anteriores não podiam falhar: comparavam as chaves do
+    dicionário com a mesma tupla sobre a qual a compreensão que o constrói itera,
+    e comparavam duas contagens incrementadas no mesmo laço. As duas abaixo podem
+    falhar. A primeira separa leitura no instante da inspeção de captura
+    congelada na importação, que é justamente a forma pela qual este registro
+    voltaria a ser cego ao ambiente real. A segunda é medição: uma leitura errada
+    dos campos de `/proc/self/task/*/stat` devolve zero thread com tempo de CPU
+    acumulado, e nenhum processo vivo tem zero.
+    """
+
+    monkeypatch.setenv("OMP_NUM_THREADS", "3")
     environment = inspect_gpu_environment()
     assert set(environment.thread_limits) == set(THREAD_LIMIT_VARIABLES)
-    assert environment.observed_threads["threads_total"] is not None
-    assert (
-        environment.observed_threads["threads_with_ticks"]
-        <= environment.observed_threads["threads_total"]
-    )
-    assert observed_thread_state()["threads_total"] >= 1
+    assert environment.thread_limits["OMP_NUM_THREADS"] == "3"
+    assert environment.observed_threads["threads_with_ticks"] >= 1
+    assert observed_thread_state()["threads_with_ticks"] >= 1
 
 
 def test_gpu_entrypoint_fixes_the_seven_variables_before_importing() -> None:

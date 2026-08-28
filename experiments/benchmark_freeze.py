@@ -66,6 +66,21 @@ def _hash_files(root: Path, paths: tuple[str, ...]) -> dict[str, str]:
 
 
 def _environment(provenance: dict[str, Any]) -> dict[str, Any]:
+    """Campos de proveniência que o congelamento compara entre execuções.
+
+    `observed_threads` **não** entra nesta lista, e a decisão é deliberada. A
+    origem é estrutural: o argumento é a proveniência do processo orquestrador,
+    devolvida por `capture_provenance`, e a contagem observada é medição de cada
+    worker, publicada por cenário em `execution._publish_success`; ela não existe
+    neste dicionário e a indexação direta abaixo levantaria `KeyError`. O motivo
+    de fundo é o mesmo: contagem de threads é medição do processo, varia de uma
+    execução para outra por causa de threads auxiliares do alocador e do Arrow, e
+    compará-la converteria ruído de ambiente em recusa do manifesto congelado. O
+    que o congelamento compara é o ambiente **declarado**; o contraditório da
+    contagem observada é feito por cenário, no documento de resultado, e pelo
+    monitor de recursos.
+    """
+
     return {
         key: provenance[key]
         for key in (

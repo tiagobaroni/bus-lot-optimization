@@ -100,7 +100,17 @@ def read_json(path: Path) -> Any:
         raise ConfigurationError(f"JSON inválido em {path}") from error
 
 
-def _fsync_directory(path: Path) -> None:
+def fsync_directory(path: Path) -> None:
+    """Sincroniza a entrada de diretório depois de uma substituição atômica.
+
+    Nome público porque `experiments/consolidation.py` o usa: nome privado
+    atravessando módulo é contrato por acidente. A ausência de tratamento do
+    `OSError` abaixo é pré-existente e herdada, e por isso a durabilidade é
+    melhor esforço: a falha de sincronização não vira recusa. Corrigir isso é
+    mudança de comportamento fora do escopo desta rodada, e está registrada no
+    dossiê do achado F6-10.
+    """
+
     try:
         descriptor = os.open(path, os.O_RDONLY)
     except OSError:
@@ -127,7 +137,7 @@ def atomic_write_json(path: Path, document: dict[str, Any]) -> None:
         read_json(temporary)
         os.replace(temporary, path)
         temporary = None
-        _fsync_directory(path.parent)
+        fsync_directory(path.parent)
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)

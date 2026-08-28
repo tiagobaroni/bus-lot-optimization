@@ -17,7 +17,7 @@ from experiments.config import CampaignConfig
 from experiments.provenance import capture_provenance, utc_now
 from experiments.scenarios import canonical_json, expand_scenarios, file_sha256
 from experiments.storage import (
-    _fsync_directory, artifact_paths, read_json, validate_document,
+    fsync_directory, artifact_paths, read_json, validate_document,
 )
 
 
@@ -42,7 +42,7 @@ def _atomic_parquet(path: Path, frame: pd.DataFrame) -> None:
         # Sem sincronizar o diretório, a entrada trocada pode não sobreviver a
         # uma queda de energia mesmo com o conteúdo já em disco, que é a mesma
         # garantia que `atomic_write_json` já dava e esta escrita não dava.
-        _fsync_directory(path.parent)
+        fsync_directory(path.parent)
     finally:
         temporary.unlink(missing_ok=True)
 

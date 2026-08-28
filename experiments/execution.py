@@ -121,6 +121,18 @@ def _publish_success(
 ) -> None:
     combined_provenance = dict(provenance)
     combined_provenance["thread_limits"] = worker_output["thread_limits"]
+    # A contagem observada é a única parte do registro de threads que pode
+    # divergir: `thread_limits` é releitura do que o próprio worker escreveu.
+    # Sem esta linha ela era calculada a cada cenário e descartada, e o
+    # documento publicado ficava com o campo cego e sem o contraditório.
+    combined_provenance["observed_threads"] = worker_output["observed_threads"]
+    # O `inherited_thread_limits` do worker **não** é publicado de propósito. Os
+    # workers nascem por `spawn` e herdam o `os.environ` do orquestrador, que já
+    # escreveu as sete variáveis em `1` ao importar `experiments`; medido, esse
+    # campo vale sempre `{"1"}` em campanha real e documentaria configuração
+    # nenhuma. Quem documenta o ambiente de disparo é a captura do lado do
+    # orquestrador, em `provenance.capture_provenance`, que já vem em
+    # `provenance` e chega ao documento por este mesmo dicionário.
     if config.frozen_parameters_sha256 is not None:
         combined_provenance["frozen_parameters_sha256"] = (
             config.frozen_parameters_sha256
