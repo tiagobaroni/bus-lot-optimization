@@ -9,9 +9,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 27/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Nove dos 29 pacotes fechados** com
-  revisão independente: A1, B1, B2, B3, B4, B5, B6, e o lote L1 com B7, B8 e B12.
-  Restam 20, que são B9 a B11, B13 a B21 e C1 a C7.
+- **Fase do bloco ativo:** Fase 2, correção. **Treze dos 29 pacotes fechados** com
+  revisão independente: A1, B1, B2, B3, B4, B5, B6, o lote L1 com B7, B8 e B12, e o
+  lote L2 com B14, B15, B16 e B18. Restam 16, que são B9, B10, B11, B13, B17, B19,
+  B20, B21 e C1 a C7. O **B13 está diferido** para imediatamente antes da Tarefa
+  19B, porque altera o `scenario_id` que nomeia os artefatos de campanha.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
@@ -23,17 +25,20 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   `f22372b`.
 - **Próxima ação atômica:** despachar o lote **L3**, que é o pacote B17 sozinho,
   pelo agrupamento em dez lotes descrito em
-  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`. Ele vem logo depois do
-  L1 por colidir com o B8 em `experiments/analyze_tuning.py`.
+  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
   manifesto de congelamento está divergente de propósito, em dez arquivos
   protegidos, e não deve ser renovado antes do fechamento da auditoria.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** no commit `c5104e9`, impressão digital idêntica, suíte de
-  CPU com 400 aprovados e suíte de GPU com 25 aprovados sobre dispositivo real. A
+- **Última verificação:** no commit `50dbbb6`, impressão digital idêntica, suíte de
+  CPU com 417 aprovados e suíte de GPU com 27 aprovados sobre dispositivo real. A
   linha de base foi regravada pelo B6 e não é tocada desde então, logo a identidade
   é medida contra a linha nova.
+- **Limite conhecido da suíte:** um clone limpo **não** roda a suíte integral. Duas
+  reprovações em `tests/test_benchmark_freeze.py`, porque `results/raw/` é ignorado
+  e os dezoito documentos do piloto não estão no Git. A decisão sobre versioná-los
+  ficou para a Tarefa 20, quando os artefatos já serão os definitivos.
 - **Achado aberto sem pacote alocado:** rodando a suíte de GPU com o diretório de
   trabalho em `gpu/`, cinco testes falham por caminho relativo
   `data/instances/tiny_manual.json` resolvido contra o `cwd`. Passam quando o
