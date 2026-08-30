@@ -1115,8 +1115,8 @@ indisponibilidade de GPU não invalida nem bloqueia o baseline obrigatório.
 - monitorar a cada segundo temperatura, utilização, memória, potência, clocks
   e throttling; interromper com 80 °C por 10 s, throttling térmico ou outro
   processo computacional na GPU;
-- exigir cooldown até 55 °C; interrupção térmica não conta como falha e os logs
-  ficam vinculados ao ID;
+- exigir cooldown até 50 °C, o mesmo limiar do preflight; interrupção térmica
+  não conta como falha e os logs ficam vinculados ao ID;
 - resolução sem instalação confirmou `cupy-cuda12x 14.1.1` com runtime CUDA
   12.9 e compatibilidade de dependências com o NumPy 2.5.2 atual;
 - decisão atual: empacotamento e lock do ambiente GPU.
