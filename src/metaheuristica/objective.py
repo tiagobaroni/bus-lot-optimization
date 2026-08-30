@@ -136,23 +136,10 @@ def _evaluate_total_costs(
     )
 
 
-def _balance_component(values: np.ndarray, labels: np.ndarray, k: int) -> tuple[float, float]:
-    totals = np.bincount(labels, weights=values, minlength=k)
-    return _balance_totals_component(totals)
-
-
 def _cut_fraction(numerator: float, denominator: float) -> float:
     if denominator == 0.0:
         return 0.0
     return numerator / denominator
-
-
-def _cut_component(matrix: np.ndarray, labels: np.ndarray) -> float:
-    row, column = np.triu_indices(len(labels), k=1)
-    weights = matrix[row, column]
-    denominator = float(np.sum(weights))
-    cut = labels[row] != labels[column]
-    return _cut_fraction(float(np.sum(weights[cut])), denominator)
 
 
 def _evaluate_aggregates(

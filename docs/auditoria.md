@@ -713,9 +713,17 @@ depois da soma ponderada.
   `objective.py:115-118`. O risco é uma correção desta própria auditoria ser
   aplicada na função morta e a suíte continuar verde.
 - **Onda:** C.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero, por remoção de código que
-  nunca executa.
+- **Situação:** fechado com a remoção das duas funções, no commit do pacote C1,
+  primeiro pacote da Onda C. A verificação negativa foi refeita imediatamente antes
+  da remoção e sobre **todo** o repositório, e não só sobre `src`, `gpu/src`,
+  `tests` e `experiments`: a busca por `_balance_component` e por `_cut_component`
+  devolveu as duas linhas de definição, nos endereços de hoje `objective.py:139` e
+  `objective.py:150`, mais as linhas de prosa deste registro. Zero chamadores, nas
+  duas. **Passo G.** Classe prevista `M3`; classe observada `M3`; a observação
+  **bate** com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, no conjunto completo dos 42
+  cenários e sem `--only`. O código removido nunca executava. **Passo G.** Diff
+  previsto zero; diff observado zero; a observação **bate** com a previsão.
 
 #### F1-09. O orçamento de avaliações não é uma unidade comparável entre ACO, PSO, Busca Tabu e guloso
 
@@ -1104,8 +1112,25 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
 - **Divergência auditor / verificador:** nenhuma.
 - **Decisão:** corrigir. Teste com lote vazio de rótulo alto.
 - **Onda:** C, isolada.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com um caso de teste novo, no commit do pacote C1, sem
+  alteração de código de produção, porque o comportamento correto já estava
+  implementado. O caso avalia `tiny_manual` com `K=3` e rótulos `[0, 0, 1, 1]`, isto
+  é com o lote de rótulo alto vazio, pelo caminho provisório do reparo, e prende
+  duas coisas: que os dois vetores de totais chegam ao cálculo com **três** posições,
+  `[20, 20, 0]` e `[300, 300, 0]`, conferido por captura do agregador; e que o
+  equilíbrio é calculado sobre as três, com coeficiente de variação `1/raiz(2)` e
+  componente `raiz(2) - 1`. A captura é conferida como não vazia antes de ser lida,
+  para que um caminho que deixasse de passar pelo agregador não faça o caso passar
+  por vácuo. **Passo G.** Classe prevista `M2`; classe observada `M2`; a observação
+  **bate** com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** zero, conforme previsto, no conjunto completo dos 42
+  cenários e sem `--only`. A alteração é restrita a `tests/test_objective.py`.
+  **Passo G.** Diff previsto zero; diff observado zero; a observação **bate** com a
+  previsão. A verificação por mutação foi refeita sobre cópia, com `minlength`
+  removido das duas chamadas: o caso novo reprova e nenhum outro caso se move, o que
+  reproduz a mutação `M35` da evidência e mostra que a lacuna está fechada. Sob a
+  mutação o custo provisório da solução com lote vazio cai a **zero**, isto é ao
+  ótimo documentado da instância, que é a forma concreta do risco descrito acima.
 
 #### F2-09. O uso de um único instantâneo do melhor global por iteração do PSO não é testado
 
@@ -6476,7 +6501,9 @@ disparar o ramo alterado, e nesse caso está contabilizado em 7.1.
 
 Catorze achados, nenhum com efeito em resultado, todos de legibilidade, cobertura
 isolada ou robustez de manutenção. Nenhum toca a impressão digital com diff esperado
-não zero. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
+não zero. **Atualização de 30/08/2026:** a onda foi aberta pelo pacote C1, que fechou
+F1-08 e F2-08 com diff zero no conjunto completo dos 42 cenários; restam doze dos
+catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
 isolados, conforme 7.1, e a Onda C passa a dezessete. Os cinco de `gpu/` (F8-1, F8-4, F8-5, F8-9, F8-12) podem ser feitos em
 paralelo com os demais, porque `gpu/` não é protegido pelo congelamento da B11-E.
 
@@ -6650,7 +6677,7 @@ verificados. São anotações, cada uma ancorada no achado que a originou.
 
 | # | Item | Origem | Classe proposta | Achado-pai |
 |---|---|---|---|---|
-| B1 | A identidade bit a bit de O2 e O4 **depende de ordem C**: em ordem Fortran a redução diverge em 22 de 50 linhas (44%) com `K=8` e 17 de 50 (34%) com `K=12`. Recomendação: incluir `assert matrix.flags['C_CONTIGUOUS']` na implementação real. **Satisfeito pelo pacote B5**, no commit `d297377`: a asserção está na implementação real, em `src/metaheuristica/objective.py:78`, e uma segunda em `:85` cobre a matriz de desvios, sobre a qual corre a segunda redução. `tests/test_aco.py::test_balance_matrix_refuses_memory_that_is_not_c_contiguous` dispara a asserção com uma matriz em ordem Fortran e, no mesmo teste, mede que a redução em ordem Fortran de fato diverge, o que impede que o teste vire ritual. Ressalva registrada pela revisão independente do pacote: as duas são `assert` e somem sob `python -O`, o que hoje é risco latente e não atual, porque não há ocorrência de `-O`, `-OO` ou `PYTHONOPTIMIZE` em `experiments/`, `gpu/`, `configs/` ou `pyproject.toml`; a troca por recusa explícita cabe ao pacote da Onda C que voltar a tocar o arquivo. | verificador da F4 | robustez, sem classe atribuída | F4-1 |
+| B1 | A identidade bit a bit de O2 e O4 **depende de ordem C**: em ordem Fortran a redução diverge em 22 de 50 linhas (44%) com `K=8` e 17 de 50 (34%) com `K=12`. Recomendação: incluir `assert matrix.flags['C_CONTIGUOUS']` na implementação real. **Satisfeito pelo pacote B5**, no commit `d297377`: a asserção está na implementação real, em `src/metaheuristica/objective.py:78`, e uma segunda em `:85` cobre a matriz de desvios, sobre a qual corre a segunda redução. `tests/test_aco.py::test_balance_matrix_refuses_memory_that_is_not_c_contiguous` dispara a asserção com uma matriz em ordem Fortran e, no mesmo teste, mede que a redução em ordem Fortran de fato diverge, o que impede que o teste vire ritual. Ressalva registrada pela revisão independente do pacote: as duas são `assert` e somem sob `python -O`, o que hoje é risco latente e não atual, porque não há ocorrência de `-O`, `-OO` ou `PYTHONOPTIMIZE` em `experiments/`, `gpu/`, `configs/` ou `pyproject.toml`; a troca por recusa explícita cabe ao pacote da Onda C que voltar a tocar o arquivo. **Nota de 30/08/2026:** o pacote C1 voltou ao arquivo, mas apenas para remover as duas funções mortas do F1-08, e a troca das duas `assert` por recusa explícita está fora da lista dele; C1 é o único pacote da Onda C cuja lista inclui `src/metaheuristica/objective.py`, logo a recomendação continua **sem pacote alocado**. | verificador da F4 | robustez, sem classe atribuída | F4-1 |
 | B2 | A identidade bit a bit precisa ser **reestabelecida contra a implementação real** quando a onda materializar O2 e O4 em código versionado, porque as 176.557 linhas e 176 execuções do protótipo original não são re-verificáveis: o protótipo foi escrito fora da árvore e não existe mais. **Satisfeito pelo pacote B5**, no commit `d297377`: `_PartialConstructionState.evaluate_choice` foi preservado intacto como referência normativa (`src/metaheuristica/aco.py:170-199`) e `tests/test_aco.py::test_batched_choice_costs_reproduce_the_reference_bit_by_bit` compara `choice_costs` contra ele por `float.hex()`, em 27 combinações parametrizadas de instância e `K`, percorrendo construções reais e comparando em toda posição não forçada. A identidade passou a ser medida contra a implementação real, e não herdada do protótipo descartado. Lacuna residual, medida pela revisão independente: o ramo de denominador nulo de `_cut_fractions` nunca é percorrido pelas instâncias congeladas, logo a identidade nele é afirmada por leitura; fechada por teste dirigido em `tests/test_objective.py`. | verificador da F4 | limitação de escopo | F4-1 |
 | B3 | `consolidate` descarta `diagnostics.gpu_timing` ao montar `gpu_runs.parquet`, publicando `speedup` sem a fração de dispositivo que o interpreta. Recomendação: publicar campo derivado `device_fraction`. | verificador dedicado dos `D1` da GPU | `M3` | F8-2 |
 | B4 | A metodologia de mutação de `frente-3-report.md` não declara o diretório de trabalho com precisão suficiente para excluir, por si só, o padrão defeituoso de `PYTHONPATH`. Lacuna de reprodutibilidade do relatório, não dos resultados. | verificador da F2 | `L1` | seção 6.2 |

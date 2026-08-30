@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
 
-from metaheuristica import ObjectiveWeights, ProblemInstance, SolutionValidationError
+from metaheuristica import (
+    EvaluationResult,
+    ObjectiveWeights,
+    ProblemInstance,
+    SolutionValidationError,
+)
+from metaheuristica import objective
 from metaheuristica.instances import load_tiny_instance
 from metaheuristica.objective import (
     _cut_fraction,
@@ -80,6 +87,60 @@ def test_public_evaluation_rejects_empty_lot_but_provisional_allows_it() -> None
         instance, [0, 0, 0, 0], k=2, weights=ObjectiveWeights()
     )
     assert np.isfinite(provisional.total_cost)
+
+
+def test_lote_vazio_de_rotulo_alto_mantem_os_totais_com_k_posicoes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """F2-08: o lote vazio de rótulo alto continua ocupando posição nos totais.
+
+    `docs/formulation.md` seção 13.2 exige que o equilíbrio mantenha os `K` lotes
+    nos vetores de totais. Quem garante isso é o `minlength=k` das duas chamadas
+    de `np.bincount` em `_evaluate_arrays`: sem ele o vetor encurta até o maior
+    rótulo presente e o lote vazio some da média e do desvio padrão.
+
+    A configuração escolhida torna a diferença máxima. Com `K=3` e o rótulo 2
+    ausente, os totais são `[20, 20, 0]` e `[300, 300, 0]`, cujo coeficiente de
+    variação populacional é `1/raiz(2)`; truncados para duas posições, os dois
+    ficam perfeitamente equilibrados e o coeficiente cai a zero, o que faria a
+    avaliação provisória do reparo anunciar custo zero, isto é o ótimo
+    documentado, para uma solução que deixa um lote inteiro vazio.
+    """
+
+    instance = load_tiny_instance(INSTANCES_DIR / "tiny_manual.json")
+    capturados: list[tuple[np.ndarray, np.ndarray]] = []
+    original = objective._evaluate_aggregates
+
+    def registrando(**agregados: Any) -> EvaluationResult:
+        capturados.append((agregados["demand_totals"], agregados["production_totals"]))
+        return original(**agregados)
+
+    monkeypatch.setattr(objective, "_evaluate_aggregates", registrando)
+    result = _evaluate_provisional_solution(
+        instance, [0, 0, 1, 1], k=3, weights=ObjectiveWeights()
+    )
+
+    # A captura é conferida antes de ser lida: um caminho que deixasse de passar
+    # por `_evaluate_aggregates` esvaziaria a lista e o caso passaria por vácuo.
+    assert len(capturados) == 1
+    demand_totals, production_totals = capturados[0]
+    assert demand_totals.shape == (3,)
+    assert production_totals.shape == (3,)
+    assert list(demand_totals) == [20.0, 20.0, 0.0]
+    assert list(production_totals) == [300.0, 300.0, 0.0]
+
+    # O equilíbrio é calculado sobre as três posições, e não sobre as duas
+    # ocupadas: com duas o coeficiente de variação seria exatamente zero.
+    esperado_cv = float(np.sqrt(0.5))
+    esperado_componente = float(np.sqrt(2.0) - 1.0)
+    assert result.cv_demand == pytest.approx(esperado_cv, rel=1e-12, abs=1e-12)
+    assert result.cv_production == pytest.approx(esperado_cv, rel=1e-12, abs=1e-12)
+    assert result.c_demand == pytest.approx(esperado_componente, rel=1e-12, abs=1e-12)
+    assert result.c_production == pytest.approx(esperado_componente, rel=1e-12, abs=1e-12)
+    assert result.c_territorial == result.c_affinity == 0.0
+    assert result.total_cost == pytest.approx(
+        0.5 * esperado_componente, rel=1e-12, abs=1e-12
+    )
 
 
 def test_partial_assignment_uses_only_the_induced_subproblem() -> None:
