@@ -11,10 +11,11 @@ from metaheuristica import (
     RepairBudgetExhausted,
     RunConfig,
     evaluate_solution,
+    solution_key,
+    viable_key,
 )
 from metaheuristica.canonical import canonicalize_solution
 from metaheuristica.instances import load_artesp_instance, load_tiny_instance
-from metaheuristica.evaluator import _viable_key
 from metaheuristica.metrics import ConvergenceRecorder
 from metaheuristica.repair import (
     repair_empty_lots,
@@ -23,6 +24,7 @@ from metaheuristica.repair import (
 
 
 TINY = load_tiny_instance(Path(__file__).parents[1] / "data/instances/tiny_manual.json")
+INSTANCES = Path(__file__).parents[1] / "data/instances"
 EVALUATION_FIELDS = (
     "total_cost",
     "c_demand",
@@ -171,10 +173,61 @@ def test_viable_key_separates_complete_states_from_states_with_empty_lots() -> N
     """
 
     instance = unbalanced_instance()
-    assert _viable_key(instance, [1, 0, 0, 0], k=2) == (0, 1, 1, 1)
-    assert _viable_key(instance, [0, 0, 0, 0], k=2) is None
-    assert _viable_key(instance, [0, 1, 2, 0], k=3) == (0, 1, 2, 0)
-    assert _viable_key(instance, [0, 1, 1, 0], k=3) is None
+    assert viable_key(instance, [1, 0, 0, 0], k=2) == (0, 1, 1, 1)
+    assert viable_key(instance, [0, 0, 0, 0], k=2) is None
+    assert viable_key(instance, [0, 1, 2, 0], k=3) == (0, 1, 2, 0)
+    assert viable_key(instance, [0, 1, 1, 0], k=3) is None
+
+
+def test_viable_key_reproduces_the_public_canonical_path_bit_by_bit() -> None:
+    """A remoção da validação redundante não pode mover bit nem ramo.
+
+    `viable_key` canonicalizava por `solution_key`, que revalida o mesmo vetor
+    que `_provisional_labels` acabou de validar. A validação saiu, e a
+    canonicalização passou a ser feita direto pelo corpo de
+    `canonicalize_solution` posterior à validação. Este caso é o oráculo da
+    equivalência: compara a saída contra o **caminho público intacto**, que é a
+    forma que a função tinha antes da mudança, por igualdade de tupla.
+
+    **O fixture precisa discriminar, e a propriedade é asseverada aqui dentro.**
+    A lição do lote L4 é que o fixture de quatro unidades com matrizes zeradas
+    torna a asserção verdadeira e vazia: nele renomear lotes não move bit algum.
+    Este caso usa uma instância real e um estado deliberadamente não canônico, e
+    assevera as duas coisas que o tornam discriminante: que a renomeação de fato
+    permuta os rótulos, e que a permutação de fato move bits da avaliação, isto é
+    que a instância não é degenerada.
+    """
+
+    instance = load_artesp_instance(INSTANCES, 20)
+    k = 5
+    # Estado com os cinco lotes ocupados e rótulos fora da ordem de primeira
+    # ocorrência, para que a renomeação tenha o que fazer.
+    estado = [(3 * index + 4) % k for index in range(instance.n_units)]
+    rotulos = np.array(estado, dtype=np.int64)
+    canonica = canonicalize_solution(rotulos, n_units=instance.n_units, k=k)
+
+    # Primeira propriedade discriminante: a renomeação permuta os rótulos.
+    assert canonica.tolist() != rotulos.tolist()
+
+    # Segunda propriedade discriminante: a permutação move bits da avaliação, o
+    # que prova que a instância não é o caso degenerado do lote L4.
+    bruta = evaluate_solution(instance, rotulos, k=k)
+    renomeada = evaluate_solution(instance, canonica, k=k)
+    assert any(
+        getattr(bruta, campo).hex() != getattr(renomeada, campo).hex()
+        for campo in EVALUATION_FIELDS
+    )
+
+    # O oráculo: a chave é bit a bit a mesma que o caminho público produz.
+    assert viable_key(instance, estado, k=k) == solution_key(
+        estado, n_units=instance.n_units, k=k
+    )
+
+    # E o ramo que `_provisional_labels` existe para permitir continua vivo: o
+    # estado com lote vazio não produz chave, e não levanta.
+    com_lote_vazio = [rotulo if rotulo != k - 1 else 0 for rotulo in estado]
+    assert np.count_nonzero(np.bincount(com_lote_vazio, minlength=k)) == k - 1
+    assert viable_key(instance, com_lote_vazio, k=k) is None
 
 
 def test_repair_returns_the_winning_provisional_evaluation() -> None:

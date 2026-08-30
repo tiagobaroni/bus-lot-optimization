@@ -7,7 +7,11 @@ from typing import Any
 
 import numpy as np
 
-from metaheuristica.canonical import canonicalize_solution, solution_key, validate_k
+from metaheuristica.canonical import (
+    _canonicalize_labels,
+    canonicalize_solution,
+    validate_k,
+)
 from metaheuristica.errors import BudgetExhausted, ConfigurationError
 from metaheuristica.objective import (
     _evaluate_labels,
@@ -23,7 +27,7 @@ EvaluationObserver = Callable[
 ]
 
 
-def _viable_key(
+def viable_key(
     instance: ProblemInstance, solution: Any, *, k: int
 ) -> tuple[int, ...] | None:
     """Chave canônica de um estado de reparo, ou `None` se algum lote está vazio.
@@ -33,12 +37,28 @@ def _viable_key(
     logo esta função não pode delegar a decisão a `validate_solution`, que
     recusa lote vazio com exceção. A ocupação é conferida antes, e só o estado
     integralmente viável produz chave.
+
+    O nome é público porque a função é contrato entre o núcleo e a réplica em
+    placa gráfica desde o pacote A3, e nome privado importado de fora do módulo
+    é contrato sem declaração.
+
+    F1-06: `solution_key` validava esta mesma solução uma segunda vez, sobre o
+    mesmo vetor que `_provisional_labels` acabou de validar. A canonicalização
+    passa a ser feita direto por `_canonicalize_labels`, que é o corpo de
+    `canonicalize_solution` depois da validação. Nenhuma das condições de
+    exceção de `validate_solution` sobrevive à conferência acima: dimensão,
+    forma, `dtype` inteiro não booleano e intervalo `0 <= rótulo < k` são
+    conferidos por `_provisional_labels`, e lote vazio pelo `np.bincount`
+    seguinte. Os rótulos que entram na renomeação são os mesmos `int64` na
+    mesma ordem, logo os bits não mudam. `canonicalize_solution` e
+    `solution_key` permanecem intactas como funções públicas.
     """
 
     labels = _provisional_labels(solution, n_units=instance.n_units, k=k)
     if np.count_nonzero(np.bincount(labels, minlength=k)) < k:
         return None
-    return solution_key(labels, n_units=instance.n_units, k=k)
+    canonical = _canonicalize_labels(labels, n_units=instance.n_units)
+    return tuple(int(label) for label in canonical)
 
 
 class FitnessEvaluator:
@@ -160,7 +180,7 @@ class FitnessEvaluator:
         # barata que a incumbente, sem justificativa normativa. O gravador
         # precisa da solução para registrar, então a chave canônica substitui o
         # `None` anterior. Estado com lote vazio continua inelegível e sem chave.
-        key = _viable_key(self._instance, solution, k=self._k)
+        key = viable_key(self._instance, solution, k=self._k)
         if key is None:
             result = _evaluate_provisional_solution(
                 self._instance,

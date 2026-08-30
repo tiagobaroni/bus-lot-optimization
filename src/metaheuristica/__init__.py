@@ -13,7 +13,7 @@ from metaheuristica.errors import (
     RepairBudgetExhausted,
     SolutionValidationError,
 )
-from metaheuristica.evaluator import FitnessEvaluator
+from metaheuristica.evaluator import FitnessEvaluator, viable_key
 from metaheuristica.instances import load_artesp_instance, load_tiny_instance
 from metaheuristica.greedy import GreedyResult, GreedyTraceStep, run_greedy
 from metaheuristica.metrics import (
@@ -62,6 +62,7 @@ __all__ = [
     "TabuConfig",
     "TabuMove",
     "validate_solution",
+    "viable_key",
     "checkpoint_thresholds",
     "execute_optimizer",
 ]

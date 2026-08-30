@@ -564,6 +564,34 @@ depois da soma ponderada.
   `evaluator.py`, essa sim, **é** observável, porque muda a forma do argumento que chega
   a `_evaluate_labels` de tupla para vetor, e está coberta pela suíte inteira e pelo diff
   zero nos 42 cenários.
+  **O mesmo padrão aplicado a `viable_key`, em 30/08/2026.** O lote L5 observou que
+  `evaluator.viable_key` repetia o padrão que este achado removeu de
+  `FitnessEvaluator.evaluate`: ela chamava `solution_key`, que revalida por
+  `validate_solution` o mesmo vetor que `_provisional_labels` acabou de validar, e
+  canonicaliza uma vez. A observação foi recolhida ao commit decorrente do pacote
+  B20. A correção segue este achado literalmente: o corpo de `canonicalize_solution`
+  posterior à validação foi extraído como `_canonicalize_labels`, em
+  `src/metaheuristica/canonical.py`, e `viable_key` passa a chamá-lo com o vetor já
+  validado. `canonicalize_solution` e `solution_key` **permanecem intactas** como
+  funções públicas, exatamente como `evaluate_solution` permaneceu aqui.
+  **A bit-neutralidade é a mesma, e foi conferida antes por leitura e depois por
+  medição.** Nenhuma condição de exceção de `validate_solution` sobrevive à
+  conferência anterior: dimensão, forma, `dtype` inteiro não booleano e intervalo
+  `0 <= rótulo < k` são conferidos por `_provisional_labels`, e lote vazio pelo
+  `np.bincount` seguinte, sobre o mesmo vetor. O orçamento também não pode se mover,
+  porque `evaluate_provisional_for_repair` chama `_consume` **antes** de
+  `viable_key`, incondicionalmente. A conferência da impressão digital no conjunto
+  completo dos 42 cenários deu **idêntica**.
+  **O caso de teste novo**, `tests/test_repair.py::`
+  `test_viable_key_reproduces_the_public_canonical_path_bit_by_bit`, compara a saída
+  contra o caminho público intacto por igualdade de tupla, sobre `artesp_rmsp_20`
+  com `K=5` e um estado deliberadamente não canônico, e **assevera dentro de si** as
+  duas propriedades que o tornam discriminante: que a renomeação permuta os rótulos,
+  e que a permutação move bits da avaliação, isto é que a instância não é o caso
+  degenerado de quatro unidades com matrizes zeradas que o lote L4 mostrou ser
+  verdadeiro por vácuo. Assevera também que o estado com lote vazio continua
+  devolvendo `None`, que é o ramo que `_provisional_labels` existe para permitir. É
+  o único caso que move a suíte de CPU neste lote, de 445 para 446.
   **Passo G.** Classe prevista `M1`; classe observada `M1`; a observação **bate** com a
   previsão. Sem reclassificação, e o Passo H não se aplica. A lacuna de teste registrada
   pela revisão independente do pacote está fechada.
@@ -1641,6 +1669,13 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   próprio commit do pacote, em vez de migrar para outro. Os dois arquivos passam a
   usar o mesmo `_viable_key` do núcleo, em vez de reescrever a regra de viabilidade,
   para que os dois lados não divirjam em silêncio.
+  **O nome virou público em 30/08/2026.** O lote L5 observou que um nome privado
+  importado de fora do módulo é contrato sem declaração: `_viable_key` era importada
+  por `gpu/src/metaheuristica_gpu/evaluator.py` e por `tests/test_repair.py` sem
+  constar de `src/metaheuristica/__init__.py`. A observação foi recolhida ao commit
+  decorrente do pacote B20, e a função passa a chamar-se **`viable_key`**, exportada
+  em `__init__.py` e no `__all__`. Os três consumidores foram atualizados, e a busca
+  confirma que nenhum consumidor do nome antigo sobreviveu.
   **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação **bate**
   com a previsão. Sem reclassificação, e o Passo H não se aplica.
 - **Impressão digital:** diff **não zero**, **conforme previsto** e confinado ao

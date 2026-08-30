@@ -49,14 +49,18 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** despachar a **segunda parte do lote L6**, que é o pacote
-  **B20**, o caminho normativo das réplicas em placa gráfica, com os achados F8-10 e
-  F8-14. Ela recolhe as observações sem destino alocado deixadas pelos lotes L4 e L5,
-  cuja alocação ao B20 já foi decidida, e é a única parte do lote que move a suíte de
-  CPU, porque a última delas vive no núcleo e não na réplica. O lote prevê diferença
-  nula na conferência e não regrava a linha de base. O portão precisa ser reescrito em
-  alvos por commit antes do despacho, porque portão escrito para o lote inteiro não é
-  conferível por um despacho parcial.
+- **Próxima ação atômica:** rever de forma independente a **segunda parte do lote
+  L6**, que está executada. O pacote **B20**, o caminho normativo das réplicas em
+  placa gráfica, fechou os achados F8-10 e F8-14, e o commit decorrente fechou as
+  duas últimas observações que os lotes L4 e L5 haviam deixado sem destino alocado.
+  Nenhuma das sete observações do lote sobrevive sem destino. A conferência da
+  impressão digital depois do commit decorrente deu **idêntica**, e a linha de base
+  não foi regravada. A suíte de CPU foi de 445 para 446, pelo único caso novo que
+  vive no núcleo, e a da réplica de 53 para 69 nas duas invocações. A revisão precisa
+  olhar em particular a consequência de medição registrada na conexão 13: as
+  validações do caminho normativo custam tempo dentro da região cronometrada, o tempo
+  oficial da réplica subiu 3,8% no ACO e 22% no PSO, e os três números de aceleração
+  publicados precisam ser rederivados da campanha regenerada.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
   manifesto de congelamento está divergente de propósito, em dez arquivos
   protegidos, e não deve ser renovado antes do fechamento da auditoria.

@@ -10,10 +10,9 @@ import numpy as np
 
 from metaheuristica import (
     ConvergenceCheckpoint, EvaluationResult, ObjectiveWeights, ProblemInstance,
-    RunConfig, evaluate_solution, solution_key, validate_solution,
+    RunConfig, evaluate_solution, solution_key, validate_solution, viable_key,
 )
 from metaheuristica.errors import BudgetExhausted, EvaluationLimitReached
-from metaheuristica.evaluator import _viable_key
 from metaheuristica.metrics import ConvergenceRecorder
 
 from metaheuristica_gpu.numerics import verify_batch
@@ -116,14 +115,14 @@ class HybridEvaluator:
             self.guard()
         if self.remaining <= 0:
             raise BudgetExhausted("orçamento híbrido esgotado durante reparo")
-        # A3 e A4, espelho da CPU. `_viable_key` é importada do núcleo em vez de
+        # A3 e A4, espelho da CPU. `viable_key` é importada do núcleo em vez de
         # reescrita aqui: duplicar a regra de viabilidade faria os dois lados
         # divergirem em silêncio, que é o defeito que o espelhamento existe para
         # evitar. O estado viável é avaliado sobre o vetor canônico, pelo mesmo
         # caminho normativo de `evaluate_solution`, para que o par publicado seja
         # autoconsistente; o estado com lote vazio continua sem chave e
         # inelegível.
-        key = _viable_key(self.instance, solution, k=self.k)
+        key = viable_key(self.instance, solution, k=self.k)
         if key is None:
             result = evaluate_provisional_cpu(
                 self.instance, solution, k=self.k, weights=self.weights

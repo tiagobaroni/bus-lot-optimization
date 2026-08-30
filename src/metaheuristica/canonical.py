@@ -49,20 +49,33 @@ def validate_solution(solution: Any, *, n_units: int, k: int) -> IntArray:
     return _immutable_int_array(validated)
 
 
-def canonicalize_solution(solution: Any, *, n_units: int, k: int) -> IntArray:
-    """Valida e renomeia lotes pela ordem da primeira ocorrência."""
+def _canonicalize_labels(labels: IntArray, *, n_units: int) -> IntArray:
+    """Renomeia lotes pela ordem da primeira ocorrência, sem revalidar.
 
-    validated = validate_solution(solution, n_units=n_units, k=k)
+    F1-06, padrão do pacote B6: este é o corpo de `canonicalize_solution`
+    **depois** da validação, extraído para que um chamador que já validou os
+    mesmos rótulos não pague a validação uma segunda vez. Os rótulos que entram
+    são os mesmos `int64` na mesma ordem, logo os bits não mudam.
+    `canonicalize_solution` permanece intacta como função pública.
+    """
+
     label_map: dict[int, int] = {}
     canonical = np.empty(n_units, dtype=np.int64)
     next_label = 0
-    for index, label_value in enumerate(validated):
+    for index, label_value in enumerate(labels):
         label = int(label_value)
         if label not in label_map:
             label_map[label] = next_label
             next_label += 1
         canonical[index] = label_map[label]
     return _immutable_int_array(canonical)
+
+
+def canonicalize_solution(solution: Any, *, n_units: int, k: int) -> IntArray:
+    """Valida e renomeia lotes pela ordem da primeira ocorrência."""
+
+    validated = validate_solution(solution, n_units=n_units, k=k)
+    return _canonicalize_labels(validated, n_units=n_units)
 
 
 def solution_key(solution: Sequence[int] | IntArray, *, n_units: int, k: int) -> tuple[int, ...]:
