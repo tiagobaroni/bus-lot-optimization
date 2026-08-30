@@ -10,7 +10,8 @@ import numpy as np
 
 from metaheuristica import (
     ConvergenceCheckpoint, EvaluationResult, ObjectiveWeights, ProblemInstance,
-    RunConfig, evaluate_solution, solution_key, validate_solution, viable_key,
+    RunConfig, evaluate_solution, validate_solution, validated_solution_key,
+    viable_key,
 )
 from metaheuristica.errors import BudgetExhausted, EvaluationLimitReached
 from metaheuristica.metrics import ConvergenceRecorder
@@ -102,9 +103,17 @@ class HybridEvaluator:
             # `FitnessEvaluator.evaluate`. O desempate de quase empate do
             # `ConvergenceRecorder` é lexicográfico sobre essa tupla, logo
             # chave não canônica produziria desempate diferente do da CPU.
+            # F1-06, espelho da CPU: o vetor abaixo vem de `accepted`, isto é já
+            # passou por `validate_solution` nesta mesma chamada. `solution_key`
+            # revalidaria o mesmo vetor por dentro de `canonicalize_solution`, e
+            # a réplica passaria a pagar duas validações por avaliação contra uma
+            # do núcleo. `validated_solution_key` é a metade posterior à
+            # validação, publicada pelo núcleo como nome próprio para que nenhum
+            # nome privado atravesse a fronteira entre os dois pacotes. A chave
+            # produzida é bit a bit a mesma.
             self.recorder.observe(
                 self.evaluations,
-                solution_key(solution, n_units=self.instance.n_units, k=self.k),
+                validated_solution_key(solution, n_units=self.instance.n_units),
                 result,
                 True,
             )

@@ -83,3 +83,25 @@ def solution_key(solution: Sequence[int] | IntArray, *, n_units: int, k: int) ->
 
     canonical = canonicalize_solution(solution, n_units=n_units, k=k)
     return tuple(int(label) for label in canonical)
+
+
+def validated_solution_key(labels: IntArray, *, n_units: int) -> tuple[int, ...]:
+    """Produz a chave canônica a partir de rótulos **já validados**.
+
+    Mesmo padrão de F1-06 que o pacote B6 aplicou ao núcleo, agora publicado como
+    nome próprio. `solution_key` valida e depois renomeia; quem já validou o
+    mesmo vetor na mesma chamada paga a validação duas vezes. Esta função é a
+    metade posterior à validação, e existe para que um chamador de fora deste
+    módulo possa pular a repetição **sem importar nome privado**: atravessar a
+    fronteira de um pacote com `_canonicalize_labels` seria trocar um defeito por
+    outro.
+
+    **A validação é responsabilidade do chamador.** Rótulos que não tenham
+    passado por `validate_solution` produzem chave sem significado, e nenhum erro
+    é levantado aqui. Não há parâmetro `k` porque a renomeação por ordem de
+    primeira ocorrência não o consulta: ele é da validação, que já ocorreu.
+    """
+
+    return tuple(
+        int(label) for label in _canonicalize_labels(labels, n_units=n_units)
+    )

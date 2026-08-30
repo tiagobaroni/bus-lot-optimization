@@ -620,6 +620,24 @@ depois da soma ponderada.
   verdadeiro por vácuo. Assevera também que o estado com lote vazio continua
   devolvendo `None`, que é o ramo que `_provisional_labels` existe para permitir. É
   o único caso que move a suíte de CPU neste lote, de 445 para 446.
+  **O mesmo padrão aplicado à réplica em placa gráfica, em 30/08/2026.** O commit
+  decorrente do lote L7 fechou a terceira ocorrência: `HybridEvaluator.evaluate_batch`
+  já valida cada item do lote e registrava a chave por `solution_key`, que revalida o
+  mesmo vetor, de modo que a réplica pagava **duas** validações e uma renomeação por
+  avaliação contra **uma** validação e uma renomeação do núcleo. **A forma da correção é
+  diferente da usada em `viable_key`, e a diferença é deliberada:** `viable_key` mora no
+  mesmo pacote que `_canonicalize_labels` e pode chamá-la; a réplica não, porque
+  importar nome privado atravessando a fronteira entre os dois pacotes é o defeito que o
+  commit decorrente do lote L6 acabou de fechar ao publicar `viable_key`. Por isso o
+  núcleo publica `validated_solution_key(labels, *, n_units)` ao lado de
+  `solution_key`, com o contrato de que a validação é responsabilidade do chamador dito
+  no próprio corpo, e a réplica usa o nome público. `canonicalize_solution` e
+  `solution_key` **permanecem intactas**, pela terceira vez. A neutralidade em bits está
+  presa por dois casos novos, um em cada suíte: o do núcleo compara contra o caminho
+  público intacto por igualdade de tupla, na mesma forma exemplar de `viable_key`; o da
+  réplica conta as validações por item do lote pelas **duas** portas por onde elas podem
+  entrar e assevera, na mesma execução, que a chave que chega ao gravador continua sendo
+  a do caminho público. O efeito de tempo medido está na conexão 13 da seção 5.
   **Passo G.** Classe prevista `M1`; classe observada `M1`; a observação **bate** com a
   previsão. Sem reclassificação, e o Passo H não se aplica. A lacuna de teste registrada
   pela revisão independente do pacote está fechada.
@@ -1902,10 +1920,15 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   cenários `tabu:*`, `aco:*` e `greedy:*`, e zero em `solution`, nos sete campos de
   `evaluation`, nos 100 `checkpoints`, em `evaluations` e em todos os demais
   diagnósticos, inclusive em `iterations_completed` dos próprios cenários `pso:*`. O
-  zero em `iterations_completed` é o resultado previsto e a razão está medida: o
-  incremento novo só dispara quando o orçamento é múltiplo exato de `n_particles`, e a
-  Tarefa 14 calibrou os orçamentos para não serem, com o teste
-  `BUDGETS["pso"] % n_particles != 0` fixando isso. Todas as 22 diferenças são para
+  zero em `iterations_completed` é o resultado previsto, e ele é **medido e não
+  garantido pela calibração**. A leitura esperada vem de a Tarefa 14 ter calibrado os
+  orçamentos para não serem múltiplos de `n_particles`, com o teste
+  `BUDGETS["pso"] % n_particles != 0` fixando isso; mas o orçamento não múltiplo **não
+  implica** que a última tentativa da iteração não seja a que esgota, porque as
+  avaliações de reparo deslocam a fronteira. Isso foi observado neste mesmo pacote, no
+  caso da réplica com orçamento 600 e 20 partículas, que é múltiplo exato e ainda assim
+  fica com a última iteração interrompida. O zero aqui é, portanto, resultado da
+  conferência, e não consequência da calibração. Todas as 22 diferenças são para
   **menos**, o que é o sinal esperado: a correção retira as tentativas que nunca foram
   avaliadas. A contenção foi enumerada e provada **antes** de qualquer regravação da
   linha de base.
@@ -5004,6 +5027,20 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   lados da razão `T_CPU / T_GPU` é durável, e a parte que vem da validação
   excedente é removível, na ordem de metade. O efeito sobre o `S` publicado está
   registrado na conexão 13 da seção 5.
+  **Fechado em 30/08/2026, no commit decorrente do lote L7**, que é o pacote de
+  continuação previsto acima. A chave registrada por `evaluate_batch` passou a ser
+  produzida por `validated_solution_key`, publicada em
+  `src/metaheuristica/canonical.py` e em `src/metaheuristica/__init__.py`. **A
+  publicação não é acessório**: importar `_canonicalize_labels` na réplica faria um
+  nome privado atravessar a fronteira entre os dois pacotes, que é exatamente o
+  defeito que o commit decorrente do lote L6 fechou ao publicar `viable_key`, e
+  reintroduzi-lo aqui seria trocar um defeito por outro. A réplica voltou a pagar
+  **uma** validação e uma renomeação por avaliação, como o núcleo. **A previsão de
+  metade não se confirmou:** medido em três pontos na mesma sessão, o commit
+  removeu **39%** da subida atribuível à chave canônica, e não cerca de metade; a
+  medição está na conexão 13 da seção 5. A neutralidade em bits está presa por dois
+  casos de teste novos, um em cada lado, e o diff na impressão digital foi **zero**
+  contra a linha de base regravada pelo pacote B21.
   **Provado por mutação sobre cópia**, fora da árvore de trabalho, com marcador que
   é caso coletado na mesma execução e não impressão de diagnóstico, e com o caminho
   do módulo carregado conferido antes de interpretar qualquer sobrevivência: as
@@ -6118,9 +6155,32 @@ renomeação que o núcleo paga desde o pacote B6: `evaluate_batch` já chamava
 `validate_solution` por item, e o `solution_key` que o F8-10 prescreve revalida o
 mesmo vetor. A metade que corresponde ao que o núcleo também paga **restaura a
 simetria** entre os dois lados da razão e é durável; a outra metade é o padrão
-`F1-06` reintroduzido na réplica, e sai quando um pacote de continuação declarar
-`gpu/evaluator.py` e usar `_canonicalize_labels`, extraída pelo commit decorrente
-deste lote. **Os números abaixo são, portanto, piso e não estimativa central.**
+`F1-06` reintroduzido na réplica.
+
+**Atualização de 30/08/2026, com a validação excedente removida e o efeito medido.**
+O commit decorrente do lote L7 fechou o `F1-06` na réplica: a chave registrada passou
+a ser produzida por `validated_solution_key`, publicada pelo núcleo para que nenhum
+nome privado atravesse a fronteira entre os dois pacotes, e a segunda validação por
+avaliação saiu. **A repartição foi medida na mesma sessão, em três pontos**, em
+`artesp_rmsp_150` com `K = 5`, orçamento de campanha de 150.000, parâmetros
+congelados, duas repetições por ponto, lendo o tempo oficial do PSO da réplica:
+
+| Forma da chave registrada | Tempo oficial |
+|---|---:|
+| tupla bruta, forma anterior ao F8-10 | 40,42 s |
+| `solution_key`, duas validações e uma renomeação | 46,70 s |
+| `validated_solution_key`, uma validação e uma renomeação | 44,25 s |
+
+A subida atribuível à chave canônica é de **6,28 s**, e o commit decorrente removeu
+**2,45 s**, isto é **39%** dela. Os outros **61%**, 3,83 s, são a simetria durável de
+instrumentação: é o trabalho que o núcleo também paga por avaliação, e ele fica.
+**A expectativa registrada era de cerca de metade, e o número medido é 39%; fica o
+medido.** Aplicada a redução de 2,45 s ao tempo registrado acima, a subida do PSO cai
+de **22% para cerca de 15%**, isto é de 36,7 s para cerca de 42,4 s em vez de 44,8 s.
+**O ACO não foi remedido neste commit**, e a sua subida de 3,8% cai pela mesma
+aritmética, porque `evaluate_batch` é o caminho comum dos dois; o número definitivo do
+ACO vem da campanha regenerada. **Os números abaixo continuam sendo piso e não
+estimativa central**, agora por causa da campanha e não da validação excedente.
 
 **Consequência para os três números publicados.** O `S` honesto do ACO de **1,006**,
 o teto de Amdahl de **1,0072** e a fração de dispositivo do PSO de **16,3%** foram
@@ -6130,9 +6190,10 @@ como estão** e precisam ser rederivados da campanha regenerada. A direção da
 correção é conhecida e é contra a GPU: com `T_GPU` do PSO subindo 22% e `T_CPU`
 inalterado, o `S` do PSO cai de 2,866 para a ordem de 2,3, e a fração de dispositivo
 cai de 16,3% para a ordem de 13%. O `S` do ACO, já de 1,006, cai abaixo de 1 pela
-mesma aritmética. Removida a validação excedente, parte dessa queda volta, e o
-número definitivo depende do pacote de continuação **e** da campanha regenerada,
-nesta ordem. **Isto reforça, e não enfraquece, a proibição registrada em F8-2
+mesma aritmética. **A validação excedente foi removida em 30/08/2026**, e parte dessa
+queda voltou: com a subida do PSO em cerca de 15% no lugar de 22%, o `S` do PSO fica na
+ordem de 2,5 em vez de 2,3. O número definitivo depende agora **apenas** da campanha
+regenerada, porque o pacote de continuação que a precedia já rodou. **Isto reforça, e não enfraquece, a proibição registrada em F8-2
 de apresentar o `S` do ACO como aceleração por GPU**, e a decisão sobre publicar o
 `S` do PSO fica pendente da campanha regenerada.
 

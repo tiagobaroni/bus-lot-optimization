@@ -4,6 +4,7 @@ from metaheuristica.canonical import (
     canonicalize_solution,
     solution_key,
     validate_solution,
+    validated_solution_key,
 )
 from metaheuristica.aco import AcoConfig, run_aco
 from metaheuristica.errors import (
@@ -62,6 +63,7 @@ __all__ = [
     "TabuConfig",
     "TabuMove",
     "validate_solution",
+    "validated_solution_key",
     "viable_key",
     "checkpoint_thresholds",
     "execute_optimizer",

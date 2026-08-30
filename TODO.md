@@ -33,7 +33,14 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   onze cenários do enxame, com zero nos demais algoritmos e zero em todo campo proibido;
   a contenção foi enumerada e provada antes de a linha de base ser regravada. O A5
   reclassificou para `D1` e o F5-3 permaneceu `D2`, e as duas leituras estavam previstas.
-  O lote L6 fechou
+  O commit decorrente do mesmo lote fechou o **F1-06 na réplica em placa gráfica**,
+  desfazendo a validação excedente que o lote anterior introduziu ao seguir a forma
+  literal prescrita: o núcleo passou a publicar a chave canônica a partir de rótulos já
+  validados, e a réplica passou a usá-la no lugar da que revalidava o mesmo vetor.
+  Medido em três pontos na mesma sessão, o commit removeu **39%** da subida atribuível à
+  chave canônica, e não cerca de metade, e a subida do tempo oficial do PSO da réplica
+  cai de 22% para cerca de 15%. Diff zero na impressão digital, contra a linha de base
+  nova. O lote L6 fechou
   por inteiro, em duas partes. A parte 2
   fechou o pacote **B20**, com os achados F8-10 e F8-14, alinhando as réplicas em placa
   gráfica ao caminho normativo: as cópias locais da normalização de probabilidades e da
@@ -73,37 +80,48 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** o commit decorrente do lote L7, que fecha o **F1-06 na
-  réplica em placa gráfica** e resolve a decisão pendente registrada abaixo. Ele não é
-  pacote novo e não altera a contagem. Depois dele vêm L8, L9 e L10, que são a Onda C, e
-  em seguida o B13 diferido, imediatamente antes da Tarefa 19B.
-- **Decisão pendente, e ela precede a regeneração da campanha:** fechar o F8-10 pôs as
-  validações do caminho normativo dentro da região cronometrada da réplica, que não as
-  pagava, enquanto o núcleo as paga desde o B6. Medido em `artesp_rmsp_150` com K igual
-  a cinco, o tempo oficial subiu **3,8% no ACO** e **22% no PSO**. Com isso os números
-  `1,006`, `1,0072` e `16,3%` deixam de ser reutilizáveis e precisam ser rederivados da
-  campanha regenerada. Cerca de **metade da subida é validação excedente, e não
-  simetria**: a réplica valida duas vezes por avaliação contra uma do núcleo, e isso
-  pede um pacote de continuação que declare `gpu/evaluator.py` sob o F1-06, usando a
-  `_canonicalize_labels` extraída no commit decorrente do L6. Despachar esse pacote
-  **antes** de regenerar a campanha, senão os números são rederivados duas vezes.
+- **Próxima ação atômica:** despachar o lote **L8**, que abre a Onda C. Depois dele vêm
+  L9 e L10, que fecham a Onda C, e em seguida o B13 diferido, imediatamente antes da
+  Tarefa 19B. **Não há decisão pendente antes do despacho.**
+- **Decisão resolvida em 30/08/2026, e ela precedia a regeneração da campanha:** fechar
+  o F8-10 pôs as validações do caminho normativo dentro da região cronometrada da
+  réplica, que não as pagava, enquanto o núcleo as paga desde o B6. Medido em
+  `artesp_rmsp_150` com K igual a cinco, o tempo oficial subiu **3,8% no ACO** e **22% no
+  PSO**. O commit decorrente do lote L7 removeu a validação excedente, e a repartição foi
+  medida em três pontos na mesma sessão: dos 6,28 s atribuíveis à chave canônica no PSO,
+  **2,45 s saíram** e **3,83 s ficam**, porque são o trabalho que o núcleo também paga.
+  Removidos **39%** e não cerca de metade, que era a expectativa registrada. A subida do
+  PSO cai de 22% para cerca de 15%. Os números `1,006`, `1,0072` e `16,3%` continuam sem
+  ser reutilizáveis e precisam ser rederivados da campanha regenerada, e agora **nada
+  precede essa regeneração** além do restante da auditoria.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
-  manifesto de congelamento está divergente de propósito, em dez arquivos
-  protegidos, e não deve ser renovado antes do fechamento da auditoria.
+  manifesto de congelamento está divergente de propósito, em **27** dos 53 arquivos do
+  escopo protegido, e não deve ser renovado antes do fechamento da auditoria. **O número
+  estava atrasado**: dizia dez, e a contagem foi remedida por leitura no fim do lote L7,
+  sem regenerar o manifesto. Deste lote vem **uma** divergência nova, a de
+  `src/metaheuristica/optimizer.py`; as outras quatro que o lote tocou já divergiam. O
+  `verify` recusa antes de chegar à comparação de conteúdo, no teste de escopo, porque
+  `experiments/audit_fingerprint.py` existe hoje e não constava do manifesto: é o
+  mecanismo do B1 funcionando, e a renovação é da Tarefa 20.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** no commit `50dbbb6`, impressão digital idêntica, suíte de
-  CPU com 417 aprovados e suíte de GPU com 27 aprovados sobre dispositivo real. A
-  linha de base foi regravada pelo B6 e não é tocada desde então, logo a identidade
-  é medida contra a linha nova.
+- **Última verificação:** no fim do lote L7, isto é no commit decorrente do pacote B21,
+  impressão digital idêntica, suíte de
+  CPU com 454 aprovados e suíte da réplica com 71 aprovados sobre dispositivo real, nas
+  duas invocações, da raiz e de dentro do próprio subprojeto. **A linha de base foi
+  regravada pelo pacote B21**, no commit anterior, e o `content_sha256` passou de
+  `792e344a...` para `a59235e4...`; a identidade acima é medida contra a linha nova, e a
+  regravação veio depois de provada a contenção.
 - **Limite conhecido da suíte:** um clone limpo **não** roda a suíte integral. Duas
   reprovações em `tests/test_benchmark_freeze.py`, porque `results/raw/` é ignorado
   e os dezoito documentos do piloto não estão no Git. A decisão sobre versioná-los
   ficou para a Tarefa 20, quando os artefatos já serão os definitivos.
-- **Achado aberto sem pacote alocado:** rodando a suíte de GPU com o diretório de
-  trabalho em `gpu/`, cinco testes falham por caminho relativo
-  `data/instances/tiny_manual.json` resolvido contra o `cwd`. Passam quando o
-  `cwd` é a raiz. É defeito pré-existente, aparentado do `F0-01`.
+- **Achado fechado, e a linha estava atrasada:** rodando a suíte da réplica com o
+  diretório de trabalho em `gpu/`, cinco testes falhavam por caminho relativo
+  `data/instances/tiny_manual.json` resolvido contra o `cwd`. **Corrigido em `7d1fd68`**,
+  que ancorou os dois arquivos restantes em `Path(__file__).parents[2]`, como os outros
+  seis já faziam. A invocação de dentro do subprojeto é verde desde então, e foi medida
+  de novo no lote L7, com a mesma contagem da invocação a partir da raiz.
 - **Handover detalhado:** `superpowers/B11B_handover.md`, fora do Git, com o
   estado completo e as armadilhas conhecidas.
 
