@@ -15,6 +15,7 @@ from metaheuristica import (
     validate_solution,
 )
 from metaheuristica.errors import RepairBudgetExhausted, SolutionValidationError
+from metaheuristica.pso import _project_position, decode_position
 from metaheuristica.repair import repair_empty_lots_with_evaluation
 from metaheuristica.metrics import COST_TOLERANCE
 
@@ -48,11 +49,17 @@ class _Trial:
     velocity_clips: int
 
 
+# F8-10: a decodificação e a projeção passam a ser as do caminho normativo, e
+# não cópias locais. A cópia conferia apenas a dimensão, e deixava passar
+# `dtype` diferente de `float64`, valor não finito e chave fora de `[0, 1]`, que
+# o núcleo recusa em `decode_position`; e a cópia da projeção retinha o recuo
+# silencioso ao ponto médio que o núcleo converteu em falha explícita, com a
+# fração interna que a seção 16 manda preservar sendo descartada sem
+# diagnóstico. Delegar é a mesma decisão que o pacote B5 tomou para o estado
+# parcial da construção do ACO: a aritmética do caminho feliz é idêntica e uma
+# alteração futura não pode atingir só um dos dois lados.
 def _decode(position: np.ndarray, n: int, k: int) -> np.ndarray:
-    labels = np.minimum(np.floor(position * k).astype(np.int64), k - 1)
-    if labels.shape != (n,):
-        raise SolutionValidationError("posição GPU com dimensão inválida")
-    return labels
+    return decode_position(position, n_units=n, k=k)
 
 
 def _initial_particle(n: int, k: int, rng: np.random.Generator) -> _Particle:
@@ -113,19 +120,7 @@ def _trial(
 def _project(
     position: np.ndarray, original: np.ndarray, repaired: np.ndarray, k: int
 ) -> np.ndarray:
-    fractions = np.clip(k * position - original, 0.0, np.nextafter(1.0, 0.0))
-    projected = (repaired.astype(np.float64) + fractions) / k
-    for index, label_value in enumerate(repaired):
-        label = int(label_value); midpoint = (label + 0.5) / k
-        for _ in range(16):
-            if min(int(np.floor(k * projected[index])), k - 1) == label:
-                break
-            projected[index] = np.nextafter(projected[index], midpoint)
-        else:
-            projected[index] = midpoint
-    if not np.array_equal(_decode(projected, len(projected), k), repaired):
-        raise SolutionValidationError("projeção GPU incoerente")
-    return projected
+    return _project_position(position, original, repaired, k=k)
 
 
 def _canonical(position: np.ndarray, labels: np.ndarray, n: int, k: int) -> tuple[np.ndarray, np.ndarray]:
@@ -144,9 +139,16 @@ def run_pso_gpu(
     guard: Callable[[], None] | None = None,
 ) -> OptimizationResult:
     rng = np.random.Generator(np.random.PCG64(run_config.seed))
+    # F8-14: a construção do objetivo em lote faz trabalho de CPU e cinco
+    # transferências para o dispositivo, e ficava fora de todo campo publicado.
+    # O cronômetro oficial **não** se move, porque a comparabilidade com as
+    # execuções já medidas depende de o campo principal manter a definição; o
+    # custo de preparação passa a ter campo próprio.
+    preparation_start = perf_counter()
     objective = GpuBatchObjective(instance, k=run_config.k, weights=run_config.weights)
     cp.cuda.get_current_stream().synchronize()
     start = perf_counter()
+    device_preparation = start - preparation_start
     evaluator = HybridEvaluator(
         instance, run_config, objective, verify_every_batch=verify_every_batch,
         guard=guard,
@@ -220,14 +222,27 @@ def run_pso_gpu(
                         evaluator.evaluations - before - int(reused is not None)
                     )
                     position = _project(trial.position, decoded, repaired, run_config.k)
-                    if reused is not None:
-                        commit(particle, position, trial.velocity, repaired, reused)
-                        if evaluator.remaining == 0:
-                            raise StopIteration
-                    else:
-                        pending.append((particle, position, trial.velocity, repaired))
-                        if flush(pending):
-                            raise StopIteration
+                    # O ramo alternativo, que enfileirava a partícula reparada
+                    # para o lote da GPU quando o reparo não devolvia avaliação
+                    # reaproveitável, era **morto**: o bloco só é alcançado
+                    # quando a decodificação deixa lote vazio, e nesse caso
+                    # `repair_empty_lots_with_evaluation` sempre consome ao
+                    # menos uma unidade de orçamento e devolve o vencedor da
+                    # última rodada. `None` só ocorre para estado já viável.
+                    if reused is None:
+                        raise SolutionValidationError(
+                            "reparo de estado com lote vazio devolveu estado "
+                            "sem avaliação reaproveitável"
+                        )
+                    # A partícula reparada passa pela mesma validação normativa
+                    # que o ramo vizinho aplica, e que a CPU aplica nos dois: o
+                    # `commit` não passa pelo gravador, logo sem esta conferência
+                    # um estado inválido entraria no melhor pessoal e no melhor
+                    # global sem nunca ser recusado.
+                    validate_solution(repaired, n_units=instance.n_units, k=run_config.k)
+                    commit(particle, position, trial.velocity, repaired, reused)
+                    if evaluator.remaining == 0:
+                        raise StopIteration
                 else:
                     position, solution = _canonical(
                         trial.position, decoded, instance.n_units, run_config.k
@@ -263,6 +278,7 @@ def run_pso_gpu(
             "iterations_completed": iterations, "particles_evaluated": particles_evaluated,
             "repair_attempts": repair_attempts, "repair_evaluations": repair_evaluations,
             "position_clips": position_clips, "velocity_clips": velocity_clips,
+            "device_preparation_seconds": device_preparation,
             "gpu_timing": evaluator.timing.to_dict(),
             "max_numerical_difference": evaluator.max_numerical_difference,
         },

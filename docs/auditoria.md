@@ -1844,12 +1844,16 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
   `_project_position` numa execução real sobre `artesp_rmsp_20` com `K=5`, conta as
   coordenadas projetadas e assevera que a execução termina, o que, com a guarda que
   levanta, é prova de que o ramo não foi atingido em nenhuma delas.
-  **Uma inconsistência que este pacote não fecha, e que fica registrada sem destino
-  alocado:** `gpu/src/metaheuristica_gpu/pso.py` tem cópia própria de
-  `_project_position`, com o mesmo recuo silencioso ao ponto médio, e continua com
-  ele. O arquivo está fora da lista declarada do B10, e nada em `gpu/` reprova por
-  causa disso, porque o ramo não é atingido em cenário algum, logo o portão do
-  pacote não é afetado. O pacote B20 já declara esse arquivo.
+  **Uma inconsistência que este pacote não fechou, e que o pacote B20 fechou.**
+  `gpu/src/metaheuristica_gpu/pso.py` tinha cópia própria de `_project_position`,
+  com o mesmo recuo silencioso ao ponto médio, e ficou com ele porque o arquivo
+  estava fora da lista declarada do B10. **Ela deixou de existir em 30/08/2026**: a
+  cópia da réplica foi substituída por delegação a `_project_position`, de modo que
+  o recuo ao ponto médio não sobrevive em lugar algum da árvore, e a réplica passa
+  a levantar a mesma exceção com a mesma mensagem. O caso que prende isso está em
+  `gpu/tests/test_pso_gpu.py`, com a mesma entrada do caso do núcleo, e com o caso
+  de contorno ao lado. A observação, portanto, **não sobrevive como sem destino
+  alocado**.
   **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação **bate**
   com a previsão. Sem reclassificação, e o Passo H não se aplica.
 - **Impressão digital:** diff **zero nos 42 cenários**, **conforme previsto**,
@@ -4801,8 +4805,77 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
 - **Decisão:** corrigir, replicando as validações defensivas e trocando a tupla
   bruta por `solution_key`.
 - **Onda:** B, dentro de `gpu/`.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero para a campanha CPU.
+- **Situação:** fechado com correção de código e nove casos de teste novos, no
+  commit do pacote B20. As seis omissões foram fechadas uma a uma, e em cinco delas
+  a forma adotada foi **delegar ao caminho normativo** em vez de replicar a
+  validação, que é a decisão que o pacote B5 já tomara para o estado parcial da
+  construção: replicar deixa os dois lados livres para divergir de novo, delegar
+  torna a divergência impossível.
+  1. `_decode` da réplica passa a ser `metaheuristica.pso.decode_position`, com as
+     conferências de `dtype float64`, dimensão, finitude e intervalo `[0, 1]`.
+  2. `_project` da réplica passa a ser `metaheuristica.pso._project_position`, o
+     que fecha junto a inconsistência que o pacote **B10** registrou sem destino
+     alocado, o recuo silencioso ao ponto médio.
+  3. A informação heurística já vinha do núcleo desde o pacote B5, com as
+     conferências de finitude e de intervalo `[1, 2]`; nada restava a fazer.
+  4. A normalização das probabilidades passa a ser
+     `metaheuristica.aco._choice_probabilities`, com as conferências de `tau` e
+     `eta` positivos e finitos e de probabilidades normalizadas.
+  5. A pós-condição de canonicidade da formiga passa a existir, com
+     `validate_solution` seguida da comparação com a forma canônica, como em
+     `_construct_ant`.
+  6. A atualização do feromônio passa a ser `metaheuristica.aco._update_pheromone`,
+     o que troca a clipagem silenciosa do custo total pela exceção de
+     `_deposit_amount` e traz junto duas guardas que a cópia não tinha, a
+     conferência de `tau` na entrada e a de positividade da matriz depois do
+     depósito, mais o piso de evaporação no menor subnormal positivo.
+  7. A chave registrada pelo avaliador híbrido passa a ser `solution_key`, e não
+     mais a tupla bruta.
+  **A obrigação adicional do conflito 4 foi cumprida na ordem prescrita.** Antes de
+  qualquer edição de `gpu/aco.py` foi gravada a saída de referência da construção
+  espelhada, por `float.hex()`, sobre 243 configurações de instância, `K`, semente,
+  parâmetros e estado de feromônio, incluindo o vetor de probabilidades de cada um
+  dos 41.724 passos probabilísticos, capturado por instrumentação externa ao
+  módulo. Depois da mudança a comparação deu **zero divergências em 243
+  configurações**. Os dois controles negativos divergem: trocar a ordem de redução
+  do normalizador move bits em 167 das 243, e tomar a potência antes do logaritmo
+  move bits em 122 das 243. Fica registrado que o controle por produto BLAS, que o
+  pacote B5 usou, **não se transpõe** para esta construção: medido em 20.000
+  sorteios, o produto por BLAS reproduz a forma elementar bit a bit em 20.000
+  deles, e por isso foi substituído.
+  **Uma consequência de medição, e ela não é neutra.** As validações do caminho
+  normativo custam tempo dentro da região cronometrada, e a réplica não as pagava
+  enquanto o núcleo as paga desde o pacote B6. Medido em `artesp_rmsp_150` com
+  `K=5`: o tempo oficial do ACO sobe de 17,396 s para 18,057 s no orçamento de
+  1.000, isto é **3,8%**, e o do PSO sobe de 36,7 s para 44,8 s no orçamento de
+  campanha de 150.000, isto é **22%**. O grosso vem de `solution_key` por
+  avaliação.
+  **A correção passou do ponto, e a medida disso é exata.** O núcleo, em
+  `FitnessEvaluator.evaluate`, paga **uma** validação e uma renomeação por
+  avaliação, porque `canonicalize_solution` faz as duas coisas de uma vez. A
+  réplica, depois desta correção, paga **duas** validações e uma renomeação:
+  `evaluate_batch` já chamava `validate_solution` por item, e `solution_key`
+  revalida o mesmo vetor. É o padrão que o achado `F1-06` removeu do núcleo,
+  reintroduzido na réplica, e a ferramenta que o desfaz, `_canonicalize_labels`,
+  foi extraída pelo commit decorrente deste mesmo lote. A forma literal prescrita
+  pelo pacote foi seguida, e o desfazimento **pertence a um pacote de
+  continuação** que declare `gpu/evaluator.py` sob o `F1-06`. Portanto: da subida
+  medida, a parte que **restaura a simetria** de instrumentação entre os dois
+  lados da razão `T_CPU / T_GPU` é durável, e a parte que vem da validação
+  excedente é removível, na ordem de metade. O efeito sobre o `S` publicado está
+  registrado na conexão 13 da seção 5.
+  **Provado por mutação sobre cópia**, fora da árvore de trabalho, com marcador que
+  é caso coletado na mesma execução e não impressão de diagnóstico, e com o caminho
+  do módulo carregado conferido antes de interpretar qualquer sobrevivência: as
+  quatro mutações que repõem cada omissão reprovam exatamente o caso dirigido a
+  ela, e nenhuma outra.
+  **Passo G.** Classe prevista `D3`; classe observada `D3`; a observação **bate**
+  com a previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** classe prevista `D3`, classe observada `D3`. Diff previsto
+  zero nos 42 cenários. **A conferência é dispensada por conjunto completo** neste
+  commit, conforme o registro do pacote: ele não toca `src/metaheuristica/` e
+  nenhum dos 42 cenários do oráculo executa `gpu/`. A conferência obrigatória do
+  commit decorrente, que toca o núcleo, deu **idêntica**.
 
 #### F8-11. O monitor térmico roda dentro do processo cronometrado e infla o tempo oficial da GPU
 
@@ -4961,6 +5034,14 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
      `src/metaheuristica/aco.py:79-186` já não existe como réplica. A restrição dura de
      não alterar a ordem das operações de somatório perde objeto para o ACO e continua
      valendo integralmente para os dois arquivos restantes.
+     **Encolhimento adicional em 30/08/2026, pelo pacote B20.** As réplicas locais de
+     `decode_position`, de `_project_position`, da normalização das probabilidades e
+     da atualização do feromônio deixaram de existir: as quatro passaram a delegar ao
+     núcleo pelo mesmo mecanismo que o B5 usou. **O escopo restante continua sendo
+     `gpu/objective.py` e o grosso de `gpu/pso.py`**, porque o laço do enxame,
+     `_trial`, `_better`, `_initial_particle` e `_canonical` seguem duplicados; o que
+     saiu foram a decodificação e a projeção. A restrição de não alterar a ordem das
+     operações de somatório continua valendo integralmente para o que resta.
   2. **O teste que o pacote C7 prescrevia já está escrito.**
      `gpu/tests/test_aco_gpu.py::test_gpu_construction_shares_the_cpu_partial_state`
      assevera que a função unificada é a mesma referência nos dois pacotes, que é
@@ -5063,8 +5144,35 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
 - **Decisão:** corrigir, acrescentando campo próprio para o custo de preparação do
   dispositivo.
 - **Onda:** B, dentro de `gpu/`.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero para a campanha CPU.
+- **Situação:** fechado com correção de código e quatro casos de teste novos, no
+  commit do pacote B20. **O cronômetro não foi movido**, e isso é deliberado: a
+  comparabilidade com as 60 execuções já medidas depende de o campo principal
+  manter a definição. As duas réplicas passam a publicar
+  `device_preparation_seconds` no diagnóstico, medido de antes da construção de
+  `GpuBatchObjective` até depois do `synchronize` que precede o cronômetro oficial.
+  **A assimetria contra a CPU permanece por desenho, e passa a estar registrada**,
+  que é exatamente o que a premissa exige.
+  **Magnitude remedida.** Em `artesp_rmsp_150` com `K=5`, com contexto CUDA
+  aquecido, a preparação custa **2,2 ms em regime**, com 370 ms na primeira
+  construção do processo, quando o contexto ainda é criado. O registro original
+  media 2,0 ms; a diferença de 0,2 ms é reportada e o texto do registro **não foi
+  ajustado**, conforme a regra do lote. A fração do tempo oficial depende do
+  orçamento e não foi remedida nos orçamentos de campanha.
+  **Por que os testes não são vazios.** Um deles roteiriza o relógio do módulo com
+  três valores, `0,0`, `10,0` e `11,0`, e assevera que a preparação vale `10,0` e o
+  tempo oficial `1,0`: se o cronômetro oficial passasse a incluir a preparação, o
+  tempo oficial valeria `11,0`. O relógio roteirizado **recusa chamada além do
+  roteiro**, de modo que uma medição acrescentada ao caminho aparece como falha e
+  não desloca a asserção em silêncio. O outro assevera existência e positividade do
+  campo sobre execução real. Provado por mutação sobre cópia: fazer o cronômetro
+  partir antes da preparação reprova o caso do relógio roteirizado, e remover o
+  campo reprova os dois do lado PSO.
+  **Passo G.** Classe prevista `D2`; classe observada `D2`; a observação **bate**
+  com a previsão. Sem reclassificação. **O Passo H não dispara**, porque a
+  observação não é `D1`.
+- **Impressão digital:** classe prevista `D2`, classe observada `D2`. Diff previsto
+  zero nos 42 cenários, **dispensado por conjunto completo** neste commit pela
+  mesma razão do F8-10.
 
 ### 3.9. Frente F9 - resultados já publicados
 
@@ -5848,6 +5956,45 @@ fração de dispositivo do PSO de **16,3%**, **continuam válidos**: todos foram
 em sondas com o monitor **inativo**, isto é já na condição que a correção estabelece.
 O que a correção retira é a correção para baixo que o próprio F8-11 previa para a
 campanha, e não os números medidos.
+
+**Segunda atualização de 30/08/2026, e ela muda o quadro.** O **F8-14** foi fechado
+no pacote B20, e a assimetria da linha correspondente **permanece por desenho**: o
+cronômetro não se move, e o que passa a existir é o registro em campo próprio,
+`device_preparation_seconds`, com magnitude remedida em **2,2 ms** em regime contra
+os 2,0 ms do registro. Ela deixa de ser assimetria **não registrada** e passa a ser
+assimetria **declarada e medida**, que é o que a premissa exigia.
+
+O **F8-10** foi fechado no mesmo pacote, e ele **acrescenta uma quinta assimetria,
+esta com magnitude medida e sinal conhecido**. A réplica não pagava, dentro da
+região cronometrada, as validações do caminho normativo que o núcleo paga desde o
+pacote B6, em particular a canonicalização da chave por avaliação. Medido em
+`artesp_rmsp_150` com `K=5`, o tempo oficial da réplica sobe **3,8%** no ACO, de
+17,396 s para 18,057 s no orçamento de 1.000, e **22%** no PSO, de 36,7 s para
+44,8 s no orçamento de campanha de 150.000. O sinal é o de **reduzir** `S`.
+
+**A subida medida tem duas metades, e só uma é durável.** A réplica passou a pagar
+**duas** validações e uma renomeação por avaliação, contra **uma** validação e uma
+renomeação que o núcleo paga desde o pacote B6: `evaluate_batch` já chamava
+`validate_solution` por item, e o `solution_key` que o F8-10 prescreve revalida o
+mesmo vetor. A metade que corresponde ao que o núcleo também paga **restaura a
+simetria** entre os dois lados da razão e é durável; a outra metade é o padrão
+`F1-06` reintroduzido na réplica, e sai quando um pacote de continuação declarar
+`gpu/evaluator.py` e usar `_canonicalize_labels`, extraída pelo commit decorrente
+deste lote. **Os números abaixo são, portanto, piso e não estimativa central.**
+
+**Consequência para os três números publicados.** O `S` honesto do ACO de **1,006**,
+o teto de Amdahl de **1,0072** e a fração de dispositivo do PSO de **16,3%** foram
+medidos em sondas anteriores a esta correção, isto é com a réplica pagando menos
+trabalho de CPU do que o caminho normativo manda. **Eles deixam de ser reutilizáveis
+como estão** e precisam ser rederivados da campanha regenerada. A direção da
+correção é conhecida e é contra a GPU: com `T_GPU` do PSO subindo 22% e `T_CPU`
+inalterado, o `S` do PSO cai de 2,866 para a ordem de 2,3, e a fração de dispositivo
+cai de 16,3% para a ordem de 13%. O `S` do ACO, já de 1,006, cai abaixo de 1 pela
+mesma aritmética. Removida a validação excedente, parte dessa queda volta, e o
+número definitivo depende do pacote de continuação **e** da campanha regenerada,
+nesta ordem. **Isto reforça, e não enfraquece, a proibição registrada em F8-2
+de apresentar o `S` do ACO como aceleração por GPU**, e a decisão sobre publicar o
+`S` do PSO fica pendente da campanha regenerada.
 
 **Os sinais não se alinham e três das quatro magnitudes não estão medidas.** A
 conclusão conjunta é que o `S` do ACO não tem barra de erro defensável, o que reforça

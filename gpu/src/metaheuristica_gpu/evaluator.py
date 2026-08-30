@@ -10,7 +10,7 @@ import numpy as np
 
 from metaheuristica import (
     ConvergenceCheckpoint, EvaluationResult, ObjectiveWeights, ProblemInstance,
-    RunConfig, evaluate_solution, validate_solution,
+    RunConfig, evaluate_solution, solution_key, validate_solution,
 )
 from metaheuristica.errors import BudgetExhausted, EvaluationLimitReached
 from metaheuristica.evaluator import _viable_key
@@ -98,9 +98,14 @@ class HybridEvaluator:
             )
         for solution, result in zip(accepted, results):
             self.evaluations += 1
+            # F8-10: a chave registrada era a tupla **bruta**, sem
+            # canonicalizar, ao passo que a CPU registra a chave canônica em
+            # `FitnessEvaluator.evaluate`. O desempate de quase empate do
+            # `ConvergenceRecorder` é lexicográfico sobre essa tupla, logo
+            # chave não canônica produziria desempate diferente do da CPU.
             self.recorder.observe(
                 self.evaluations,
-                tuple(int(value) for value in solution),
+                solution_key(solution, n_units=self.instance.n_units, k=self.k),
                 result,
                 True,
             )

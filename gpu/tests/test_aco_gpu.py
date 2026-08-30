@@ -1,13 +1,15 @@
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from metaheuristica import (
-    AcoConfig, ObjectiveWeights, RunConfig, load_artesp_instance,
-    load_tiny_instance, run_aco,
+    AcoConfig, ObjectiveWeights, RunConfig, evaluate_solution,
+    load_artesp_instance, load_tiny_instance, run_aco,
 )
-from metaheuristica_gpu.aco import _PartialState, _construct, run_aco_gpu
+from metaheuristica.errors import ConfigurationError, SolutionValidationError
+from metaheuristica_gpu.aco import _PartialState, _construct, _update, run_aco_gpu
 
 
 ROOT = Path(__file__).parents[2]
@@ -108,3 +110,300 @@ def test_aco_gpu_publishes_the_incumbent_object_in_both_tables() -> None:
     config = AcoConfig(alpha=1.0, beta=2.0, rho=0.5, n_ants=20)
     gpu = run_aco_gpu(instance, run, config)
     assert gpu.evaluation is gpu.checkpoints[-1].evaluation
+
+
+def _instancia_pequena():
+    return load_tiny_instance(ROOT / "data/instances/tiny_manual.json")
+
+
+def test_a_construcao_recusa_feromonio_nao_positivo() -> None:
+    """F8-10: o espelho não conferia positividade e finitude de `tau` e `eta`.
+
+    O caminho normativo recusa por `ConfigurationError` em
+    `metaheuristica.aco._choice_probabilities`. O espelho tomava o logaritmo
+    direto, e uma célula nula produzia peso `-inf` sem aviso de erro, com a
+    probabilidade correspondente zerada em silêncio.
+    """
+
+    instance = _instancia_pequena()
+    weights = ObjectiveWeights()
+    config = AcoConfig(alpha=1.0, beta=2.0, rho=0.5, n_ants=4)
+    tau = np.ones((instance.n_units, 2), dtype=np.float64)
+    tau[1, 0] = 0.0
+    with pytest.raises(ConfigurationError, match="positivos e finitos"):
+        _construct(
+            instance, 2, weights, tau, config,
+            np.random.Generator(np.random.PCG64(3)),
+        )
+
+    infinito = np.ones((instance.n_units, 2), dtype=np.float64)
+    infinito[1, 0] = np.inf
+    with pytest.raises(ConfigurationError, match="positivos e finitos"):
+        _construct(
+            instance, 2, weights, infinito, config,
+            np.random.Generator(np.random.PCG64(3)),
+        )
+
+
+def test_a_formiga_nao_canonica_e_recusada_pelo_espelho() -> None:
+    """F8-10: faltava a pós-condição de canonicidade que `_construct_ant` tem.
+
+    O crescimento restrito torna o prefixo canônico por construção, logo o
+    único modo de exercitar a pós-condição é afrouxar as escolhas permitidas.
+    Sem a conferência, `canonicalize_solution` renomeava em silêncio e a
+    formiga publicada deixava de ser a que foi construída.
+    """
+
+    instance = _instancia_pequena()
+    weights = ObjectiveWeights()
+    config = AcoConfig(alpha=1.0, beta=2.0, rho=0.5, n_ants=4)
+    tau = np.ones((instance.n_units, 2), dtype=np.float64)
+
+    class _EscolhaAlternada:
+        """Gerador que alterna entre o maior e o menor lote permitido.
+
+        Produz o prefixo `[1, 0, 1, 0]`, que é solução válida, com os dois
+        lotes ocupados, e **não canônica**: é o único modo de chegar ao ramo,
+        porque o crescimento restrito o torna inalcançável.
+        """
+
+        def __init__(self) -> None:
+            self._real = np.random.Generator(np.random.PCG64(3))
+            self._passo = 0
+
+        def choice(self, choices, p=None):
+            escolha = max(choices) if self._passo % 2 == 0 else min(choices)
+            self._passo += 1
+            return int(escolha)
+
+        def __getattr__(self, nome):
+            return getattr(self._real, nome)
+
+    import metaheuristica_gpu.aco as modulo
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(modulo, "_choices", lambda prefix, n, k: ((0, 1), False))
+        with pytest.raises(SolutionValidationError, match="não canônica"):
+            _construct(instance, 2, weights, tau, config, _EscolhaAlternada())
+
+
+def test_o_deposito_recusa_custo_fora_do_intervalo_normalizado() -> None:
+    """F8-10: a clipagem silenciosa substituía a exceção de `_deposit_amount`.
+
+    O espelho fazia `1.0 - min(1.0, max(0.0, custo))`, de modo que um custo
+    total corrompido entrava na matriz como depósito válido em vez de parar a
+    execução.
+    """
+
+    instance = _instancia_pequena()
+    solution = np.zeros(instance.n_units, dtype=np.int64)
+    solution[-1] = 1
+    tau = np.ones((instance.n_units, 2), dtype=np.float64)
+    avaliacao = evaluate_solution(instance, solution, k=2)
+    corrompida = replace(avaliacao, total_cost=2.0)
+    with pytest.raises(ConfigurationError, match="intervalo normalizado"):
+        _update(tau, [(solution, corrompida)], 0.5)
+
+
+def test_a_evaporacao_do_espelho_tem_o_mesmo_piso_do_nucleo() -> None:
+    """F8-10: sem o piso, a evaporação do espelho chega a zero exato.
+
+    `metaheuristica.aco._update_pheromone` põe piso no menor subnormal
+    positivo e recusa matriz não positiva depois do depósito. O espelho não
+    fazia nem uma coisa nem outra: com `rho = 0,5` o arredondamento para par
+    leva o subnormal a `0,0`, e a célula zerada só apareceria depois, como
+    logaritmo de zero na construção seguinte.
+    """
+
+    from metaheuristica.aco import _EvaluatedAnt, _update_pheromone
+
+    instance = _instancia_pequena()
+    solution = np.zeros(instance.n_units, dtype=np.int64)
+    solution[-1] = 1
+    avaliacao = evaluate_solution(instance, solution, k=2)
+    subnormal = np.nextafter(0.0, 1.0)
+    tau = np.full((instance.n_units, 2), 1.0, dtype=np.float64)
+    tau[0, 1] = subnormal
+
+    espelhada = _update(tau, [(solution, avaliacao)], 0.5)
+    nucleo = _update_pheromone(
+        tau, (_EvaluatedAnt(solution, avaliacao),), rho=0.5
+    )
+    # A célula `[0, 1]` não recebe depósito desta formiga, logo mede só a
+    # evaporação: é a que discrimina o piso.
+    assert solution[0] == 0
+    assert float(espelhada[0, 1]).hex() == subnormal.hex()
+    assert float(espelhada[0, 1]) > 0.0
+    assert [float(v).hex() for v in espelhada.ravel()] == [
+        float(v).hex() for v in nucleo.ravel()
+    ]
+
+
+def _celulas_alcancaveis(n_units: int, k: int) -> set[tuple[int, int]]:
+    """Células que a construção de crescimento restrito pode depositar.
+
+    Derivação independente, propagando os estados de `opened` possíveis a
+    partir de `_choices_from_counts` do núcleo, que é a mesma aritmética que a
+    construção usa. Não reproduz a máscara da produção: deriva a propriedade
+    que ela deveria ter. Copia a forma do caso escrito no lote L5 em
+    `tests/test_aco.py`.
+    """
+
+    from metaheuristica.aco import _choices_from_counts
+
+    cells: set[tuple[int, int]] = set()
+    states = {0}
+    for filled in range(n_units):
+        following = set()
+        for opened in states:
+            allowed = _choices_from_counts(
+                filled=filled, opened=opened, n_units=n_units, k=k
+            ).allowed
+            for lot in allowed:
+                cells.add((filled, int(lot)))
+                following.add(max(opened, int(lot) + 1))
+        states = following
+    return cells
+
+
+def test_o_minimo_publicado_usa_exatamente_a_mascara_alcancavel() -> None:
+    """Observação `f`: o espelho tomava `final_tau_min` sobre a matriz inteira.
+
+    É o defeito `F4-4` que o pacote B11 corrigiu no núcleo, sobrevivendo na
+    cópia da réplica. A asserção é de **identidade de conjunto**, e não de
+    limiar: limiar prende só o alargamento da máscara, porque estreitá-la
+    torna o mínimo publicado maior, e foi assim que a mutação que descartava a
+    diagonal principal sobreviveu à suíte inteira no lote L5.
+    """
+
+    import metaheuristica_gpu.aco as modulo
+
+    capturadas: list[np.ndarray] = []
+    original = modulo._reachable_mask
+
+    def espiao(shape):
+        mascara = original(shape)
+        capturadas.append(np.array(mascara, copy=True))
+        return mascara
+
+    instance = load_artesp_instance(ROOT / "data/instances", 20)
+    n_units, k = instance.n_units, 3
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(modulo, "_reachable_mask", espiao)
+        run_aco_gpu(
+            instance,
+            RunConfig(k=k, seed=11, budget=200),
+            AcoConfig(alpha=1.0, beta=2.0, rho=0.5, n_ants=20),
+        )
+
+    assert len(capturadas) == 1, "a máscara deve ser construída uma vez por execução"
+    mascara = capturadas[0]
+    assert mascara.shape == (n_units, k)
+    obtida = {(int(i), int(j)) for i, j in np.argwhere(mascara)}
+    esperada = _celulas_alcancaveis(n_units, k)
+    assert obtida == esperada, (
+        f"máscara alargada em {sorted(obtida - esperada)} e "
+        f"estreitada em {sorted(esperada - obtida)}"
+    )
+
+
+def test_o_minimo_publicado_do_espelho_fica_acima_da_evaporacao_pura() -> None:
+    """O lado numérico da observação `f`, com denominador medido.
+
+    A asserção só discrimina se existir célula inalcançável de fato, isto é se
+    a máscara for própria; sem essa guarda o caso passaria por vacuidade numa
+    configuração em que todas as células recebem depósito.
+    """
+
+    instance = load_artesp_instance(ROOT / "data/instances", 20)
+    rho = 0.5
+    resultado = run_aco_gpu(
+        instance,
+        RunConfig(k=3, seed=11, budget=200),
+        AcoConfig(alpha=1.0, beta=2.0, rho=rho, n_ants=20),
+    )
+    geracoes = resultado.diagnostics["generations_completed"]
+    assert geracoes > 0
+    evaporada = (1.0 - rho) ** geracoes
+    assert _celulas_alcancaveis(instance.n_units, 3) != {
+        (i, j) for i in range(instance.n_units) for j in range(3)
+    }
+    assert resultado.diagnostics["final_tau_min"] > evaporada
+
+
+def test_o_custo_de_preparacao_do_dispositivo_e_registrado_em_campo_proprio() -> None:
+    """F8-14: o que sai do tempo oficial passa a ter campo próprio e positivo."""
+
+    instance = load_artesp_instance(ROOT / "data/instances", 20)
+    resultado = run_aco_gpu(
+        instance,
+        RunConfig(k=3, seed=11, budget=200),
+        AcoConfig(alpha=1.0, beta=2.0, rho=0.5, n_ants=20),
+    )
+    preparacao = resultado.diagnostics["device_preparation_seconds"]
+    assert isinstance(preparacao, float)
+    assert preparacao > 0.0
+    assert resultado.runtime_seconds > 0.0
+
+
+def test_o_tempo_oficial_do_aco_continua_excluindo_a_preparacao() -> None:
+    """F8-14: a comparabilidade com as 60 execuções fica presa por asserção.
+
+    O relógio roteirizado torna as duas grandezas exatas: se o cronômetro
+    oficial passasse a incluir a preparação, `runtime_seconds` valeria 11,0 e
+    não 1,0. O relógio recusa chamada além do roteiro, para que uma medição
+    acrescentada ao caminho apareça como falha em vez de deslocar a asserção.
+    """
+
+    import metaheuristica_gpu.aco as modulo
+
+    roteiro = [0.0, 10.0, 11.0]
+    chamadas = []
+
+    def relogio() -> float:
+        if len(chamadas) >= len(roteiro):
+            raise AssertionError(
+                f"relógio chamado {len(chamadas) + 1} vezes; o roteiro prevê {len(roteiro)}"
+            )
+        chamadas.append(len(chamadas))
+        return roteiro[len(chamadas) - 1]
+
+    instance = _instancia_pequena()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(modulo, "perf_counter", relogio)
+        resultado = run_aco_gpu(
+            instance,
+            RunConfig(k=2, seed=3, budget=100),
+            AcoConfig(alpha=1.0, beta=2.0, rho=0.5, n_ants=20),
+        )
+
+    assert len(chamadas) == len(roteiro)
+    assert resultado.diagnostics["device_preparation_seconds"] == 10.0
+    assert resultado.runtime_seconds == 1.0
+
+
+def test_a_chave_registrada_pelo_avaliador_hibrido_e_canonica() -> None:
+    """F8-10: o avaliador híbrido gravava a tupla bruta, sem canonicalizar.
+
+    O desempate de quase empate do `ConvergenceRecorder` é lexicográfico sobre
+    essa tupla, logo chave não canônica produziria desempate diferente do da
+    CPU.
+    """
+
+    from metaheuristica import solution_key
+    from metaheuristica_gpu.evaluator import HybridEvaluator
+    from metaheuristica_gpu.objective import GpuBatchObjective
+
+    instance = _instancia_pequena()
+    run = RunConfig(k=2, seed=3, budget=100)
+    nao_canonica = np.array([1, 1, 0, 1], dtype=np.int64)
+    esperada = solution_key(nao_canonica, n_units=instance.n_units, k=2)
+    assert tuple(int(v) for v in nao_canonica) != esperada
+
+    objective = GpuBatchObjective(instance, k=2, weights=run.weights)
+    try:
+        avaliador = HybridEvaluator(instance, run, objective)
+        avaliador.evaluate_batch([nao_canonica])
+    finally:
+        objective.close()
+    assert avaliador.incumbent_solution == esperada
