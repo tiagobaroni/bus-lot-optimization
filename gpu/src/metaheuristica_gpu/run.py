@@ -50,7 +50,7 @@ from metaheuristica_gpu.environment import (
     GpuConfigurationError, file_sha256, gpu_code_hash, inspect_gpu_environment,
 )
 from metaheuristica_gpu.microbenchmark import run_microbenchmark
-from metaheuristica_gpu.monitor import GpuSafetyMonitor, cooldown, preflight_idle
+from metaheuristica_gpu.monitor import cooldown, monitor_process, preflight_idle
 from metaheuristica_gpu.numerics import verify_batch
 from metaheuristica_gpu.objective import GpuBatchObjective
 from metaheuristica_gpu.pso import run_pso_gpu
@@ -225,11 +225,17 @@ def execute_scenario(config: GpuCampaignConfig, scenario: GpuScenario) -> dict[s
             run_config = RunConfig(k=config.k, seed=int(scenario.payload["seed"]), budget=config.budget)
             monitor_path = output / "telemetry" / f"{scenario.scenario_id}.csv"
             atomic_write_json(session_path, {"scenario_id": scenario.scenario_id, "status": "running"})
-            with GpuSafetyMonitor(monitor_path) as monitor:
+            # O monitor passa a viver em processo próprio, como o
+            # ResourceMonitor da CPU já faz, com o processo medido isolado dos
+            # dois `nvidia-smi` por segundo. O canal de parada é explícito, para
+            # que uma falha de segurança derrube a execução com a mesma latência
+            # de antes, de um intervalo de amostragem.
+            with monitor_process(monitor_path, interval_seconds=1.0) as safety:
                 if scenario.payload["algorithm"] == "aco":
-                    result = run_aco_gpu(instance, run_config, config.aco, guard=monitor.guard)
+                    result = run_aco_gpu(instance, run_config, config.aco, guard=safety.guard)
                 else:
-                    result = run_pso_gpu(instance, run_config, config.pso, guard=monitor.guard)
+                    result = run_pso_gpu(instance, run_config, config.pso, guard=safety.guard)
+            safety.raise_if_unsafe()
             cooldown()
         except Exception as error:
             atomic_write_json(session_path, {

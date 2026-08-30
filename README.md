@@ -521,9 +521,26 @@ uv run --project gpu python -m metaheuristica_gpu.run consolidate
 
 Cada execução exige 60 segundos de GPU ociosa, até 50 °C e utilização média
 de até 5%. A telemetria interrompe a execução diante de aquecimento sustentado,
-throttling, concorrência ou perda de acesso ao driver. `resume` reaproveita o
-mesmo ID e ignora resultados já completos. Os 60 resultados GPU ficam em
-`results/gpu/` e não se misturam ao benchmark CPU.
+throttling, concorrência ou perda de acesso ao driver, e é coletada por um
+processo próprio, separado do processo cujo tempo é publicado. `resume`
+reaproveita o mesmo ID e ignora resultados já completos. Os 60 resultados GPU
+ficam em `results/gpu/` e não se misturam ao benchmark CPU.
+
+**Quanto esperar entre um `execute` e o próximo.** Nada. O resfriamento roda no
+fim de cada cenário e só devolve quando a placa marca **50 °C ou menos**, que é
+exatamente o mesmo limiar que o preflight do cenário seguinte aceita: os dois
+leem uma única constante, e por isso o próximo `execute` pode ser disparado
+imediatamente. A espera só é necessária quando um `execute` é disparado sem ter
+passado por um resfriamento, por exemplo depois de uma execução interrompida ou
+de qualquer outro uso da placa. Nesse caso, aguarde a temperatura cair a 50 °C
+ou menos antes de tentar de novo, conferindo com:
+
+```bash
+nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits
+```
+
+A temperatura ociosa medida desta placa é de 38 °C, bem abaixo do limiar, de
+modo que a espera, quando existir, é a de uma placa voltando à ociosidade.
 
 ## Licença
 

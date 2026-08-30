@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import asdict, dataclass
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass, fields
+from functools import partial
+import multiprocessing
 import os
 from pathlib import Path
+import queue as queue_module
 import subprocess
 import threading
 import time
-from typing import Callable
+from typing import Any, Callable, Iterator
 
 
 class GpuSafetyError(RuntimeError):
@@ -18,6 +22,32 @@ class GpuSafetyError(RuntimeError):
 
 class ThermalInterruption(GpuSafetyError):
     pass
+
+
+# O preflight e o resfriamento leem este mesmo limiar. Enquanto foram dois
+# valores, o resfriamento devolvia acima do que o preflight aceitava e a
+# execução seguinte reprovava de forma espúria e determinística dentro da faixa
+# entre os dois. A defesa contra a reincidência é não existir segundo valor.
+GPU_TEMPERATURE_LIMIT_C = 50
+
+THROTTLING_ACTIVE = "active"
+THROTTLING_INACTIVE = "inactive"
+THROTTLING_UNKNOWN = "unknown"
+
+_THROTTLING_INACTIVE_TEXTS = frozenset({"not active", "no", "0", "n/a"})
+_THROTTLING_ACTIVE_TEXTS = frozenset({"active", "yes", "1"})
+
+
+def throttling_state(value: str) -> str:
+    """Três categorias, e não duas. `nvidia-smi` devolve `[N/A]`, com colchetes,
+    quando o contador não é suportado, e ler isso como throttling ativo trocava
+    ausência de informação por evento térmico observado."""
+    text = value.strip().lower()
+    if text in _THROTTLING_INACTIVE_TEXTS:
+        return THROTTLING_INACTIVE
+    if text in _THROTTLING_ACTIVE_TEXTS:
+        return THROTTLING_ACTIVE
+    return THROTTLING_UNKNOWN
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,23 +61,31 @@ class GpuSample:
     power_w: float
     sm_clock_mhz: int
     memory_clock_mhz: int
-    software_thermal_slowdown: bool
-    hardware_thermal_slowdown: bool
+    software_thermal_slowdown: str
+    hardware_thermal_slowdown: str
     external_processes: int
 
 
-def _active(value: str) -> bool:
-    return value.strip().lower() not in {"not active", "no", "0", "n/a"}
+def query_sample(owner_pid: int | None = None) -> GpuSample:
+    """`owner_pid` é o processo que legitimamente segura a placa. Ele existe
+    porque o monitor deixou de rodar dentro do processo medido: sem declarar o
+    dono, o processo que executa a otimização passa a ser contado como
+    concorrente já na primeira amostra de todos os cenários.
 
-
-def query_sample() -> GpuSample:
-    fields = (
+    Quem amostra também nunca é concorrente de si mesmo, e por isso o próprio
+    processo continua excluído junto do dono declarado. Enquanto o monitor
+    rodava dentro do processo medido os dois eram o mesmo, e a exclusão única
+    bastava; separados, deixar de excluir o processo que amostra reabriria o
+    mesmo defeito uma casa adiante.
+    """
+    owners = {os.getpid()} if owner_pid is None else {os.getpid(), owner_pid}
+    fields_queried = (
         "temperature.gpu", "utilization.gpu", "utilization.memory", "memory.used",
         "memory.total", "power.draw", "clocks.sm", "clocks.mem",
         "clocks_event_reasons.sw_thermal_slowdown",
         "clocks_event_reasons.hw_thermal_slowdown",
     )
-    command = ["nvidia-smi", f"--query-gpu={','.join(fields)}", "--format=csv,noheader,nounits"]
+    command = ["nvidia-smi", f"--query-gpu={','.join(fields_queried)}", "--format=csv,noheader,nounits"]
     try:
         output = subprocess.run(command, check=True, capture_output=True, text=True, timeout=5).stdout.strip()
         values = [item.strip() for item in output.split(",")]
@@ -57,7 +95,7 @@ def query_sample() -> GpuSample:
         ).stdout
     except (FileNotFoundError, subprocess.SubprocessError) as error:
         raise GpuSafetyError("telemetria NVIDIA indisponível") from error
-    if len(values) != len(fields):
+    if len(values) != len(fields_queried):
         raise GpuSafetyError("amostra NVIDIA incompleta")
     external = 0
     for line in process_output.splitlines():
@@ -68,12 +106,24 @@ def query_sample() -> GpuSample:
         except ValueError:
             external += 1
         else:
-            external += int(pid != os.getpid())
+            external += int(pid not in owners)
     return GpuSample(
         time.monotonic(), int(values[0]), float(values[1]), float(values[2]),
         int(values[3]), int(values[4]), float(values[5]), int(values[6]), int(values[7]),
-        _active(values[8]), _active(values[9]), external,
+        throttling_state(values[8]), throttling_state(values[9]), external,
     )
+
+
+def write_samples_csv(path: Path, samples: list[GpuSample]) -> None:
+    """Os nomes das colunas vêm da própria estrutura da amostra, e não da
+    primeira amostra coletada: uma falha antes da primeira amostra tem de deixar
+    o arquivo em disco, com cabeçalho, sem mascarar o erro original."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=[item.name for item in fields(GpuSample)])
+        writer.writeheader(); writer.writerows(asdict(item) for item in samples)
+    os.replace(temporary, path)
 
 
 def preflight_idle(
@@ -85,8 +135,8 @@ def preflight_idle(
     samples = []
     for index in range(duration_seconds):
         sample = provider(); samples.append(sample)
-        if sample.temperature_c > 50:
-            raise GpuSafetyError("temperatura inicial acima de 50 graus Celsius")
+        if sample.temperature_c > GPU_TEMPERATURE_LIMIT_C:
+            raise GpuSafetyError(f"temperatura inicial acima de {GPU_TEMPERATURE_LIMIT_C} graus Celsius")
         if sample.external_processes:
             raise GpuSafetyError("outro processo computacional usa a GPU")
         if index + 1 < duration_seconds:
@@ -100,9 +150,11 @@ def preflight_idle(
 class GpuSafetyMonitor:
     def __init__(
         self, path: Path, *, provider: Callable[[], GpuSample] = query_sample,
-        interval_seconds: float = 1.0,
+        interval_seconds: float = 1.0, sink: Callable[[GpuSample], None] | None = None,
+        require_known_throttling: bool = False,
     ) -> None:
         self.path = path; self.provider = provider; self.interval_seconds = interval_seconds
+        self.sink = sink; self.require_known_throttling = require_known_throttling
         self.samples: list[GpuSample] = []; self._stop = threading.Event()
         self._thread: threading.Thread | None = None; self._error: GpuSafetyError | None = None
         self._hot = 0
@@ -111,13 +163,19 @@ class GpuSafetyMonitor:
         self._hot = self._hot + 1 if sample.temperature_c >= 80 else 0
         if self._hot >= 10:
             raise ThermalInterruption("GPU permaneceu em pelo menos 80 graus por 10 segundos")
-        if sample.software_thermal_slowdown or sample.hardware_thermal_slowdown:
+        states = (sample.software_thermal_slowdown, sample.hardware_thermal_slowdown)
+        if THROTTLING_ACTIVE in states:
             raise ThermalInterruption("GPU indicou throttling térmico")
+        if self.require_known_throttling and THROTTLING_UNKNOWN in states:
+            raise ThermalInterruption("telemetria de throttling incompleta")
         if sample.external_processes:
             raise ThermalInterruption("outro processo computacional apareceu na GPU")
 
     def _sample(self) -> None:
-        sample = self.provider(); self.samples.append(sample); self._check(sample)
+        sample = self.provider(); self.samples.append(sample)
+        if self.sink is not None:
+            self.sink(sample)
+        self._check(sample)
 
     def _run(self) -> None:
         while not self._stop.wait(self.interval_seconds):
@@ -125,7 +183,7 @@ class GpuSafetyMonitor:
                 self._sample()
             except GpuSafetyError as error:
                 self._error = error; self._stop.set()
-            except Exception as error:
+            except Exception:
                 self._error = ThermalInterruption("monitor perdeu telemetria")
                 self._stop.set()
 
@@ -134,7 +192,14 @@ class GpuSafetyMonitor:
             raise self._error
 
     def __enter__(self) -> "GpuSafetyMonitor":
-        self._sample()
+        try:
+            self._sample()
+        except BaseException:
+            # `__exit__` não roda quando `__enter__` levanta, e ele era o único
+            # lugar que gravava a telemetria: sem esta gravação, toda
+            # interrupção de segurança na primeira amostra perdia o arquivo.
+            write_samples_csv(self.path, self.samples)
+            raise
         self._thread = threading.Thread(target=self._run, name="gpu-safety", daemon=True)
         self._thread.start(); return self
 
@@ -142,18 +207,194 @@ class GpuSafetyMonitor:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=max(1.0, 2 * self.interval_seconds))
-        try:
-            self._sample()
-        except GpuSafetyError as error:
-            self._error = self._error or error
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_suffix(self.path.suffix + ".tmp")
-        with temporary.open("w", encoding="utf-8", newline="") as stream:
-            writer = csv.DictWriter(stream, fieldnames=list(asdict(self.samples[0])))
-            writer.writeheader(); writer.writerows(asdict(item) for item in self.samples)
-        os.replace(temporary, self.path)
+        if self._error is None:
+            try:
+                self._sample()
+            except GpuSafetyError as error:
+                self._error = error
+        write_samples_csv(self.path, self.samples)
         if exc_type is None and self._error is not None:
             raise self._error
+
+
+class SharedFlag:
+    """Sinalizador entre processos, e sem trava alguma.
+
+    Um `multiprocessing.Event` guarda um semáforo compartilhado, e o processo
+    que morre enquanto o segura trava para sempre quem chamar `set` ou `is_set`
+    depois. Quem chama é o laço cronometrado, por meio de `guard`, e travá-lo é
+    justamente o que este canal existe para impedir.
+    """
+
+    def __init__(self, cell: Any) -> None:
+        self._cell = cell
+
+    def set(self) -> None:
+        self._cell.value = 1
+
+    def is_set(self) -> bool:
+        return bool(self._cell.value)
+
+
+def _publish(sample_queue: Any, sample: GpuSample) -> None:
+    sample_queue.put(("sample", sample))
+
+
+def _monitor_worker(
+    path: str, sample_queue: Any, abort_event: Any, stop_event: Any,
+    interval_seconds: float, provider: Callable[[], GpuSample] | None,
+    owner_pid: int, require_known_throttling: bool,
+) -> None:
+    """Corpo do processo de monitoramento. Ele é quem paga os dois `nvidia-smi`
+    por amostra, longe do processo cujo tempo é publicado."""
+    if provider is None:
+        provider = partial(query_sample, owner_pid=owner_pid)
+    monitor = GpuSafetyMonitor(
+        Path(path), provider=provider, interval_seconds=interval_seconds,
+        sink=partial(_publish, sample_queue), require_known_throttling=require_known_throttling,
+    )
+    try:
+        with monitor:
+            while not stop_event.is_set():
+                time.sleep(min(interval_seconds, 0.05))
+                monitor.guard()
+    except GpuSafetyError as error:
+        sample_queue.put(("error", type(error).__name__, str(error)))
+        abort_event.set()
+    except BaseException as error:
+        sample_queue.put(("error", "ThermalInterruption", f"monitor perdeu telemetria: {error}"))
+        abort_event.set()
+
+
+class MonitorProcess:
+    """Alça do monitor que vive em processo próprio.
+
+    `guard` é o canal de parada consumido pelo laço cronometrado, e ele só lê um
+    evento entre processos: nem subprocesso nem leitura de fila entram na janela
+    medida. Quem esvazia a fila de amostras é uma thread de leitura própria, que
+    também impede o filho de travar quando o cano de mensagens enche.
+    """
+
+    def __init__(
+        self, path: Path, process: Any, sample_queue: Any, abort_event: Any,
+        stop_event: Any, owner_pid: int, interval_seconds: float,
+    ) -> None:
+        self.path = path; self.process = process; self.sample_queue = sample_queue
+        self.abort_event = abort_event; self.stop_event = stop_event
+        self.owner_pid = owner_pid; self.interval_seconds = interval_seconds
+        self.samples: list[GpuSample] = []; self._error: GpuSafetyError | None = None
+        self._lock = threading.Lock(); self._reader_stop = threading.Event()
+        self._reader = threading.Thread(target=self._read_loop, name="gpu-safety-reader", daemon=True)
+
+    @property
+    def pid(self) -> int | None:
+        return self.process.pid
+
+    def _consume(self, item: tuple) -> None:
+        if item[0] == "sample":
+            self.samples.append(item[1]); return
+        _, name, message = item
+        if self._error is None:
+            self._error = (ThermalInterruption if name == "ThermalInterruption" else GpuSafetyError)(message)
+
+    def _read_loop(self) -> None:
+        # A leitura fica aqui, e não no `guard`, por duas razões independentes:
+        # o filho pararia de amostrar se ninguém esvaziasse o cano, e uma
+        # mensagem cortada ao meio pela morte do filho bloqueia a leitura para
+        # sempre. Numa thread própria isso não alcança o laço cronometrado.
+        while not self._reader_stop.is_set():
+            try:
+                item = self.sample_queue.get(timeout=0.1)
+            except queue_module.Empty:
+                continue
+            except (OSError, ValueError, EOFError):
+                return
+            with self._lock:
+                self._consume(item)
+
+    def start(self) -> None:
+        self._reader.start()
+
+    def _await_error(self, timeout: float = 2.0) -> GpuSafetyError | None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with self._lock:
+                if self._error is not None:
+                    return self._error
+            time.sleep(0.01)
+        with self._lock:
+            return self._error
+
+    def guard(self) -> None:
+        if self.abort_event.is_set():
+            raise self._await_error() or ThermalInterruption(
+                "monitor de segurança interrompeu a execução"
+            )
+
+    def raise_if_unsafe(self) -> None:
+        with self._lock:
+            error = self._error
+        if error is not None:
+            raise error
+        if self.abort_event.is_set():
+            raise self._await_error() or ThermalInterruption(
+                "monitor de segurança interrompeu a execução"
+            )
+
+    def close(self) -> None:
+        self.stop_event.set()
+        # O prazo cobre o pior caso de saída do filho, que é a espera pela
+        # thread de amostragem mais a amostra de encerramento, cujos dois
+        # disparos de `nvidia-smi` carregam limite de 5 segundos cada. Prazo
+        # menor faria o encerramento normal terminar em `terminate`, e a
+        # gravação do arquivo pelo filho viraria caminho morto.
+        deadline = time.monotonic() + max(15.0, 4 * self.interval_seconds)
+        while self.process.is_alive() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        if self.process.is_alive():
+            self.process.terminate()
+        self.process.join(timeout=5.0)
+        time.sleep(max(0.3, 2 * min(self.interval_seconds, 0.5)))
+        self._reader_stop.set(); self._reader.join(timeout=1.0)
+        if not self._reader.is_alive():
+            try:
+                self.sample_queue.close(); self.sample_queue.cancel_join_thread()
+            except (OSError, ValueError):
+                pass
+        if not self.path.exists():
+            # O filho grava o arquivo ao terminar. Quando ele morre antes disso,
+            # a telemetria que chegou até aqui é tudo que existe, e a exigência
+            # de preservar telemetria em interrupção de segurança vale igual.
+            with self._lock:
+                write_samples_csv(self.path, list(self.samples))
+
+
+@contextmanager
+def monitor_process(
+    path: Path, *, interval_seconds: float = 1.0,
+    provider: Callable[[], GpuSample] | None = None, owner_pid: int | None = None,
+    require_known_throttling: bool = False,
+) -> Iterator[MonitorProcess]:
+    context = multiprocessing.get_context("spawn")
+    sample_queue = context.Queue()
+    abort_event = SharedFlag(context.Value("b", 0, lock=False))
+    stop_event = SharedFlag(context.Value("b", 0, lock=False))
+    owner = os.getpid() if owner_pid is None else owner_pid
+    process = context.Process(
+        target=_monitor_worker,
+        args=(str(path), sample_queue, abort_event, stop_event, interval_seconds,
+              provider, owner, require_known_throttling),
+        name="gpu-safety-monitor", daemon=True,
+    )
+    process.start()
+    handle = MonitorProcess(
+        Path(path), process, sample_queue, abort_event, stop_event, owner, interval_seconds,
+    )
+    handle.start()
+    try:
+        yield handle
+    finally:
+        handle.close()
 
 
 def cooldown(
@@ -163,6 +404,6 @@ def cooldown(
     samples = []
     while True:
         sample = provider(); samples.append(sample)
-        if sample.temperature_c <= 55:
+        if sample.temperature_c <= GPU_TEMPERATURE_LIMIT_C:
             return tuple(samples)
         sleeper(1.0)

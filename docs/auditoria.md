@@ -4574,8 +4574,36 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   curso" é satisfeito pela repetição determinística da falha a cada início de
   cenário dentro da janela de 5 graus, mesmo sem ser permanente.
 - **Onda:** B, com prioridade dentro de `gpu/`.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero para a campanha CPU.
+- **Situação:** fechado com correção de código e dois casos de teste novos, no
+  commit do pacote B19. Os dois limiares passam a ler `GPU_TEMPERATURE_LIMIT_C`,
+  constante única de `monitor.py`. O valor adotado é o do preflight, 50 graus, e
+  não o do resfriamento: alinhar para cima afrouxaria a condição de entrada que
+  a seção 29.1 exige, ao passo que alinhar para baixo apenas faz o resfriamento
+  esperar mais, e a temperatura ociosa medida da placa, 38 graus, fica abaixo
+  dos dois de qualquer modo.
+  **Por que a asserção é de identidade de conjunto e não de limiar.** O primeiro
+  caso varre as temperaturas de 30 a 80 e assevera que o conjunto aceito pelo
+  preflight é **igual** ao conjunto liberado pelo resfriamento, e assevera dentro
+  do próprio caso que os dois conjuntos discriminam, isto é que não são nem
+  vazios nem a faixa inteira. Uma desigualdade sobre um só dos lados continuaria
+  verdadeira com a faixa de cinco graus intacta. O segundo caso prende os dois
+  lados à mesma constante por deslocamento em tempo de execução: mudar
+  `GPU_TEMPERATURE_LIMIT_C` move as duas fronteiras juntas, o que reprova
+  qualquer reintrodução de um segundo valor literal. Provado por mutação sobre
+  cópia: repor os cinco graus no resfriamento reprova os dois casos e a
+  divergência reaparece exatamente em 51, 52, 53, 54 e 55.
+  **A espera passou a constar do `README.md`**, com a informação que não existia
+  em lugar algum: depois de `cooldown()` devolver não há espera a cumprir,
+  porque ele só devolve dentro da faixa que o preflight aceita, e o operador que
+  disparar um `execute` sem passar por `cooldown()` espera até a placa marcar 50
+  graus ou menos.
+- **Impressão digital:** classe prevista `D3`, classe observada `D3`, **a
+  observação bate com a previsão** e não há reclassificação. **Passo G.** Diff
+  previsto zero para a campanha CPU. **A conferência é dispensada por conjunto
+  completo**, conforme o registro do pacote, e o zero é portanto **argumentado e
+  não medido**: o pacote não toca `src/metaheuristica/`, e nenhum dos 42 cenários
+  do oráculo executa `gpu/`. O oráculo disponível é a suíte dirigida do
+  subprojeto, e é ela que passou.
 
 #### F8-7. Falha de segurança na primeira amostra impede a gravação da telemetria
 
@@ -4614,8 +4642,31 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   estabelecimento do contexto, ou gravando o CSV também no caminho de exceção de
   `__enter__`.
 - **Onda:** B, com prioridade dentro de `gpu/`.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero para a campanha CPU.
+- **Situação:** fechado com correção de código e dois casos de teste novos, no
+  commit do pacote B19, **pelos dois ramos da decisão e não por um**. A primeira
+  amostragem continua em `__enter__`, porque é ela que impede o laço de começar
+  sobre uma placa já comprometida, e o que mudou é que o caminho de exceção de
+  `__enter__` passa a gravar o CSV antes de propagar. A gravação foi extraída
+  para `write_samples_csv`, que `__exit__` também usa, de modo que os dois
+  caminhos são o mesmo código; o segundo ramo cobre ainda as falhas posteriores
+  ao estabelecimento do contexto, que o primeiro sozinho não cobriria.
+  **Os nomes das colunas deixaram de vir da primeira amostra.** Eles vêm agora
+  da própria estrutura de `GpuSample`. A subafirmação refutada do achado
+  descrevia `self.samples[0]` com lista vazia, e o verificador mostrou que isso
+  era inalcançável pelo caminho de `_check`; pelo caminho em que o **provedor**
+  levanta, porém, a lista fica de fato vazia, e ler a primeira amostra ali
+  mascararia o erro original com um `IndexError`. O segundo caso de teste é
+  exatamente esse: a telemetria some, o arquivo fica em disco só com o
+  cabeçalho, e a exceção que chega ao chamador continua sendo a original.
+  Provado por mutação sobre cópia: remover a gravação do caminho de exceção de
+  `__enter__` reprova os dois casos.
+- **Impressão digital:** classe prevista `D3`, classe observada `D3`, **a
+  observação bate com a previsão** e não há reclassificação. **Passo G.** Diff
+  previsto zero para a campanha CPU. **A conferência é dispensada por conjunto
+  completo**, conforme o registro do pacote, e o zero é portanto **argumentado e
+  não medido**: o pacote não toca `src/metaheuristica/`, e nenhum dos 42 cenários
+  do oráculo executa `gpu/`. O oráculo disponível é a suíte dirigida do
+  subprojeto, e é ela que passou.
 
 #### F8-8. Valor desconhecido de throttling é interpretado como throttling ativo
 
@@ -4648,8 +4699,31 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   política exigir.
 - **Onda:** B, dentro de `gpu/`, no mesmo commit de F8-7, porque o gatilho deste cai
   no mecanismo daquele.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero para a campanha CPU.
+- **Situação:** fechado com correção de código e dezesseis casos de teste novos, no
+  commit do pacote B19, junto de F8-7 como o registro determinava. `_active`
+  deu lugar a `throttling_state`, que devolve **três** categorias, `active`,
+  `inactive` e `unknown`, e os dois campos da amostra passam a carregar essa
+  categoria em vez de um booleano. Os quatro textos reconhecidos como inativos
+  continuam sendo os mesmos quatro, e `Active`, `yes` e `1` passam a ser
+  reconhecidos como ativos; tudo o mais, inclusive `[N/A]` com colchetes, é
+  desconhecido.
+  **A recusa nova não foi introduzida, e isso é deliberado.** A confiança do
+  achado é baixa e o gatilho não está presente nesta placa e neste driver, logo
+  categoria desconhecida **não** interrompe por padrão. A segunda metade da
+  decisão, falhar com mensagem de telemetria incompleta, existe como política
+  explícita, `require_known_throttling`, desligada, com caso de teste próprio
+  que demonstra o caminho. O caso em que o throttling é observado continua
+  interrompendo como antes.
+  Provado por mutação sobre cópia: fazer `throttling_state` devolver `active`
+  para texto não reconhecido, que é exatamente o comportamento antigo, reprova
+  os quatro casos da categoria desconhecida.
+- **Impressão digital:** classe prevista `D3`, classe observada `D3`, **a
+  observação bate com a previsão** e não há reclassificação. **Passo G.** Diff
+  previsto zero para a campanha CPU. **A conferência é dispensada por conjunto
+  completo**, conforme o registro do pacote, e o zero é portanto **argumentado e
+  não medido**: o pacote não toca `src/metaheuristica/`, e nenhum dos 42 cenários
+  do oráculo executa `gpu/`. O oráculo disponível é a suíte dirigida do
+  subprojeto, e é ela que passou.
 
 #### F8-9. Limite de lote fixo em 40 coincide por acaso com os hiperparâmetros congelados
 
@@ -4767,8 +4841,64 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   contínua é exigida pela seção 29.1 e não pode simplesmente ser removida.
 - **Onda:** B, dentro de `gpu/`, antes de qualquer execução da B11A-E, porque afeta
   o número que a campanha vai publicar.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero para a campanha CPU.
+- **Situação:** fechado com correção de código e cinco casos de teste novos, no
+  commit do pacote B19, **pelo segundo ramo da decisão**. Das duas opções do
+  registro, amostrar por NVML em processo ou tirar o monitor do processo medido,
+  foi tomada a segunda, por simetria com o caminho CPU e porque ela elimina a
+  classe inteira de interferência em vez de reduzi-la. A telemetria contínua
+  exigida pela seção 29.1 continua inteira: o que mudou foi onde ela é paga.
+  **A forma.** `monitor_process` é gerente de contexto novo em `monitor.py` que
+  dá `start` a um `multiprocessing.Process` com `spawn`; o filho é quem paga os
+  dois `nvidia-smi` por amostra e quem grava o CSV, e o processo medido fica com
+  um canal de parada, `guard`, que só lê um sinalizador de memória
+  compartilhada. `run.py` deixa de envolver o laço cronometrado no monitor em
+  processo e passa a envolvê-lo em `monitor_process`, com
+  `raise_if_unsafe()` **antes** de `cooldown()`, para preservar a ordem em que a
+  falha de segurança derrubava a execução.
+  **Dois defeitos que a própria mudança introduziria, e que o pacote fecha
+  junto.** O primeiro é a contagem de concorrentes: `query_sample` excluía
+  `os.getpid()`, que dentro do filho deixa de ser o processo que segura a placa,
+  de modo que o processo medido passaria a ser contado como concorrente e a
+  primeira amostra de **todos** os 60 cenários levantaria `ThermalInterruption`.
+  A função recebeu o parâmetro `owner_pid`, o gerente de contexto passa o
+  identificador do processo que ele envolve, e um caso de teste com `nvidia-smi`
+  simulado assevera as combinações. A exclusão é de **conjunto** e não de um
+  único identificador, porque quem amostra também não é concorrente de si mesmo:
+  enquanto o monitor rodava dentro do processo medido os dois eram o mesmo e a
+  exclusão única bastava, e separá-los sem separar a exclusão reabriria o mesmo
+  defeito uma casa adiante. Medido nesta placa que o filho criado por `spawn`
+  **não** abre contexto de dispositivo, embora reexecute o módulo de entrada sob
+  `__mp_main__` e importe a cadeia inteira, e que o custo disso é de cerca de
+  **0,5 s** por cenário, pago fora da região cronometrada. O segundo é o
+  travamento: um
+  `multiprocessing.Event` guarda semáforo compartilhado, e o filho morto
+  enquanto o segura trava para sempre quem chamar `set` ou `is_set` depois, isto
+  é o próprio laço cronometrado. O canal passou a ser um sinalizador sem trava
+  sobre memória compartilhada, e foi essa troca que fez o caso do filho morto
+  deixar de travar; a fila de amostras é esvaziada por thread de leitura própria
+  pelo mesmo motivo, porque mensagem cortada ao meio pela morte do filho bloqueia
+  a leitura para sempre.
+  **Os cinco casos.** Comparação de identificador de processo, com o provedor
+  gravando o próprio `os.getpid()` na amostra, de modo que a asserção prende onde
+  a amostragem ocorreu e não apenas o que a alça declara; regressão de custo
+  asseverando **zero** chamadas de `subprocess.run` no processo cronometrado
+  **junto** da prova de que o filho de fato as pagou, senão o zero seria
+  verdadeiro por vácuo; latência de aborto asseverada por contagem de amostras, e
+  não por relógio, com o provedor ficando inseguro na terceira amostra e a
+  execução parando com exatamente três amostras publicadas; gravação do CSV
+  quando o filho é morto por sinal, com o arquivo comprovadamente ausente antes
+  do encerramento; e o dono explícito das duas formas, unitária e integrada.
+  Provado por mutação sobre cópia, com o caminho do módulo carregado conferido:
+  fazer o monitor rodar em thread do processo medido reprova a comparação de
+  identificador, e ignorar `owner_pid` reprova a contagem de concorrentes.
+- **Impressão digital:** classe prevista `M1`, classe observada `M1`, **a
+  observação bate com a previsão** e não há reclassificação. **Passo G.** Diff
+  previsto zero nos 42 cenários. **A conferência é dispensada por conjunto
+  completo**, conforme o registro do pacote, e o zero é portanto **argumentado e
+  não medido**: o pacote não toca `src/metaheuristica/`, e nenhum dos 42 cenários
+  do oráculo executa `gpu/`. A magnitude em segundos da inflação continua **não
+  medida**, e passa a ser inalcançável pelo caminho previsto, porque o efeito
+  deixou de existir antes de qualquer execução oficial da campanha.
 
 #### F8-12. Duplicação literal de código normativo entre os dois pacotes
 
@@ -5704,9 +5834,20 @@ mudança de parâmetro.
 | Achado | Assimetria | Direção sobre `S` | Magnitude |
 |---|---|---|---|
 | F7-3 | GPU não fixa variável de thread alguma; 66 threads contra 4 | nula, medida | 2,4% e 1,7%, dentro do ruído, **a favor** do caso sem limite |
-| F8-11 | monitor térmico roda dentro do processo cronometrado, com dois `nvidia-smi` por segundo | **reduz** `S` | não medida |
+| F8-11 | monitor térmico roda dentro do processo cronometrado, com dois `nvidia-smi` por segundo | **reduz** `S` | não medida, e **corrigida antes de qualquer execução oficial** |
 | F8-14 | preparação do dispositivo fica **fora** do tempo oficial | **aumenta** `S` | 2,0 ms, cerca de 0,05% no PSO e 0,001% no ACO |
 | F8-13 | `T_CPU` sob contenção de 16 vias, `T_GPU` exclusivo | ambígua | dois pares com **sinais opostos**, 1,243% e 0,4695% |
+
+**Atualização de 30/08/2026.** O **F8-11** foi fechado no pacote B19, que tirou o
+monitor do processo cronometrado. A assimetria deixa de existir para as 60 execuções
+que ainda não rodaram, e a magnitude continua não medida por ter deixado de ser
+alcançável. **Isso reduz de quatro para três as assimetrias vivas**, e não altera as
+três restantes nem a conclusão abaixo. Os números publicados desta seção e da
+frente F8, o `S` honesto do ACO de **1,006**, o teto de Amdahl de **1,0072** e a
+fração de dispositivo do PSO de **16,3%**, **continuam válidos**: todos foram medidos
+em sondas com o monitor **inativo**, isto é já na condição que a correção estabelece.
+O que a correção retira é a correção para baixo que o próprio F8-11 previa para a
+campanha, e não os números medidos.
 
 **Os sinais não se alinham e três das quatro magnitudes não estão medidas.** A
 conclusão conjunta é que o `S` do ACO não tem barra de erro defensável, o que reforça
