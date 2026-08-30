@@ -7,10 +7,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 28/08/2026
+- **Atualizado em:** 30/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Dezoito dos 29 pacotes fechados**:
-  A1, B1 a B12 exceto o B13, e B14 a B18. Restam 11, que são B13, B19, B20, B21 e
+- **Fase do bloco ativo:** Fase 2, correção. **Dezenove dos 29 pacotes fechados**:
+  A1, B1 a B12 exceto o B13, e B14 a B19. Restam 10, que são B13, B20, B21 e
   C1 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B, porque altera
   o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
   enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
@@ -18,7 +18,21 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o lote L5, com o pacote B11, fechou os achados F4-3
+- **Última decisão concluída:** a primeira parte do lote L6 fechou o pacote B19, com
+  os achados F8-6, F8-7, F8-8 e F8-11. O monitor térmico da réplica em placa gráfica
+  saiu do processo que executa o laço cronometrado e passou a viver em processo
+  próprio, o preflight e o resfriamento passaram a ler um limiar único, a telemetria
+  deixou de se perder quando a primeira amostra reprova, e o valor desconhecido de
+  throttling virou categoria própria em vez de ser lido como evento térmico. Duas
+  armadilhas que a própria mudança criava foram fechadas junto, e nenhuma das duas
+  estava prevista: a contagem de processos concorrentes teria acusado o processo
+  medido em todos os cenários, e um evento entre processos como canal de parada
+  travaria o laço cronometrado se o monitor morresse segurando o semáforo. Commits em
+  `7d1fd68` e `72ce39e`. A revisão independente sondou os casos novos por mutação
+  sobre cópia e achou um sobrevivente, a segunda armadilha, cuja correção estava
+  provada só por leitura; acabamento em `78b5571` e `c3488b3`. A suíte da réplica
+  passou de 27 para 53 casos e ficou verde também quando invocada de dentro do
+  próprio subprojeto. O lote L5, anterior, com o pacote B11, fechou os achados F4-3
   e F4-4. A evaporação do feromônio ganhou piso no menor subnormal positivo, o que
   impede o aborto da execução com taxas de evaporação altas, e o mínimo publicado
   passou a ser tomado sobre as células que a construção pode alcançar. A medição
@@ -35,12 +49,14 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** despachar o lote **L6**, que é B19 e B20, nessa ordem,
-  pelo agrupamento em dez lotes descrito em
-  `.superpowers/sdd/B11B_plan/proposta-lotes-onda-b-c.md`. Os dois preveem diferença
-  nula na conferência e nenhum regrava a linha de base. É também o lote em que as
-  observações sem destino alocado deixadas pelos dois lotes anteriores sobre a réplica
-  em placa gráfica podem ser recolhidas, o que depende de decisão do usuário.
+- **Próxima ação atômica:** despachar a **segunda parte do lote L6**, que é o pacote
+  **B20**, o caminho normativo das réplicas em placa gráfica, com os achados F8-10 e
+  F8-14. Ela recolhe as observações sem destino alocado deixadas pelos lotes L4 e L5,
+  cuja alocação ao B20 já foi decidida, e é a única parte do lote que move a suíte de
+  CPU, porque a última delas vive no núcleo e não na réplica. O lote prevê diferença
+  nula na conferência e não regrava a linha de base. O portão precisa ser reescrito em
+  alvos por commit antes do despacho, porque portão escrito para o lote inteiro não é
+  conferível por um despacho parcial.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
   manifesto de congelamento está divergente de propósito, em dez arquivos
   protegidos, e não deve ser renovado antes do fechamento da auditoria.
