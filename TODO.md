@@ -9,8 +9,8 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 30/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Dezenove dos 29 pacotes fechados**:
-  A1, B1 a B12 exceto o B13, e B14 a B19. Restam 10, que são B13, B20, B21 e
+- **Fase do bloco ativo:** Fase 2, correção. **Vinte dos 29 pacotes fechados**:
+  A1, B1 a B12 exceto o B13, e B14 a B20. Restam 9, que são B13, B21 e
   C1 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B, porque altera
   o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
   enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
@@ -18,7 +18,15 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** a primeira parte do lote L6 fechou o pacote B19, com
+- **Última decisão concluída:** o lote L6 fechou por inteiro, em duas partes. A parte 2
+  fechou o pacote **B20**, com os achados F8-10 e F8-14, alinhando as réplicas em placa
+  gráfica ao caminho normativo: as cópias locais da normalização de probabilidades e da
+  atualização de feromônio passaram a delegar ao núcleo, a formiga publicada passou a
+  ser conferidamente canônica, e o custo de preparação do dispositivo ganhou campo
+  próprio sem mover o cronômetro oficial. O commit decorrente publicou a chave de
+  viabilidade e removeu dela a validação repetida. Commits em `27d466e` e `519682d`,
+  revisão independente com um achado de registro, corrigido em seguida. **Nenhuma das
+  sete observações sem destino alocado sobrevive.** A parte 1 fechou o pacote B19, com
   os achados F8-6, F8-7, F8-8 e F8-11. O monitor térmico da réplica em placa gráfica
   saiu do processo que executa o laço cronometrado e passou a viver em processo
   próprio, o preflight e o resfriamento passaram a ler um limiar único, a telemetria
@@ -49,18 +57,20 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** rever de forma independente a **segunda parte do lote
-  L6**, que está executada. O pacote **B20**, o caminho normativo das réplicas em
-  placa gráfica, fechou os achados F8-10 e F8-14, e o commit decorrente fechou as
-  duas últimas observações que os lotes L4 e L5 haviam deixado sem destino alocado.
-  Nenhuma das sete observações do lote sobrevive sem destino. A conferência da
-  impressão digital depois do commit decorrente deu **idêntica**, e a linha de base
-  não foi regravada. A suíte de CPU foi de 445 para 446, pelo único caso novo que
-  vive no núcleo, e a da réplica de 53 para 69 nas duas invocações. A revisão precisa
-  olhar em particular a consequência de medição registrada na conexão 13: as
-  validações do caminho normativo custam tempo dentro da região cronometrada, o tempo
-  oficial da réplica subiu 3,8% no ACO e 22% no PSO, e os três números de aceleração
-  publicados precisam ser rederivados da campanha regenerada.
+- **Próxima ação atômica:** despachar o lote **L7**, que é o pacote **B21** sozinho,
+  forçado a último da Onda B pela própria dependência declarada, que é "todos os
+  anteriores". Depois dele vêm L8, L9 e L10, que são a Onda C. Antes do despacho há
+  **uma decisão pendente**, registrada abaixo, sobre a validação excedente da réplica.
+- **Decisão pendente, e ela precede a regeneração da campanha:** fechar o F8-10 pôs as
+  validações do caminho normativo dentro da região cronometrada da réplica, que não as
+  pagava, enquanto o núcleo as paga desde o B6. Medido em `artesp_rmsp_150` com K igual
+  a cinco, o tempo oficial subiu **3,8% no ACO** e **22% no PSO**. Com isso os números
+  `1,006`, `1,0072` e `16,3%` deixam de ser reutilizáveis e precisam ser rederivados da
+  campanha regenerada. Cerca de **metade da subida é validação excedente, e não
+  simetria**: a réplica valida duas vezes por avaliação contra uma do núcleo, e isso
+  pede um pacote de continuação que declare `gpu/evaluator.py` sob o F1-06, usando a
+  `_canonicalize_labels` extraída no commit decorrente do L6. Despachar esse pacote
+  **antes** de regenerar a campanha, senão os números são rederivados duas vezes.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
   manifesto de congelamento está divergente de propósito, em dez arquivos
   protegidos, e não deve ser renovado antes do fechamento da auditoria.
