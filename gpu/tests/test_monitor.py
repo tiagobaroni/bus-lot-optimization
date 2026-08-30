@@ -1,5 +1,6 @@
 import csv
 from dataclasses import fields, replace
+import multiprocessing.synchronize
 import os
 import signal
 import subprocess
@@ -307,3 +308,54 @@ def test_o_monitor_em_processo_proprio_declara_o_processo_medido_como_dono(tmp_p
     with monitor.monitor_process(caminho, interval_seconds=0.02) as guarda:
         assert guarda.owner_pid == os.getpid()
         assert guarda.owner_pid != guarda.pid
+
+
+def _primitivas_com_trava(raiz: object, profundidade: int = 4) -> list[object]:
+    """Coleta, no grafo de atributos alcançável a partir de `raiz`, os objetos que
+    guardam semáforo entre processos.
+
+    A expectativa é derivada da definição de "sem trava", isto é da ausência de
+    qualquer `SemLock` no caminho, e não dos nomes que o monitor escolheu para os
+    seus atributos: uma reimplementação com outro nome continua sendo pega.
+    """
+    encontrados: list[object] = []
+    vistos: set[int] = set()
+
+    def visitar(atual: object, resta: int) -> None:
+        if resta < 0 or id(atual) in vistos:
+            return
+        vistos.add(id(atual))
+        if isinstance(atual, multiprocessing.synchronize.SemLock):
+            encontrados.append(atual)
+        for valor in vars(atual).values() if hasattr(atual, "__dict__") else ():
+            visitar(valor, resta - 1)
+
+    visitar(raiz, profundidade)
+    return encontrados
+
+
+def test_o_canal_de_parada_nao_guarda_semaforo_entre_processos(tmp_path) -> None:
+    """O filho morto enquanto segura um semáforo compartilhado trava para sempre
+    quem o consultar depois, e quem consulta é o laço cronometrado, por `guard`.
+
+    Este caso prende a *identidade* da primitiva, e não o travamento em si: o
+    travamento só ocorre quando a morte cai dentro da seção crítica, que é uma
+    janela de microssegundos, e um caso comportamental para ele seria
+    probabilístico. Sem este caso, trocar os dois canais de volta por
+    `multiprocessing.Event` deixa a suíte inteira verde.
+    """
+    # Prova de que a busca acha o que diz achar. Sem esta metade, um erro na
+    # varredura faria as asserções abaixo passarem por vácuo.
+    evento = multiprocessing.get_context("spawn").Event()
+    assert _primitivas_com_trava(evento), "a varredura não acha o semáforo de um Event"
+
+    caminho = tmp_path / "telemetria.csv"
+    with monitor.monitor_process(caminho, interval_seconds=0.02) as guarda:
+        canais = (guarda.abort_event, guarda.stop_event)
+        for canal in canais:
+            assert isinstance(canal, monitor.SharedFlag)
+            assert not _primitivas_com_trava(canal), f"{canal!r} guarda semáforo"
+        # E o canal continua sendo um canal: sinaliza e é lido de volta.
+        assert not guarda.stop_event.is_set()
+        guarda.stop_event.set()
+        assert guarda.stop_event.is_set()
