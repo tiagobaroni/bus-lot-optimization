@@ -79,13 +79,19 @@ class OptimizationContext:
     def incumbent_evaluation(self) -> EvaluationResult | None:
         return self._recorder.incumbent_evaluation
 
-    def evaluate(self, solution: Any) -> EvaluationResult:
+    def evaluate(
+        self, solution: Any, *, finalize: Callable[[], None] | None = None
+    ) -> EvaluationResult:
         result = self._evaluator.evaluate(solution)
+        self._close_accounting(finalize)
         self._stop_at_limit(result)
         return result
 
-    def evaluate_provisional_for_repair(self, solution: Any) -> EvaluationResult:
+    def evaluate_provisional_for_repair(
+        self, solution: Any, *, finalize: Callable[[], None] | None = None
+    ) -> EvaluationResult:
         result = self._evaluator.evaluate_provisional_for_repair(solution)
+        self._close_accounting(finalize)
         self._stop_at_limit(result)
         return result
 
@@ -96,11 +102,28 @@ class OptimizationContext:
     def diagnostics(self) -> Mapping[str, Any]:
         return dict(self._diagnostics)
 
+    @staticmethod
+    def _close_accounting(finalize: Callable[[], None] | None) -> None:
+        """Fecha a contabilidade do chamador antes de a fronteira do orçamento subir.
+
+        A avaliação já foi consumida quando `_stop_at_limit` levanta
+        `EvaluationLimitReached`, e tudo o que o chamador escreveria depois da
+        chamada é perdido. É essa perda que produz os três sintomas de F1-04, A5
+        e F5-3, cada um observado por uma frente diferente.
+        """
+
+        if finalize is None:
+            return
+        if not callable(finalize):
+            raise ConfigurationError("finalize deve ser chamável")
+        finalize()
+
     def _stop_at_limit(self, result: EvaluationResult) -> None:
         if self._evaluator.remaining == 0:
             raise EvaluationLimitReached(
                 result,
-                f"orçamento esgotado: {self.evaluations}/{self.evaluations} avaliações"
+                "orçamento esgotado: "
+                f"{self.evaluations}/{self._evaluator.budget} avaliações",
             )
 
 

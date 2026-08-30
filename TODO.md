@@ -9,16 +9,32 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 30/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Vinte dos 29 pacotes fechados**:
-  A1, B1 a B12 exceto o B13, e B14 a B20. Restam 9, que são B13, B21 e
+- **Fase do bloco ativo:** Fase 2, correção. **Vinte e um dos 29 pacotes fechados**:
+  A1, B1 a B12 exceto o B13, e B14 a B21. Restam 8, que são B13 e
   C1 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B, porque altera
   o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
   enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
-  a redação anterior já esteve errada por um.
+  a redação anterior já esteve errada por um. **A Onda B está encerrada**, e o que resta
+  é o B13 diferido mais a Onda C.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o lote L6 fechou por inteiro, em duas partes. A parte 2
+- **Última decisão concluída:** o lote L7 fechou o pacote **B21**, último da Onda B, com
+  os achados F1-04, A5 e F5-3 tratados como um único problema de contrato em
+  `optimizer.py`, conforme a conexão 9 do registro. Os dois métodos de avaliação
+  passaram a aceitar um ponto de fechamento executado depois da avaliação e antes do
+  teste de fronteira do orçamento, e com ele a mensagem passou a trazer o orçamento no
+  denominador, as saturações do enxame deixaram de incluir as tentativas que nunca foram
+  avaliadas, a última iteração do enxame passou a ser contada, e o reinício da Busca
+  Tabu que consome a última avaliação deixou de sumir do registro. A lista do pacote foi
+  alargada por decisão do usuário para incluir a réplica em placa gráfica, pelo
+  precedente do pacote B9, e o realinhamento entrou no mesmo commit. A conferência da
+  impressão digital mediu 22 diferenças, todas em `position_clips` e `velocity_clips` dos
+  onze cenários do enxame, com zero nos demais algoritmos e zero em todo campo proibido;
+  a contenção foi enumerada e provada antes de a linha de base ser regravada. O A5
+  reclassificou para `D1` e o F5-3 permaneceu `D2`, e as duas leituras estavam previstas.
+  O lote L6 fechou
+  por inteiro, em duas partes. A parte 2
   fechou o pacote **B20**, com os achados F8-10 e F8-14, alinhando as réplicas em placa
   gráfica ao caminho normativo: as cópias locais da normalização de probabilidades e da
   atualização de feromônio passaram a delegar ao núcleo, a formiga publicada passou a
@@ -57,10 +73,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** despachar o lote **L7**, que é o pacote **B21** sozinho,
-  forçado a último da Onda B pela própria dependência declarada, que é "todos os
-  anteriores". Depois dele vêm L8, L9 e L10, que são a Onda C. Antes do despacho há
-  **uma decisão pendente**, registrada abaixo, sobre a validação excedente da réplica.
+- **Próxima ação atômica:** o commit decorrente do lote L7, que fecha o **F1-06 na
+  réplica em placa gráfica** e resolve a decisão pendente registrada abaixo. Ele não é
+  pacote novo e não altera a contagem. Depois dele vêm L8, L9 e L10, que são a Onda C, e
+  em seguida o B13 diferido, imediatamente antes da Tarefa 19B.
 - **Decisão pendente, e ela precede a regeneração da campanha:** fechar o F8-10 pôs as
   validações do caminho normativo dentro da região cronometrada da réplica, que não as
   pagava, enquanto o núcleo as paga desde o B6. Medido em `artesp_rmsp_150` com K igual

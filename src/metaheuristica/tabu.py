@@ -235,23 +235,38 @@ def _tabu_search(
     context.evaluate(current)
 
     def evaluate_restart() -> IntArray:
-        nonlocal stagnation
         restart = _balanced_random_solution(n_units, k, context.rng)
         before = _incumbent_cost(context)
         evaluations_before = context.evaluations
+
+        def close_restart() -> None:
+            """Fecha o reinício pelo contrato novo de `optimizer.py`.
+
+            F5-3: estas cinco linhas ficavam **depois** do `try/finally`, e o
+            reinício que consumia a última avaliação do orçamento perdia todas
+            elas, porque `EvaluationLimitReached` propagava antes. A correção
+            **não** é mover as linhas para o `finally`: o `finally` já existe e
+            serve a outro propósito, a publicação de diagnósticos, e
+            sobrecarregá-lo esconderia que o problema é de contrato e o faria
+            reaparecer no próximo algoritmo que consumisse a última avaliação
+            em caminho especial.
+            """
+
+            nonlocal stagnation
+            memory.clear()
+            stagnation = 0
+            diagnostics.restarts += 1
+            diagnostics.iterations_completed += 1
+            diagnostics.publish(context)
+
         try:
-            context.evaluate(restart)
+            context.evaluate(restart, finalize=close_restart)
         finally:
             if context.evaluations > evaluations_before:
                 after = _incumbent_cost(context)
                 if _strict_improvement(before, after):
                     diagnostics.global_improvements += 1
                 diagnostics.publish(context)
-        memory.clear()
-        stagnation = 0
-        diagnostics.restarts += 1
-        diagnostics.iterations_completed += 1
-        diagnostics.publish(context)
         return restart
 
     while True:

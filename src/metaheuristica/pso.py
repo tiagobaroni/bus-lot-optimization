@@ -291,11 +291,23 @@ def _pso_search(
             _trial_state(particle, gbest_snapshot, config, context.rng)
             for particle in particles
         ]
-        diagnostics.position_clips += sum(trial.position_clips for trial in trials)
-        diagnostics.velocity_clips += sum(trial.velocity_clips for trial in trials)
-        diagnostics.publish(context)
+        for index, (particle, trial) in enumerate(zip(particles, trials)):
+            # A5, pelo contrato novo de `optimizer.py`: as saturações da
+            # tentativa e o fechamento da iteração só entram na contabilidade
+            # **depois** da avaliação da própria tentativa, e por isso viajam
+            # neste ponto de fechamento. Somá-las antes do laço fazia a iteração
+            # interrompida pela fronteira do orçamento contribuir por inteiro,
+            # inclusive pelas tentativas que nunca foram avaliadas, e deixava a
+            # última iteração de toda execução sem ser contada.
+            last_trial = index == len(trials) - 1
 
-        for particle, trial in zip(particles, trials):
+            def close_trial(trial: _Trial = trial, last: bool = last_trial) -> None:
+                diagnostics.position_clips += trial.position_clips
+                diagnostics.velocity_clips += trial.velocity_clips
+                if last:
+                    diagnostics.iterations_completed += 1
+                diagnostics.publish(context)
+
             decoded = decode_position(
                 trial.position, n_units=instance.n_units, k=run_config.k
             )
@@ -343,9 +355,15 @@ def _pso_search(
             ):
                 raise SolutionValidationError("posição e solução candidata são incoerentes")
             try:
-                evaluation = (
-                    reused if reused is not None else context.evaluate(solution)
-                )
+                if reused is not None:
+                    # O reparo já consumiu a unidade de orçamento e devolveu a
+                    # avaliação do estado final, logo não há chamada a
+                    # `context.evaluate` para carregar o fechamento: ele é
+                    # executado aqui, no mesmo ponto do laço em que estaria.
+                    evaluation = reused
+                    close_trial()
+                else:
+                    evaluation = context.evaluate(solution, finalize=close_trial)
             except EvaluationLimitReached as exhausted:
                 evaluation = _limit_result(exhausted)
                 _commit_candidate(
@@ -380,8 +398,6 @@ def _pso_search(
                 diagnostics.strict_global_improvements += int(strict)
             diagnostics.particles_evaluated += 1
             diagnostics.publish(context)
-        diagnostics.iterations_completed += 1
-        diagnostics.publish(context)
 
 
 def _commit_candidate(

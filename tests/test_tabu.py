@@ -509,3 +509,51 @@ def test_restart_when_the_entire_sample_is_tabu(monkeypatch) -> None:
     # estagnação. Se `F5-3` for corrigido e esta asserção passar a falhar, o certo
     # é reconferir a configuração, e não relaxar para desigualdade.
     assert result.diagnostics["restarts"] == len(blocked)
+
+
+def _diagnosticos_da_busca_tabu(budget: int) -> dict[str, object]:
+    """Executa o cenário calibrado de F5-3 e devolve os diagnósticos."""
+
+    instance = load_artesp_instance(ROOT / "data/instances", 20)
+    resultado = run_tabu(
+        instance,
+        RunConfig(k=3, seed=5, budget=budget),
+        TabuConfig(tabu_tenure=10, neighborhood_size=10, stagnation_limit=5),
+    )
+    assert resultado.evaluations == budget
+    return dict(resultado.diagnostics)
+
+
+def test_o_reinicio_que_consome_a_ultima_avaliacao_e_contabilizado() -> None:
+    """F5-3: as duas linhas de incremento ficavam depois do `try/finally`.
+
+    Quando `EvaluationLimitReached` era lançada por `context.evaluate(restart)`,
+    o `finally` publicava os diagnósticos mas `restarts` e
+    `iterations_completed` não eram incrementados, porque as duas linhas estavam
+    fora do bloco. O reinício que consome a última avaliação do orçamento
+    simplesmente desaparecia do registro.
+
+    O orçamento foi calibrado para que a avaliação de índice 273 seja a de um
+    reinício: com 272 a execução para dentro da iteração anterior, e com 273 o
+    reinício é exatamente a avaliação da fronteira.
+    """
+
+    na_fronteira = _diagnosticos_da_busca_tabu(273)
+    antes = _diagnosticos_da_busca_tabu(272)
+
+    # Denominador do caso, asseverado aqui dentro: existe reinício anterior no
+    # mesmo cenário, logo o caminho comum de reinício já é exercitado e o que o
+    # caso mede é o reinício **da fronteira**, e não a ausência de reinícios.
+    assert antes["restarts"] == 1
+
+    assert na_fronteira["restarts"] == antes["restarts"] + 1
+    assert na_fronteira["accepted_moves"] == antes["accepted_moves"] + 1
+
+    # A identidade que a contabilidade do algoritmo mantém, preservada pela
+    # correção: cada iteração é ou um movimento aceito ou um reinício.
+    assert na_fronteira["iterations_completed"] == (
+        na_fronteira["accepted_moves"] + na_fronteira["restarts"]
+    )
+    assert antes["iterations_completed"] == (
+        antes["accepted_moves"] + antes["restarts"]
+    )

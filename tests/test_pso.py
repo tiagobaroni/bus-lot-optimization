@@ -391,10 +391,10 @@ def test_repaired_candidate_is_not_evaluated_twice(
     calls: list[tuple[int, ...]] = []
     original = optimizer_module.OptimizationContext.evaluate
 
-    def spy(self: Any, solution: Any) -> Any:
+    def spy(self: Any, solution: Any, **kwargs: Any) -> Any:
         key = tuple(int(value) for value in np.asarray(solution))
         try:
-            result = original(self, solution)
+            result = original(self, solution, **kwargs)
         except EvaluationLimitReached:
             calls.append(key)
             raise
@@ -496,3 +496,91 @@ def test_the_midpoint_fallback_is_not_reached_by_a_normal_scenario(
     assert result.diagnostics["repairs_completed"] > 0
     assert coordinates >= 1000
     assert result.evaluations == 600
+
+
+def _diagnosticos_do_pso(budget: int) -> dict[str, Any]:
+    """Executa o cenário calibrado de A5 e devolve os diagnósticos publicados."""
+
+    resultado = run_pso(
+        TINY,
+        RunConfig(k=2, seed=3, budget=budget),
+        PsoConfig(n_particles=4, inertia=0.4, cognitive=2.0, social=1.5),
+    )
+    assert resultado.evaluations == budget
+    return dict(resultado.diagnostics)
+
+
+def test_a_ultima_iteracao_do_pso_e_contada_mesmo_no_orcamento_multiplo() -> None:
+    """A5, achado adicional do verificador, item B6 do Apêndice B.
+
+    `_stop_at_limit` confere `remaining == 0` **depois** de uma avaliação bem
+    sucedida, e o caminho de exceção nunca alcançava o incremento de
+    `iterations_completed`. Consequência: a última iteração de qualquer execução
+    do PSO nunca era contada, mesmo quando o orçamento divide exato por
+    `n_particles`. Com orçamento 100 e `n_particles=4` são quatro avaliações
+    iniciais mais 24 iterações completas de quatro tentativas cada, e o valor
+    publicado era **23**.
+
+    Os 42 cenários da impressão digital **não** exercitam este caminho, porque
+    a Tarefa 14 calibrou os orçamentos para não serem múltiplos de
+    `n_particles`. Este caso é o único oráculo do achado.
+    """
+
+    diagnosticos = _diagnosticos_do_pso(100)
+
+    # A propriedade que torna o cenário o do achado, asseverada aqui dentro: o
+    # orçamento menos as avaliações iniciais divide exato pelo número de
+    # partículas, logo nenhuma iteração fica pela metade.
+    assert (100 - 4) % 4 == 0
+    assert diagnosticos["particles_evaluated"] == 100
+    assert diagnosticos["repair_attempts"] == 0
+    assert diagnosticos["iterations_completed"] == 24
+
+
+def test_os_contadores_de_saturacao_nao_incluem_a_iteracao_interrompida() -> None:
+    """A5: as somas de `position_clips` e `velocity_clips` eram antecipadas.
+
+    O laço somava os contadores das `n_particles` tentativas **antes** de
+    qualquer avaliação, de modo que a iteração interrompida pela fronteira do
+    orçamento contribuía por inteiro, inclusive pelas tentativas que nunca
+    foram avaliadas.
+
+    O experimento é o de orçamento crescente, que é a forma como o verificador
+    demonstrou o achado de modo mais direto. Com orçamento 100 a iteração 24
+    fecha exatamente; de 101 a 104 a iteração 25 vai sendo avaliada tentativa a
+    tentativa. O oráculo não depende de conhecer a repartição das saturações
+    entre as quatro tentativas, e sim de um limite superior que o defeito viola:
+    **uma única tentativa não pode saturar mais posições do que a instância tem
+    unidades**.
+    """
+
+    instance = TINY
+    curva = {budget: _diagnosticos_do_pso(budget) for budget in range(100, 105)}
+
+    # Denominador do caso, asseverado aqui dentro: a iteração 25 inteira satura
+    # mais posições do que uma tentativa isolada poderia, o que é o que torna o
+    # limite superior abaixo discriminante em vez de vazio.
+    total_da_iteracao = (
+        curva[104]["position_clips"] - curva[100]["position_clips"]
+    )
+    assert total_da_iteracao > instance.n_units
+
+    # A iteração 25 é interrompida logo na primeira tentativa quando o orçamento
+    # é 101, logo o que ela acrescenta é o de uma tentativa só.
+    acrescimo_de_uma_tentativa = (
+        curva[101]["position_clips"] - curva[100]["position_clips"]
+    )
+    assert 0 <= acrescimo_de_uma_tentativa <= instance.n_units
+    assert curva[101]["position_clips"] < curva[104]["position_clips"]
+
+    # A curva é não decrescente e cresce por tentativa avaliada, e não por
+    # iteração iniciada.
+    for anterior, seguinte in zip(range(100, 104), range(101, 105)):
+        assert curva[anterior]["position_clips"] <= curva[seguinte]["position_clips"]
+        assert curva[anterior]["velocity_clips"] <= curva[seguinte]["velocity_clips"]
+
+    # E a iteração completa continua contribuindo por inteiro: a correção retira
+    # as tentativas não avaliadas, e não as avaliadas.
+    assert curva[104]["position_clips"] == curva[100]["position_clips"] + total_da_iteracao
+    assert curva[101]["iterations_completed"] == 24
+    assert curva[104]["iterations_completed"] == 25

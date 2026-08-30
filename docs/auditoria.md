@@ -69,7 +69,17 @@ digital confirmar a previsão, e pelo ruling de cascata por escopo cada um toca 
 cenário `pso`, `aco` e `tabu` respectivamente, o que dispara o ramo alterado.
 **Atualização de 28/08/2026:** para o **F4-4** a confirmação já ocorreu. O pacote B11
 mediu sete diferenças, todas em `diagnostics.final_tau_min`, e o achado está fechado
-com classe observada `D1`. O A5 e o F5-3 continuam abertos e continuam no condicional.
+com classe observada `D1`.
+**Atualização de 30/08/2026, e ela fecha o condicional para os outros dois.** O pacote
+B21 mediu os dois restantes na mesma conferência. Para o **A5** a confirmação ocorreu:
+22 diferenças, em `diagnostics.position_clips` e `diagnostics.velocity_clips` dos
+**onze** cenários `pso:*`, e o achado está fechado com classe observada `D1`. Para o
+**F5-3** a confirmação **não** ocorreu: diff **zero** nos onze cenários `tabu:*`, o que
+o registro previa como resultado legítimo, porque a correção exige que a última
+avaliação do orçamento seja consumida por um reinício e a calibração da Tarefa 14 não
+força essa coincidência; o achado está fechado com classe observada `D2`. Dos três `D2`
+de previsão não zero, portanto, **dois reclassificaram e um não**, e nenhuma das duas
+leituras aciona o Passo H, porque as duas estavam previstas.
 
 **A pergunta que discrimina, e ela foi respondida em 28/08/2026:** a impressão digital
 dos 42 cenários compara o dicionário de diagnósticos, ou apenas o vetor de solução e os
@@ -401,8 +411,26 @@ depois da soma ponderada.
   contador, mas mora na **mesma função**, `_stop_at_limit`, e separar as duas
   correções significaria tocar `optimizer.py` duas vezes, em duas ondas, sob
   congelamento.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com correção de código e um caso de teste novo, no commit do
+  pacote B21. A segunda interpolação passou a ser `self._evaluator.budget`, dentro da
+  mesma função que ganhou o ponto de fechamento de contabilidade que A5 e F5-3 exigiam,
+  o que é o ponto inteiro da conexão 9: uma correção de contrato no núcleo, e não três
+  correções nos três algoritmos.
+  **O caso de teste novo é o único oráculo do achado**, porque o diff na impressão
+  digital é zero por construção: `remaining` é `budget - evaluations`, logo no caminho
+  real os dois lados da barra são sempre o mesmo número e a mensagem defeituosa
+  renderiza exatamente o texto que a correta renderizaria. O caso separa os dois números
+  por um avaliador que fecha a fronteira com o contador longe do orçamento, e assevera
+  **dentro do próprio caso** que eles diferem naquele cenário, `1` contra `140`, antes
+  de exigir `1/140` na mensagem. Provado por mutação sobre cópia, com marcador que é
+  caso de teste coletado na mesma execução e com o eixo negativo demonstrado: devolvida
+  a interpolação duplicada, o caso reprova.
+  **Passo G.** Classe prevista `D2`; classe observada `D2`; a observação **bate** com a
+  previsão. Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** diff previsto zero; diff observado zero. Nenhuma das 22
+  diferenças da conferência do pacote B21 vem deste achado: todas estão em
+  `position_clips` e `velocity_clips` dos cenários `pso:*`, que são de A5. A observação
+  **bate** com a previsão.
 
 #### F1-05. `_balance_totals_component` usa NumPy em vetores de 3 a 8 elementos e domina o custo do ACO
 
@@ -1826,10 +1854,61 @@ determinístico faz 0,268290 com 275 avaliações, melhor que a média do PSO co
 - **Decisão:** corrigir, movendo a soma dos contadores de saturação para depois da
   avaliação de cada tentativa.
 - **Onda:** B.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado limitado a campos de diagnóstico,
-  o que **é** diff para o oráculo, porque a impressão digital compara os sete
-  campos e os diagnósticos.
+- **Situação:** fechado com correção de código e dois casos de teste novos, no commit do
+  pacote B21. As duas somas saíram do topo do laço de iterações e passaram a viajar num
+  ponto de fechamento executado depois da avaliação da própria tentativa, pelo contrato
+  novo de `OptimizationContext.evaluate`; a última tentativa de cada iteração carrega no
+  mesmo ponto o incremento de `iterations_completed`, o que fecha junto o item B6 do
+  Apêndice B. A partícula cuja avaliação veio reaproveitada do reparo não passa por
+  `context.evaluate`, e por isso executa o fechamento no mesmo ponto do laço em que ele
+  estaria; a partícula cujo reparo esgota o orçamento **não** o executa, porque a sua
+  avaliação nunca se completou, que é exatamente a definição de tentativa não avaliada.
+  **O espelho em placa gráfica foi realinhado no mesmo commit**, e o alargamento da
+  lista de arquivos do pacote é decisão do usuário de 30/08/2026, pelo precedente do
+  pacote B9. A forma do espelho **não** é a mesma do núcleo, e a diferença é de
+  mecanismo: o laço de tentativas da réplica não avalia, ele enfileira, e quem avalia é
+  o disparo do lote, que trunca pelo orçamento restante e descarta em silêncio o que
+  sobra. Contar as saturações no laço contaria tentativas que o lote nunca avaliou, isto
+  é reproduziria o defeito com outra roupa; por isso as saturações e a marca de
+  fechamento de iteração viajam com o item enfileirado e são contabilizadas dentro do
+  disparo, sobre os itens de fato avaliados.
+  **Os dois casos de teste novos.** O primeiro é o único oráculo do item B6, que os 42
+  cenários não exercitam porque a Tarefa 14 calibrou os orçamentos para não serem
+  múltiplos de `n_particles`: com orçamento 100 e `n_particles=4` o valor publicado era
+  23 e passa a ser 24, com a divisibilidade asseverada dentro do próprio caso. O segundo
+  é o experimento de orçamento crescente do verificador, de 100 a 104, e o seu oráculo
+  **não** depende de conhecer a repartição das saturações entre as quatro tentativas: a
+  iteração 25 inteira satura mais posições do que a instância tem unidades, o que é
+  asseverado dentro do caso como denominador, e portanto o acréscimo de uma única
+  tentativa avaliada não pode alcançar o total da iteração. Sob o defeito, os orçamentos
+  101 a 104 publicam todos o mesmo número.
+  **Um terceiro caso, na suíte da réplica**, compara os três contadores entre réplica e
+  núcleo num cenário **interrompido**, com a propriedade de o orçamento não ser múltiplo
+  de `n_particles` asseverada dentro do próprio caso. O caso vizinho que já existia
+  compara os mesmos contadores com orçamento 600 e 20 partículas, que é múltiplo exato,
+  e nele a divergência de granularidade passaria silenciosa.
+  Provado por mutação sobre cópia, com marcador que é caso de teste coletado na mesma
+  execução e com o eixo negativo demonstrado, em quatro mutantes: devolvida a soma para
+  antes do laço, retirada a soma por tentativa, retirado o incremento da última
+  tentativa e devolvida a soma antecipada no espelho, os casos reprovam.
+  **Passo G.** Classe prevista `D1`, por reclassificação esperada, conforme a seção 3 do
+  adendo; classe observada `D1`, porque o diff em campo de diagnóstico foi confirmado nos
+  onze cenários `pso:*`; a observação **bate** com a previsão. A reclassificação de `D2`
+  para `D1` é a esperada, com o ramo 3 da cascata já comprado pela decisão 1, e por isso
+  o Passo H, cuja precondição é previsão `D2`, **não** é acionado.
+- **Impressão digital:** diff **não zero**, **conforme previsto** e confinado ao escopo.
+  Foram **22** diferenças de campo, mais o `content_sha256`: `position_clips` e
+  `velocity_clips` em **todos** os onze cenários `pso:*`, sem exceção. **Zero** nos 31
+  cenários `tabu:*`, `aco:*` e `greedy:*`, e zero em `solution`, nos sete campos de
+  `evaluation`, nos 100 `checkpoints`, em `evaluations` e em todos os demais
+  diagnósticos, inclusive em `iterations_completed` dos próprios cenários `pso:*`. O
+  zero em `iterations_completed` é o resultado previsto e a razão está medida: o
+  incremento novo só dispara quando o orçamento é múltiplo exato de `n_particles`, e a
+  Tarefa 14 calibrou os orçamentos para não serem, com o teste
+  `BUDGETS["pso"] % n_particles != 0` fixando isso. Todas as 22 diferenças são para
+  **menos**, o que é o sinal esperado: a correção retira as tentativas que nunca foram
+  avaliadas. A contenção foi enumerada e provada **antes** de qualquer regravação da
+  linha de base.
 
 #### A6. O recuo ao ponto médio abandona a fração prescrita
 
@@ -2705,9 +2784,34 @@ achado 5. O código atual está correto; o que falta é proteção.
 - **Decisão:** corrigir, movendo os incrementos para dentro do `finally` ou para
   antes da avaliação. É a mesma família de A5 do PSO, na fronteira do orçamento.
 - **Onda:** B, junto de A5.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff **esperado não zero** em campo de
-  diagnóstico.
+- **Situação:** fechado com correção de código e um caso de teste novo, no commit do
+  pacote B21. Das duas opções do registro **não** foi tomada nenhuma das duas na forma
+  literal: os cinco efeitos do reinício passaram a viver num ponto de fechamento que
+  `context.evaluate` executa depois da avaliação e antes do teste de fronteira. **Por
+  que não simplesmente mover as duas linhas para o `finally`:** o `finally` já existe e
+  serve a outro propósito, a publicação de diagnósticos, e sobrecarregá-lo esconderia
+  que o problema é de contrato e o faria reaparecer no próximo algoritmo que consumisse
+  a última avaliação em caminho especial. Colocar os incrementos **antes** da avaliação
+  seria pior, porque passaria a contar reinício que o orçamento não chegou a pagar.
+  **O caso de teste novo é o único oráculo do achado**, porque o diff na impressão
+  digital é zero. Ele usa `artesp_rmsp_20` com `K=3`, seed 5 e o orçamento calibrado em
+  273, que é o índice de uma avaliação de reinício, e compara contra o orçamento 272,
+  onde a execução para dentro da iteração anterior. Assevera **dentro do próprio caso**
+  que já existe reinício anterior no mesmo cenário, o que é o denominador que impede o
+  caso de passar por vácuo, e assevera a identidade
+  `iterations_completed == accepted_moves + restarts` nos dois orçamentos. Provado por
+  mutação sobre cópia, com marcador que é caso de teste coletado na mesma execução e com
+  o eixo negativo demonstrado: retirado o ponto de fechamento da chamada, o caso reprova.
+  **Passo G.** Classe prevista `D2` se o diff em `tabu:*` fosse zero e `D1` se não
+  fosse; diff observado **zero**, logo classe observada `D2`; a observação **bate** com
+  uma das duas leituras previstas. Sem reclassificação, e o Passo H não é acionado,
+  porque as duas leituras estavam previstas.
+- **Impressão digital:** diff previsto **condicional**; diff observado **zero** nos onze
+  cenários `tabu:*`. A razão é a que o adendo registrou: F5-3 exige que a **última**
+  avaliação do orçamento seja consumida por um reinício, e a Tarefa 14 calibrou
+  `BUDGETS["tabu"]` para `restarts >= 2`, que **não** é a mesma condição e não força a
+  coincidência. Zero aqui é resultado legítimo e previsto, e não correção quebrada: o
+  caminho é exercitado pelo caso de teste dirigido, que reprova sem a correção.
 
 #### Achado F5-4. Canonicalização e validação repetidas por candidato
 
@@ -2907,8 +3011,9 @@ achado 5. O código atual está correto; o que falta é proteção.
   e C mortos, conforme a tabela de vereditos em F5-5.
   **Observação registrada durante a construção do teste do ramo de amostra vazia.**
   O número de reinícios ficou em 98 contra 99 amostras vazias, folga de exatamente
-  uma unidade. **Isto não é achado novo**: é F5-3, já registrado e ainda aberto, o
-  reinício que consome a última avaliação do orçamento e não é contabilizado porque
+  uma unidade. **Isto não é achado novo**: é F5-3, já registrado, e **fechado desde o
+  pacote B21**, o
+  reinício que consome a última avaliação do orçamento e não era contabilizado porque
   `diagnostics.restarts` é incrementado depois do `try/finally` que envolve a
   avaliação. A asserção do teste foi escrita como intervalo, e **não** fixa a folga,
   justamente para não bloquear a correção de F5-3.
@@ -6192,6 +6297,11 @@ campo de diagnóstico, e reclassificam automaticamente para `D1` se o oráculo d
 **Atualização de 28/08/2026:** o oráculo **compara** diagnósticos, e o **F4-4** já
 reclassificou para `D1` no pacote B11. O condicional desta passagem está, portanto,
 realizado para um dos três, e a Onda B já carrega um gatilho próprio.
+**Atualização de 30/08/2026:** o pacote B21 mediu os outros dois. O **A5** reclassificou
+para `D1`, com diff nos onze cenários `pso:*`; o **F5-3** **não** reclassificou, com diff
+zero nos onze cenários `tabu:*`, e permanece `D2`. O condicional está encerrado: dos três
+`D2` de previsão não zero, **dois** viraram `D1`, e a Onda B carrega dois gatilhos
+próprios, e não três.
 
 A1 foi o primeiro `D1` da auditoria. A verificação dedicada mediu que corrigir a ordem
 de saturação **altera o `float.hex()` em 10 de 10 seeds** e leva a média de 0,274437
@@ -6250,7 +6360,10 @@ a suíte de detectar uma regressão futura na mesma região.
 emenda documental de A1, que a impressão digital feche com diff zero também nos três
 `D2` de previsão não zero, A5, F4-4 e F5-3, o que depende da decisão da Tarefa 14 sobre
 o escopo de campos do oráculo. **Atualização de 28/08/2026: essa condição já falhou
-para o F4-4**, que fechou com sete diferenças em `diagnostics.final_tau_min`. Pelos
+para o F4-4**, que fechou com sete diferenças em `diagnostics.final_tau_min`.
+**Atualização de 30/08/2026: falhou também para o A5**, que fechou com 22 diferenças em
+`diagnostics.position_clips` e `diagnostics.velocity_clips`; o **F5-3** fechou com diff
+zero, e é o único dos três que a condição não derruba. Pelos
 termos desta mesma frase, o ramo descrito aqui deixou de estar disponível, e a decisão
 já tomada de refazer o tuning torna a questão discutível. Onda A vazia é resultado válido e desejável, e não sinal
 de que a triagem falhou; mas "Onda A vazia" não implica, por si, "tuning sobrevive".
@@ -6278,7 +6391,12 @@ grupos com precedência, e o resto pode ser feito em qualquer ordem.
    diff não zero**, logo é o commit cujo resultado na impressão digital pode
    reclassificar achados para `D1`; ele deve ser o último dos cinco grupos a rodar contra
    o oráculo, para que os quatro anteriores já estejam estáveis quando a cascata for
-   avaliada.
+   avaliada. **Feito em 30/08/2026, no pacote B21**, que é o último pacote da Onda B: os
+   três fecharam no mesmo commit, com a correção em `optimizer.py`, o A5 reclassificou
+   para `D1` e o F5-3 permaneceu `D2` por diff zero em `tabu:*`. A lista do pacote foi
+   alargada por decisão do usuário para incluir `gpu/src/metaheuristica_gpu/pso.py`,
+   porque o pacote muda comportamento compartilhado contra o qual a réplica é testada, e
+   é a mesma forma do pacote B9.
 5. **Quinto, o identificador por conteúdo: F6-08 com F2-15**, depois do grupo 1,
    conforme a conexão 7.
 
@@ -6476,7 +6594,7 @@ verificados. São anotações, cada uma ancorada no achado que a originou.
 | B3 | `consolidate` descarta `diagnostics.gpu_timing` ao montar `gpu_runs.parquet`, publicando `speedup` sem a fração de dispositivo que o interpreta. Recomendação: publicar campo derivado `device_fraction`. | verificador dedicado dos `D1` da GPU | `M3` | F8-2 |
 | B4 | A metodologia de mutação de `frente-3-report.md` não declara o diretório de trabalho com precisão suficiente para excluir, por si só, o padrão defeituoso de `PYTHONPATH`. Lacuna de reprodutibilidade do relatório, não dos resultados. | verificador da F2 | `L1` | seção 6.2 |
 | B5 | O padrão de comando de mutação documentado em `frente-6-report.md:292` não carrega o mutante. **Os dois verificadores divergem na classe**: o da F5 propõe `D3` de metodologia da auditoria, o da F2 propõe `L1`. A divergência não foi arbitrada. | verificadores da F5 e da F2 | `D3` ou `L1`, em disputa | seção 6.2 |
-| B6 | **A última iteração de qualquer execução do PSO nunca é contada**, mesmo em orçamento que divide exato por `n_particles`, porque `_stop_at_limit` verifica `remaining == 0` **depois** de uma avaliação bem sucedida e o caminho de exceção nunca alcança o incremento de `iterations_completed`. Medido: orçamento 100 com `n_particles=4` dá 23 iterações e não 24. | verificador da F3 | reforça `D2` | A5 |
+| B6 | **A última iteração de qualquer execução do PSO nunca é contada**, mesmo em orçamento que divide exato por `n_particles`, porque `_stop_at_limit` verifica `remaining == 0` **depois** de uma avaliação bem sucedida e o caminho de exceção nunca alcança o incremento de `iterations_completed`. Medido: orçamento 100 com `n_particles=4` dá 23 iterações e não 24. **Fechado pelo pacote B21**, junto de A5 e pela mesma correção de contrato: a última tentativa de cada iteração carrega o incremento no ponto de fechamento que `context.evaluate` executa antes do teste de fronteira, e o cenário de orçamento 100 com `n_particles=4` passou a publicar 24. Os 42 cenários **não** exercitam este caminho, porque a Tarefa 14 calibrou os orçamentos para não serem múltiplos de `n_particles`, e por isso o caso de teste dirigido é o único oráculo do item. | verificador da F3 | reforça `D2` | A5 |
 | B7 | Reescrever silenciosamente o resumo de recursos de uma sessão já registrada, que é o mecanismo que possibilita a recuperação de F6-09, **destrói a integridade do diário operacional**, porque sessões historicamente distintas passam a apontar para o mesmo arquivo mutável e se perde o registro fiel de que uma sessão reprovou em recursos. **Absorvido no pacote B4**, como item associado de F6-09: a seção 29 passou a dizer que a recuperação é por nova sessão registrada da mesma rodada, e nunca por sobrescrita do resumo de uma sessão já registrada. | verificador da F6 | não atribuída, ortogonal a F6-09 | F6-09 |
 | B8 | A conformidade da GPU em **150.000 avaliações** permanece **não verificada por medição direta**. As medições usaram orçamentos de 2.000, 4.000 e 20.000, porque uma execução pareada de ACO em `artesp_rmsp_150` com orçamento cheio custaria cerca de 2,3 h de CPU. A extrapolação se apoia em que o desvio é arredondamento por avaliação e não acumulação, com o máximo travado em 1 a 2 ulp com orçamento cinco vezes maior. | verificador dedicado dos `D1` da GPU | limitação de escopo | F8-1 |
 | B9 | **Aritmética da conexão 8, derivada nesta tarefa e não verificada por ninguém:** aplicar F4-1 ao caminho CPU levaria `T_CPU` de 221,12 s a cerca de 61,8 s e o speedup do ACO de 1,3518 a cerca de **0,38**, isto é a variante GPU ficaria cerca de 2,6 vezes mais lenta que a CPU otimizada, a menos que o espelhamento em `gpu/aco.py` seja feito. A conclusão qualitativa está apoiada em números verificados; **a divisão é minha e precisa de verificação independente antes de ser citada como resultado**. **Corroborada pela revisão independente do pacote B5**, na direção e na magnitude: a revisão mediu 3,70x de ganho na CPU e 3,18x na GPU, com a razão entre as construções passando de 0,805 para 0,937, que é o que a aritmética previa. A ressalva permanece quanto ao escopo: o que foi corroborado é a razão entre as construções, e não o `S` de campanha ponta a ponta. A mensagem de commit de `d297377` citou os 1,3518 e os 0,38 antes de a corroboração existir, o que é a irregularidade registrada; o `S` honesto do ACO depois do espelhamento é da ordem de **1,006**, é projeção aritmética como as demais deste bloco, e o número definitivo vem do roteiro regenerado. | esta tarefa | consequência de F4-1 e F8-2 | F4-1, F8-2 |

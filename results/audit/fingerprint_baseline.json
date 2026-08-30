@@ -5,7 +5,7 @@
     "tabu": 25007,
     "tiny": 101
   },
-  "content_sha256": "792e344a3ad254838b145c47a5989e8b907518784cfb72cda09c5532918158f9",
+  "content_sha256": "a59235e4b72416d80b0749806a88a2b98789caf7bbe844532198ce17288692f7",
   "scenarios": {
     "aco:artesp_rmsp_150:3:frozen": {
       "algorithm": "aco",
@@ -22930,12 +22930,12 @@
         "iterations_completed": 99,
         "particles_evaluated": 4007,
         "personal_best_updates": 384,
-        "position_clips": 105109,
+        "position_clips": 104113,
         "repair_attempts": 0,
         "repair_evaluations": 0,
         "repairs_completed": 0,
         "strict_global_improvements": 13,
-        "velocity_clips": 128725
+        "velocity_clips": 127500
       },
       "evaluation": {
         "c_affinity": 0.5746714545206761,
@@ -24427,12 +24427,12 @@
         "iterations_completed": 99,
         "particles_evaluated": 4007,
         "personal_best_updates": 338,
-        "position_clips": 39220,
+        "position_clips": 38970,
         "repair_attempts": 0,
         "repair_evaluations": 0,
         "repairs_completed": 0,
         "strict_global_improvements": 30,
-        "velocity_clips": 45374
+        "velocity_clips": 45211
       },
       "evaluation": {
         "c_affinity": 0.7396483548992225,
@@ -25924,12 +25924,12 @@
         "iterations_completed": 99,
         "particles_evaluated": 4007,
         "personal_best_updates": 143,
-        "position_clips": 46720,
+        "position_clips": 46256,
         "repair_attempts": 0,
         "repair_evaluations": 0,
         "repairs_completed": 0,
         "strict_global_improvements": 7,
-        "velocity_clips": 84134
+        "velocity_clips": 83675
       },
       "evaluation": {
         "c_affinity": 0.8561684678526911,
@@ -27421,12 +27421,12 @@
         "iterations_completed": 93,
         "particles_evaluated": 3779,
         "personal_best_updates": 504,
-        "position_clips": 17173,
+        "position_clips": 17044,
         "repair_attempts": 12,
         "repair_evaluations": 228,
         "repairs_completed": 12,
         "strict_global_improvements": 7,
-        "velocity_clips": 10028
+        "velocity_clips": 9969
       },
       "evaluation": {
         "c_affinity": 0.007800612044022109,
@@ -28788,12 +28788,12 @@
         "iterations_completed": 41,
         "particles_evaluated": 1682,
         "personal_best_updates": 320,
-        "position_clips": 2683,
+        "position_clips": 2610,
         "repair_attempts": 123,
         "repair_evaluations": 2325,
         "repairs_completed": 123,
         "strict_global_improvements": 11,
-        "velocity_clips": 3364
+        "velocity_clips": 3313
       },
       "evaluation": {
         "c_affinity": 0.07561105018564317,
@@ -30155,12 +30155,12 @@
         "iterations_completed": 8,
         "particles_evaluated": 371,
         "personal_best_updates": 101,
-        "position_clips": 561,
+        "position_clips": 509,
         "repair_attempts": 172,
         "repair_evaluations": 3636,
         "repairs_completed": 171,
         "strict_global_improvements": 2,
-        "velocity_clips": 724
+        "velocity_clips": 666
       },
       "evaluation": {
         "c_affinity": 0.4959027689357603,
@@ -31522,12 +31522,12 @@
         "iterations_completed": 99,
         "particles_evaluated": 4007,
         "personal_best_updates": 1082,
-        "position_clips": 34447,
+        "position_clips": 34230,
         "repair_attempts": 0,
         "repair_evaluations": 0,
         "repairs_completed": 0,
         "strict_global_improvements": 25,
-        "velocity_clips": 5731
+        "velocity_clips": 5698
       },
       "evaluation": {
         "c_affinity": 0.4072496974327631,
@@ -32929,12 +32929,12 @@
         "iterations_completed": 97,
         "particles_evaluated": 3955,
         "personal_best_updates": 488,
-        "position_clips": 15189,
+        "position_clips": 15173,
         "repair_attempts": 1,
         "repair_evaluations": 52,
         "repairs_completed": 0,
         "strict_global_improvements": 28,
-        "velocity_clips": 15935
+        "velocity_clips": 15898
       },
       "evaluation": {
         "c_affinity": 0.6045159758953943,
@@ -34336,12 +34336,12 @@
         "iterations_completed": 199,
         "particles_evaluated": 4007,
         "personal_best_updates": 389,
-        "position_clips": 27320,
+        "position_clips": 27228,
         "repair_attempts": 0,
         "repair_evaluations": 0,
         "repairs_completed": 0,
         "strict_global_improvements": 21,
-        "velocity_clips": 24129
+        "velocity_clips": 24045
       },
       "evaluation": {
         "c_affinity": 0.6449271434221087,
@@ -35743,12 +35743,12 @@
         "iterations_completed": 54,
         "particles_evaluated": 2238,
         "personal_best_updates": 128,
-        "position_clips": 14279,
+        "position_clips": 14271,
         "repair_attempts": 30,
         "repair_evaluations": 1769,
         "repairs_completed": 29,
         "strict_global_improvements": 3,
-        "velocity_clips": 19881
+        "velocity_clips": 19844
       },
       "evaluation": {
         "c_affinity": 0.8107161953149602,
@@ -37150,12 +37150,12 @@
         "iterations_completed": 1,
         "particles_evaluated": 101,
         "personal_best_updates": 58,
-        "position_clips": 94,
+        "position_clips": 59,
         "repair_attempts": 0,
         "repair_evaluations": 0,
         "repairs_completed": 0,
         "strict_global_improvements": 0,
-        "velocity_clips": 55
+        "velocity_clips": 43
       },
       "evaluation": {
         "c_affinity": 0.0,

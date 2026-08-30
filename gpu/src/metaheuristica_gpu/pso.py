@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections.abc import Callable
 from time import perf_counter
+from typing import NamedTuple
 
 import cupy as cp
 import numpy as np
@@ -47,6 +48,27 @@ class _Trial:
     velocity: np.ndarray
     position_clips: int
     velocity_clips: int
+
+
+class _Pending(NamedTuple):
+    """Tentativa à espera do lote, com o que sua avaliação vai fechar.
+
+    B21, espelho do núcleo. O laço de tentativas do espelho **não** avalia: ele
+    enfileira, e quem avalia é `flush`, que trunca o lote pelo orçamento
+    restante e descarta em silêncio o que sobra. Contar as saturações no laço
+    contaria tentativas que o lote nunca avaliou, que é exatamente o padrão
+    antigo que este pacote remove do núcleo. Por isso as saturações da tentativa
+    e a marca de fechamento de iteração viajam com o item e são contabilizadas
+    dentro de `flush`, sobre os itens de fato avaliados.
+    """
+
+    particle: _Particle
+    position: np.ndarray
+    velocity: np.ndarray
+    solution: np.ndarray
+    position_clips: int = 0
+    velocity_clips: int = 0
+    closes_iteration: bool = False
 
 
 # F8-10: a decodificação e a projeção passam a ser as do caminho normativo, e
@@ -174,22 +196,29 @@ def run_pso_gpu(
             )
         particles_evaluated += 1
 
-    def flush(items: list[tuple[_Particle, np.ndarray, np.ndarray, np.ndarray]]) -> bool:
+    def close_trial(item: _Pending) -> None:
+        nonlocal position_clips, velocity_clips, iterations
+        position_clips += item.position_clips
+        velocity_clips += item.velocity_clips
+        if item.closes_iteration:
+            iterations += 1
+
+    def flush(items: list[_Pending]) -> bool:
         if not items or evaluator.remaining <= 0:
             return evaluator.remaining == 0
-        batch = evaluator.evaluate_batch([item[3] for item in items])
+        batch = evaluator.evaluate_batch([item.solution for item in items])
         for item, solution, evaluation in zip(items, batch.solutions, batch.results):
-            particle, position, velocity, _ = item
-            commit(particle, position, velocity, solution, evaluation)
+            commit(item.particle, item.position, item.velocity, solution, evaluation)
+            close_trial(item)
         items.clear()
         return batch.exhausted
 
     try:
-        initial: list[tuple[_Particle, np.ndarray, np.ndarray, np.ndarray]] = []
+        initial: list[_Pending] = []
         for particle in particles:
             labels = _decode(particle.position, instance.n_units, run_config.k)
             position, solution = _canonical(particle.position, labels, instance.n_units, run_config.k)
-            initial.append((particle, position, particle.velocity, solution))
+            initial.append(_Pending(particle, position, particle.velocity, solution))
         if flush(initial):
             raise StopIteration
         assert gbest is not None
@@ -197,10 +226,9 @@ def run_pso_gpu(
         while evaluator.remaining:
             snapshot = gbest.position.copy()
             trials = [_trial(particle, snapshot, config, rng) for particle in particles]
-            position_clips += sum(item.position_clips for item in trials)
-            velocity_clips += sum(item.velocity_clips for item in trials)
-            pending: list[tuple[_Particle, np.ndarray, np.ndarray, np.ndarray]] = []
-            for particle, trial in zip(particles, trials):
+            pending: list[_Pending] = []
+            for index, (particle, trial) in enumerate(zip(particles, trials)):
+                last_trial = index == len(trials) - 1
                 decoded = _decode(trial.position, instance.n_units, run_config.k)
                 if np.count_nonzero(np.bincount(decoded, minlength=run_config.k)) < run_config.k:
                     if flush(pending):
@@ -241,6 +269,15 @@ def run_pso_gpu(
                     # global sem nunca ser recusado.
                     validate_solution(repaired, n_units=instance.n_units, k=run_config.k)
                     commit(particle, position, trial.velocity, repaired, reused)
+                    # A partícula reparada não entra no lote, logo o fechamento
+                    # da tentativa é feito aqui, antes da conferência da
+                    # fronteira, no mesmo ponto em que o núcleo o faz.
+                    close_trial(
+                        _Pending(
+                            particle, position, trial.velocity, repaired,
+                            trial.position_clips, trial.velocity_clips, last_trial,
+                        )
+                    )
                     if evaluator.remaining == 0:
                         raise StopIteration
                 else:
@@ -248,10 +285,14 @@ def run_pso_gpu(
                         trial.position, decoded, instance.n_units, run_config.k
                     )
                     validate_solution(solution, n_units=instance.n_units, k=run_config.k)
-                    pending.append((particle, position, trial.velocity, solution))
+                    pending.append(
+                        _Pending(
+                            particle, position, trial.velocity, solution,
+                            trial.position_clips, trial.velocity_clips, last_trial,
+                        )
+                    )
             if flush(pending):
                 raise StopIteration
-            iterations += 1
     except StopIteration:
         pass
     finally:

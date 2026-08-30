@@ -11,8 +11,9 @@ from metaheuristica.errors import (
     EvaluationLimitReached,
     SolutionValidationError,
 )
+from metaheuristica.evaluator import FitnessEvaluator
 from metaheuristica.instances import load_tiny_instance
-from metaheuristica.metrics import RunConfig, TerminationReason
+from metaheuristica.metrics import ConvergenceRecorder, RunConfig, TerminationReason
 from metaheuristica.optimizer import OptimizationContext, execute_optimizer
 
 
@@ -211,3 +212,124 @@ def test_budget_without_viable_incumbent_is_explicit_error() -> None:
             algorithm="provisional",
             search=provisional,
         )
+
+
+def test_finalize_fecha_a_contabilidade_antes_de_a_fronteira_propagar() -> None:
+    """B21, parte 1: o ponto de fechamento roda antes de `_stop_at_limit`.
+
+    `_stop_at_limit` levanta `EvaluationLimitReached` **depois** de a avaliação
+    ter sido consumida, e tudo o que o chamador escreveria depois da chamada é
+    perdido. É essa perda que produz F1-04, A5 e F5-3, cada um observado por uma
+    frente diferente. O contrato novo dá ao chamador um ponto de fechamento
+    executado depois da avaliação e antes do teste de fronteira.
+
+    A rotina de brinquedo consome exatamente o orçamento e registra os dois
+    lados do ponto de levantamento. O oráculo é a assimetria entre as duas
+    contagens: o fechamento roda nas 100 avaliações, e o que vem depois da
+    chamada roda em 99, porque na centésima a exceção propaga.
+    """
+
+    registro: list[str] = []
+
+    def search(context: OptimizationContext, config: None) -> None:
+        while True:
+            context.evaluate([0, 0, 1, 1], finalize=lambda: registro.append("fecha"))
+            registro.append("depois")
+
+    resultado = execute_optimizer(
+        TINY,
+        RunConfig(k=2, seed=1, budget=100),
+        None,
+        algorithm="contrato",
+        search=search,
+    )
+
+    assert resultado.evaluations == 100
+    assert registro.count("fecha") == 100
+    assert registro.count("depois") == 99
+    assert registro[-1] == "fecha"
+
+
+def test_finalize_tambem_existe_na_avaliacao_provisoria_do_reparo() -> None:
+    """O contrato é dos dois métodos de avaliação, e não só do principal.
+
+    O reparo consome orçamento por `evaluate_provisional_for_repair`, logo a
+    última avaliação de uma execução pode ser consumida ali. Sem o ponto de
+    fechamento nesse método, o mesmo defeito de contrato sobrevive no caminho
+    do reparo.
+    """
+
+    registro: list[str] = []
+
+    def search(context: OptimizationContext, config: None) -> None:
+        while True:
+            context.evaluate_provisional_for_repair(
+                [0, 0, 1, 1], finalize=lambda: registro.append("fecha")
+            )
+            registro.append("depois")
+
+    execute_optimizer(
+        TINY,
+        RunConfig(k=2, seed=1, budget=100),
+        None,
+        algorithm="contrato_reparo",
+        search=search,
+    )
+
+    assert registro.count("fecha") == 100
+    assert registro.count("depois") == 99
+    assert registro[-1] == "fecha"
+
+
+def test_finalize_nao_chamavel_e_recusado() -> None:
+    """O ponto de fechamento é um contrato, e contrato mal formado é erro."""
+
+    def search(context: OptimizationContext, config: None) -> None:
+        context.evaluate([0, 0, 1, 1], finalize=42)  # type: ignore[arg-type]
+
+    with pytest.raises(ConfigurationError, match="finalize deve ser chamável"):
+        execute_optimizer(
+            TINY,
+            RunConfig(k=2, seed=1, budget=100),
+            None,
+            algorithm="contrato_invalido",
+            search=search,
+        )
+
+
+class _AvaliadorComFronteiraAntecipada(FitnessEvaluator):
+    """Avaliador que fecha a fronteira com o contador longe do orçamento.
+
+    No caminho real `remaining` é `budget - evaluations`, logo quando ele chega
+    a zero os dois números são o mesmo e a interpolação duplicada de F1-04 fica
+    **invisível**: a mensagem defeituosa imprime `100/100` exatamente como a
+    correta imprimiria. É por isso que o diff de F1-04 na impressão digital é
+    zero e este caso é o único oráculo do achado. Separar os dois números é a
+    única forma de observar o defeito, e é o que esta subclasse faz.
+    """
+
+    __slots__ = ()
+
+    @property
+    def remaining(self) -> int:
+        return 0 if self.evaluations >= 1 else super().remaining
+
+
+def test_a_mensagem_da_fronteira_traz_o_orcamento_no_denominador() -> None:
+    """F1-04: `optimizer.py:103` interpolava `evaluations` nos dois lados."""
+
+    run_config = RunConfig(k=2, seed=1, budget=140)
+    evaluator = _AvaliadorComFronteiraAntecipada(TINY, k=2, budget=140)
+    recorder = ConvergenceRecorder(run_config.thresholds)
+    context = OptimizationContext(
+        evaluator, np.random.Generator(np.random.PCG64(1)), recorder
+    )
+
+    with pytest.raises(EvaluationLimitReached) as levantada:
+        context.evaluate([0, 0, 1, 1])
+
+    # A propriedade que torna o caso discriminante, asseverada aqui dentro: os
+    # dois lados da barra são números diferentes neste cenário.
+    assert evaluator.evaluations == 1
+    assert evaluator.budget == 140
+    assert "1/140 avaliações" in str(levantada.value)

@@ -249,3 +249,48 @@ def test_o_tempo_oficial_do_pso_continua_excluindo_a_preparacao() -> None:
     assert len(chamadas) == len(roteiro)
     assert resultado.diagnostics["device_preparation_seconds"] == 10.0
     assert resultado.runtime_seconds == 1.0
+
+
+def test_os_contadores_do_espelho_coincidem_no_cenario_interrompido() -> None:
+    """B21: o espelho conta saturações e iterações do mesmo jeito que o núcleo.
+
+    O caso vizinho compara os dois contadores com orçamento 600 e 20
+    partículas, que é múltiplo exato do número de partículas. Nele a última
+    iteração raramente fica pela metade, e a divergência de granularidade que
+    este pacote corrige passaria **silenciosa**: o espelho somaria as
+    saturações de todas as tentativas antes de qualquer avaliação e chegaria ao
+    mesmo total.
+
+    Este caso exercita o cenário **interrompido**, em que o orçamento não é
+    múltiplo do número de partículas e a última iteração é cortada no meio pela
+    fronteira. É onde o núcleo passou a contar só as tentativas avaliadas, e é
+    onde o espelho tem de contar do mesmo jeito, sob pena de reintroduzir a
+    assimetria de instrumentação que o pacote B20 acabou de eliminar entre os
+    dois lados.
+    """
+
+    instance = load_tiny_instance(ROOT / "data/instances/tiny_manual.json")
+    run = RunConfig(k=2, seed=4, budget=100)
+    config = PsoConfig(n_particles=40, inertia=0.4, cognitive=2.0, social=1.5)
+
+    # A propriedade que faz do cenário o interrompido, asseverada aqui dentro:
+    # nem o orçamento nem o que sobra dele depois da população inicial divide
+    # exato pelo número de partículas, logo a última iteração é cortada.
+    assert run.budget % config.n_particles != 0
+    assert (run.budget - config.n_particles) % config.n_particles != 0
+
+    cpu = run_pso(instance, run, config)
+    gpu = run_pso_gpu(instance, run, config)
+
+    # Denominador do caso: os três contadores medem alguma coisa neste cenário.
+    assert cpu.diagnostics["position_clips"] > 0
+    assert cpu.diagnostics["velocity_clips"] > 0
+    assert cpu.diagnostics["iterations_completed"] > 0
+
+    assert gpu.diagnostics["position_clips"] == cpu.diagnostics["position_clips"]
+    assert gpu.diagnostics["velocity_clips"] == cpu.diagnostics["velocity_clips"]
+    assert (
+        gpu.diagnostics["iterations_completed"]
+        == cpu.diagnostics["iterations_completed"]
+    )
+    assert gpu.evaluations == cpu.evaluations == run.budget
