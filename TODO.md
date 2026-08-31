@@ -257,9 +257,9 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   tocado**; o único arquivo protegido do pacote é `experiments/resource_monitor.py`,
   que já constava dos 27. **Nenhum dos pacotes C5, C6 e C7 acrescentou**, porque vivem
   inteiramente em `gpu/`, que não pertence ao escopo protegido do congelamento da
-  CPU. O número segue em **27** dos 53. Consequência colateral registrada: os três
-  pacotes deste lote alteram `gpu/src/`, logo o `gpu_code_sha256` do **manifesto de
-  prontidão da GPU** fica defasado e `verify_manifest` recusará até que ele seja
+  CPU. O número segue em **27** dos 53. Consequência colateral registrada: dois dos
+  três pacotes deste lote, o C5 e o C7, alteram `gpu/src/`, logo o `gpu_code_sha256` do
+  **manifesto de prontidão da GPU** fica defasado e `verify_manifest` recusará até que ele seja
   regenerado, o que pertence à Tarefa 20 e **não** foi feito aqui. Esse manifesto é
   outro artefato, e não o de congelamento da CPU.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
