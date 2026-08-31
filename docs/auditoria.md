@@ -2301,20 +2301,20 @@ não presumida herdada do protótipo descartado.
 - **Onda:** B. Deve entrar **antes** de qualquer retuning, porque o tuning roda 160
   execuções de ACO e o próprio retuning fica mais barato com a correção aplicada.
 - **Situação:** fechado no commit `d297377`, do pacote B5, com a variante O4.
-  `_PartialConstructionState.choice_costs` (`src/metaheuristica/aco.py:114-168`) monta a
+  `_PartialConstructionState.choice_costs` (`src/metaheuristica/aco.py:120-174`) monta a
   matriz `(2m, K)` contígua em ordem C e delega a redução a `_evaluate_total_costs`
   (`src/metaheuristica/objective.py:118-155`), que por sua vez chama
   `_balance_totals_matrix` (`:74-107`), a réplica vetorizada que reproduz a ordem de
   operações de `numpy._core._methods._mean` e `._var` com `ddof=0`, em vez de trocar
   `np.mean` e `np.std` por aritmética `float` ingênua. `_heuristic_from_state`
-  (`aco.py:297`) consome os custos em lote e `_construct_ant` (`aco.py:363`) mantém
+  (`aco.py:303`) consome os custos em lote e `_construct_ant` (`aco.py:369`) mantém
   `opened` incrementalmente, o que remove a validação quadrática do prefixo e a
   revalidação de `tau` por formiga. O guarda-corpo obrigatório está na implementação
   real, em `objective.py:94` e `:104`, e não apenas no teste, com o comentário
   exigido; desde 31/08/2026 as duas são recusa explícita por `raise`, e não `assert`;
   ver o item `B1` do Apêndice B.
   **Oráculo usado, e ele não é tautológico.** A implementação anterior,
-  `evaluate_choice`, foi **preservada intacta** (`aco.py:170-199`), com docstring
+  `evaluate_choice`, foi **preservada intacta** (`aco.py:176-205`), com docstring
   declarando que ela é a referência normativa, e
   `test_batched_choice_costs_reproduce_the_reference_bit_by_bit` compara `choice_costs`
   contra ela por `float.hex()` em 27 combinações parametrizadas de instância e `K`,
