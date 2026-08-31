@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -17,6 +18,21 @@ from metaheuristica import (
 
 
 INSTANCES_DIR = Path(__file__).parents[1] / "data" / "instances"
+EVALUATION_FIELDS = (
+    "total_cost",
+    "c_demand",
+    "c_production",
+    "c_territorial",
+    "c_affinity",
+    "cv_demand",
+    "cv_production",
+)
+
+
+def _evaluation_hexes(evaluation: Any) -> list[str]:
+    """Os sete campos comparados, em representação exata."""
+
+    return [float(getattr(evaluation, name)).hex() for name in EVALUATION_FIELDS]
 
 
 @pytest.mark.parametrize("size", [20, 60, 150])
@@ -40,28 +56,14 @@ def test_greedy_runs_for_every_artesp_k_with_exact_budget(size: int) -> None:
         assert len(result.trace) == size - k
         assert len(set(result.solution)) == k
         public = evaluate_solution(instance, result.solution, k=k)
-        assert np.allclose(
-            (
-                result.evaluation.total_cost,
-                result.evaluation.c_demand,
-                result.evaluation.c_production,
-                result.evaluation.c_territorial,
-                result.evaluation.c_affinity,
-                result.evaluation.cv_demand,
-                result.evaluation.cv_production,
-            ),
-            (
-                public.total_cost,
-                public.c_demand,
-                public.c_production,
-                public.c_territorial,
-                public.c_affinity,
-                public.cv_demand,
-                public.cv_production,
-            ),
-            rtol=1e-12,
-            atol=1e-12,
-        )
+        # Adendo da revisão do B6: com `rtol` e `atol` de `1e-12` contra deltas
+        # da ordem de `1e-16`, isto é quatro a cinco ordens de folga, esta
+        # varredura aprovava sete das dezoito combinações contra o `greedy.py`
+        # defeituoso do achado F1-01, e foi ela que manteve a suíte verde sobre
+        # as instâncias oficiais. Medido sobre as dezoito combinações na árvore
+        # corrigida: a coincidência é exata, bit a bit, logo a folga não tem
+        # justificativa e a comparação passa a ser de `float.hex()`.
+        assert _evaluation_hexes(result.evaluation) == _evaluation_hexes(public)
 
 
 def test_common_optimizer_contract_runs_on_artesp_instance() -> None:

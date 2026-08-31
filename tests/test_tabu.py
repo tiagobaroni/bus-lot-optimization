@@ -24,6 +24,7 @@ from metaheuristica.tabu import (
     _enumerate_valid_moves,
     _sample_moves,
     _select_best_admissible,
+    _strict_improvement,
     run_tabu,
 )
 
@@ -438,6 +439,32 @@ def test_aspiration_boundary_is_strict_at_exactly_one_tolerance() -> None:
         candidate_cost=global_best - 2e-12,
         global_best_cost=global_best,
     )
+
+
+def test_the_tie_band_of_the_tabu_rules_does_not_loosen() -> None:
+    """Achado F2-03: os literais existentes só detectam o aperto da faixa.
+
+    `5e-13` cai dentro de `1e-12` e `0,4` contra `0,5` cai muito fora: nenhum dos
+    dois muda de resposta quando a tolerância é afrouxada. A melhora de `5e-7`
+    muda. Hoje ela é maior que `1e-12` e por isso libera a aspiração da seção 14
+    e conta como melhora estrita; com `metrics.COST_TOLERANCE` em `1e-6` ela
+    passaria a ser tratada como empate e as duas regras responderiam o contrário.
+    """
+
+    global_best = 0.5
+    candidate = global_best - 5e-7
+    folga = global_best - candidate
+    # Propriedade que torna o caso discriminante, asseverada aqui dentro: a
+    # melhora é estritamente maior que `1e-12` e estritamente menor que `1e-6`,
+    # logo é ela que separa a constante correta da constante afrouxada.
+    assert 1e-12 < folga < 1e-6
+
+    assert _aspiration_applies(
+        was_tabu=True,
+        candidate_cost=candidate,
+        global_best_cost=global_best,
+    )
+    assert _strict_improvement(global_best, candidate)
 
 
 def test_aspiration_acceptance_happens_in_an_integrated_run() -> None:

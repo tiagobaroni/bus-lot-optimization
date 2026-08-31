@@ -9,7 +9,6 @@ import pytest
 from metaheuristica import ObjectiveWeights, ProblemInstance
 from metaheuristica import greedy as greedy_module
 from metaheuristica.greedy import (
-    COST_TOLERANCE,
     _candidate_is_better,
     _processing_indices,
     run_greedy,
@@ -223,14 +222,43 @@ def test_cost_tie_uses_lower_lot_when_accumulated_production_is_equal() -> None:
     assert result.trace[0].lot == 0
 
 
-def test_costs_inside_tolerance_are_treated_as_tied() -> None:
+@pytest.mark.parametrize(
+    "delta,empatam",
+    [(5e-13, True), (2e-12, False), (5e-7, False)],
+    ids=["dentro", "logo_acima", "muito_acima"],
+)
+def test_cost_tie_band_is_pinned_by_independent_literals(
+    delta: float, empatam: bool
+) -> None:
+    """Achado F2-02: a sonda saía da própria constante que devia verificar.
+
+    A forma anterior montava o custo como `1.0 + COST_TOLERANCE / 2.0`, isto é a
+    partir do valor sob verificação, e por isso respondia "empatado" para
+    qualquer tolerância positiva. Os três deltas abaixo são literais fixados pela
+    seção 13.3 de `docs/formulation.md`, que declara empate até `1e-12`: `5e-13`
+    cai dentro da faixa, `2e-12` e `5e-7` caem fora. O par prende a constante
+    entre `5e-13` e `2e-12`, logo trocá-la por `1e-6`, ou por `1e-11`, derruba
+    este caso.
+    """
+
     accumulated = np.array([10.0, 5.0])
-    assert _candidate_is_better(
-        cost=1.0 + COST_TOLERANCE / 2.0,
-        lot=1,
-        best_cost=1.0,
-        best_lot=0,
-        accumulated_production=accumulated,
+    # Propriedade que torna o caso discriminante, asseverada aqui dentro para que
+    # ela não se perca numa edição futura: o lote candidato tem produção
+    # acumulada estritamente menor, logo o ramo de empate responde "melhor"
+    # sempre que a faixa cobrir o delta, e só o ramo estrito o recusa.
+    assert accumulated[1] < accumulated[0]
+    cost = 1.0 + delta
+    assert cost > 1.0
+
+    assert (
+        _candidate_is_better(
+            cost=cost,
+            lot=1,
+            best_cost=1.0,
+            best_lot=0,
+            accumulated_production=accumulated,
+        )
+        is empatam
     )
 
 

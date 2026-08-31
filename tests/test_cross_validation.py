@@ -25,7 +25,6 @@ from metaheuristica import (
     run_pso,
     run_tabu,
 )
-from metaheuristica.metrics import COST_TOLERANCE
 from metaheuristica.problem import EvaluationResult
 
 
@@ -72,15 +71,26 @@ def _evaluation_values(result: EvaluationResult) -> tuple[float, ...]:
     )
 
 
-def _assert_same_evaluation(
+def _assert_identical_evaluation(
     observed: EvaluationResult, expected: EvaluationResult
 ) -> None:
-    assert np.allclose(
-        _evaluation_values(observed),
-        _evaluation_values(expected),
-        rtol=COST_TOLERANCE,
-        atol=COST_TOLERANCE,
-    )
+    """Igualdade exata, `float.hex()` contra `float.hex()`.
+
+    Achado F2-03: a forma anterior usava `rtol=COST_TOLERANCE` e
+    `atol=COST_TOLERANCE`, isto é a própria constante do núcleo como tolerância,
+    e por isso era insensível ao afrouxamento dela. Coerência com o pacote B8:
+    `metrics._same_evaluation` deixou de admitir a faixa de `1e-12`, porque ela
+    tolerava divergência real entre a tabela principal da seção 9 e a tabela de
+    checkpoints da seção 27, que descrevem a mesma execução. Este auxiliar é o
+    espelho de teste daquela comparação e passa a exigir o mesmo. Medido sobre as
+    parametrizações deste arquivo, as três instâncias oficiais e a `tiny_manual`,
+    os seis valores de K e as três sementes: a coincidência é exata em todos os
+    casos, logo a faixa não tinha justificativa.
+    """
+
+    assert [float(value).hex() for value in _evaluation_values(observed)] == [
+        float(value).hex() for value in _evaluation_values(expected)
+    ]
 
 
 def _run(
@@ -129,11 +139,17 @@ def _assert_common_contract(
         checkpoint_thresholds(budget)
     )
     checkpoint_costs = [item.evaluation.total_cost for item in result.checkpoints]
+    # Coerência com o pacote B8: `metrics._is_better` deixou de comparar com a
+    # faixa de `1e-12`, porque a banda fazia a janela deslizar a cada empate e o
+    # desvio acumular sem limite, contra a seção 9, que exige curva não
+    # crescente. A série publicada é, portanto, não crescente de forma exata, e a
+    # folga de uma tolerância aqui reintroduziria a expectativa de banda que o B8
+    # removeu.
     assert all(
-        right <= left + COST_TOLERANCE
+        right <= left
         for left, right in zip(checkpoint_costs, checkpoint_costs[1:])
     )
-    _assert_same_evaluation(result.checkpoints[-1].evaluation, result.evaluation)
+    _assert_identical_evaluation(result.checkpoints[-1].evaluation, result.evaluation)
 
     canonical = canonicalize_solution(
         result.solution,
@@ -143,7 +159,7 @@ def _assert_common_contract(
     assert np.array_equal(result.solution, canonical)
     assert len(set(int(label) for label in result.solution)) == k
     recomputed = evaluate_solution(instance, result.solution, k=k, weights=result.weights)
-    _assert_same_evaluation(result.evaluation, recomputed)
+    _assert_identical_evaluation(result.evaluation, recomputed)
     json.dumps(result.to_dict(), allow_nan=False)
 
 
@@ -152,7 +168,11 @@ def _assert_common_contract(
 def test_tiny_optimum_and_common_contract(case: AlgorithmCase, seed: int) -> None:
     result = _run(case, TINY, k=2, seed=seed)
     _assert_common_contract(result, case, TINY, k=2, seed=seed)
-    assert result.evaluation.total_cost == pytest.approx(0.0, abs=COST_TOLERANCE)
+    # Achado F2-03: `pytest.approx(0.0, abs=COST_TOLERANCE)` usava a própria
+    # constante sob verificação como folga. O ótimo da `tiny_manual` é zero
+    # exato, medido nas três sementes e nos três algoritmos, logo a igualdade
+    # exata é a forma correta e é a única que detecta o afrouxamento.
+    assert result.evaluation.total_cost == 0.0
 
 
 @pytest.mark.parametrize("case", ALGORITHMS, ids=lambda case: case.name)

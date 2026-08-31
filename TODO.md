@@ -9,17 +9,37 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 31/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Vinte e três dos 29 pacotes fechados**:
-  A1, B1 a B12 exceto o B13, B14 a B21, o C1 e o C2. Restam 6, que são B13 e
-  C3 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B, porque altera
+- **Fase do bloco ativo:** Fase 2, correção. **Vinte e quatro dos 29 pacotes
+  fechados**: A1, B1 a B12 exceto o B13, B14 a B21, o C1, o C2 e o C3. Restam 5, que
+  são B13 e C4 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B,
+  porque altera
   o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
   enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
   a redação anterior já esteve errada por um. **A Onda B está encerrada** e a **Onda C
-  está aberta**, e o que resta é o B13 diferido mais C3 a C7.
+  está aberta**, e o que resta é o B13 diferido mais C4 a C7.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o **commit decorrente do pacote C1**, de 31/08/2026,
+- **Última decisão concluída:** o **commit 1 do lote L9**, de 31/08/2026, fechou o
+  pacote **C3**, com os achados F2-01, F2-02 e F2-03. O commit é inteiramente de
+  teste: nada de `src/metaheuristica/` foi tocado, e por isso ele não acrescenta
+  divergência ao manifesto. As sondas que saíam da própria constante sob verificação
+  viraram literais independentes, `5e-13` dentro da faixa contra `2e-12` e `5e-7`
+  fora, o que prende a tolerância do guloso entre `5e-13` e `2e-12`; as três
+  asserções de `tests/test_cross_validation.py` que usavam `COST_TOLERANCE` como
+  folga passaram a exigir igualdade exata, na forma que os pacotes B7 e B8 já haviam
+  adotado no núcleo; e entraram os testes negativos de afrouxamento que faltavam,
+  com folga de `5e-7`, isto é fora de `1e-12` e dentro de `1e-6`. O adendo da revisão
+  do B6 foi executado junto: a tolerância de `tests/test_core_integration.py`, que
+  tinha quatro a cinco ordens de folga sobre as dezoito combinações oficiais, foi
+  **estreitada para igualdade exata** depois de medida. **A prova por mutação é o
+  oráculo do pacote e foi feita em cópia isolada, com marcador coletado na mesma
+  execução:** as três mutações, tolerância do guloso em `1e-6`, tolerância do núcleo
+  em `1e-6` e corpo de `_verify_diagnostics` reduzido a `return None`, sobreviviam à
+  suíte anterior, salvo duas falhas por acidente na segunda, e passaram a ser mortas
+  por casos nomeados. Impressão digital **idêntica** no conjunto completo dos 42
+  cenários e a linha de base não foi tocada. Antes dele, o **commit decorrente do
+  pacote C1**, de 31/08/2026,
   fechou o item **B1 do Apêndice B**, que estava sem pacote alocado, e **não altera a
   contagem dos 29**, pelo mesmo tratamento que os lotes L6 e L7 deram aos seus commits
   decorrentes. As duas `assert` de contiguidade de `src/metaheuristica/objective.py`
@@ -124,10 +144,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** despachar o lote **L9**, que continua a Onda C a partir do
-  pacote **C3**. A decisão de escopo que precedia o C2 **foi tomada** em 30/08/2026,
-  pela leitura restrita, e o pacote está fechado. Depois do L9 vem o L10, que fecha a
-  Onda C, e em seguida o B13 diferido, imediatamente antes da Tarefa 19B.
+- **Próxima ação atômica:** executar o **commit 2 do lote L9**, que fecha o pacote
+  **C4**, com os achados F2-12, de escopo reduzido por triagem, e F7-9. Depois do L9
+  vem o L10, que fecha a Onda C, e em seguida o B13 diferido, imediatamente antes da
+  Tarefa 19B.
 - **Decisão resolvida em 30/08/2026, e ela precedia a regeneração da campanha:** fechar
   o F8-10 pôs as validações do caminho normativo dentro da região cronometrada da
   réplica, que não as pagava, enquanto o núcleo as paga desde o B6. Medido em
@@ -151,17 +171,18 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   pacote C2 acrescentaram divergência nova**, porque `src/metaheuristica/objective.py` e
   `src/metaheuristica/tabu.py` já constavam dos 27. O commit decorrente do pacote C1
   também não acrescentou: volta a `src/metaheuristica/objective.py`, que já divergia, e
-  a `tests/test_aco.py`, que não é arquivo protegido.
+  a `tests/test_aco.py`, que não é arquivo protegido. **O pacote C3 também não
+  acrescentou**, e por razão mais forte: ele é inteiramente de teste e de registro,
+  logo não toca arquivo algum do escopo protegido.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** no fim do commit 2 do lote L8, isto é no commit do pacote C2,
-  impressão digital idêntica no subconjunto dos 11 cenários `tabu:*` e depois no
-  conjunto completo dos 42, sem restrição a subconjunto, suíte de CPU com **458**
-  aprovados, três a mais pelos casos novos do F5-4 e do F5-7, e
-  suíte da réplica com 71 aprovados sobre dispositivo real, nas duas invocações, da raiz
-  e de dentro do próprio subprojeto. **A linha de base continua a que o pacote B21
-  regravou**, com `content_sha256` `a59235e4...`, e nem o pacote C1 nem o C2 a tocaram:
-  a identidade acima é medida contra ela.
+- **Última verificação:** no fim do commit 1 do lote L9, isto é no commit do pacote C3,
+  impressão digital idêntica no **conjunto completo dos 42 cenários**, sem restrição a
+  subconjunto, suíte de CPU com **466** aprovados, seis a mais que os 460 da partida
+  pelos casos novos do C3, e suíte da réplica com 71 aprovados sobre dispositivo real,
+  nas duas invocações, da raiz e de dentro do próprio subprojeto. **A linha de base
+  continua a que o pacote B21 regravou**, com `content_sha256` `a59235e4...`, e nem o
+  C1, nem o C2, nem o C3 a tocaram: a identidade acima é medida contra ela.
 - **Limite conhecido da suíte:** um clone limpo **não** roda a suíte integral. Duas
   reprovações em `tests/test_benchmark_freeze.py`, porque `results/raw/` é ignorado
   e os dezoito documentos do piloto não estão no Git. A decisão sobre versioná-los

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import FrozenInstanceError
 from inspect import signature
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -120,6 +121,32 @@ def test_best_comparison_uses_cost_solution_and_position() -> None:
         np.array([0.1, 0.9]), np.array([0, 1]), evaluation(1.0)
     )
     assert _best_comparison(lower_position, incumbent) == (True, False)
+
+
+def test_best_comparison_does_not_loosen_the_tie_band() -> None:
+    """Achado F2-03: os literais existentes só detectavam o aperto da faixa.
+
+    O caso de cima usa `5e-13`, que cai **dentro** de `1e-12` e responde o mesmo
+    para qualquer tolerância mais larga. Este caso fica fora da faixa por `5e-7`:
+    a seção 13.3 de `docs/formulation.md` fixa `1e-12`, logo o candidato mais
+    caro perde no ramo estrito, mesmo tendo solução lexicograficamente menor.
+    Com a tolerância afrouxada para `1e-6` a comparação cairia no ramo de empate
+    e responderia `(True, False)`.
+    """
+
+    incumbent = _Best(np.array([0.2, 0.8]), np.array([0, 1]), evaluation(1.0))
+    candidate = _Best(
+        np.array([0.9, 0.1]), np.array([0, 0]), evaluation(1.0 + 5e-7)
+    )
+    # As duas propriedades que tornam o caso discriminante, asseveradas aqui
+    # dentro: a solução do candidato é lexicograficamente menor, logo o ramo de
+    # empate o aprovaria; e a diferença de custo é maior que `1e-12` e menor que
+    # `1e-6`, logo é exatamente ela que separa as duas tolerâncias.
+    assert tuple(candidate.solution) < tuple(incumbent.solution)
+    folga = candidate.evaluation.total_cost - incumbent.evaluation.total_cost
+    assert 1e-12 < folga < 1e-6
+
+    assert _best_comparison(candidate, incumbent) == (False, False)
 
 
 def test_run_pso_exhausts_budget_and_produces_consistent_diagnostics() -> None:
@@ -414,10 +441,14 @@ def test_repairing_run_keeps_the_evaluation_identity() -> None:
 
     `test_run_pso_exhausts_budget_and_produces_consistent_diagnostics` verifica
     a mesma identidade de forma vazia, porque o cenário dele não tem reparo
-    algum: é o achado F2-01, alocado à Onda C e **não** fechado aqui. Este
-    cenário repara cinco vezes, e a identidade precisa sobreviver ao
+    algum. Este cenário repara cinco vezes, e a identidade precisa sobreviver ao
     reaproveitamento da avaliação vencedora, que move uma unidade da coluna de
     reparo para a coluna de partículas sem mudar o total.
+
+    Este caso é a metade do achado F2-01 que o pacote B9 já entregou. A outra
+    metade, que o pacote C3 acrescenta, são os dois casos abaixo: este confere
+    que a identidade **vale**, o que continua verdadeiro com a guarda desligada,
+    e por isso sozinho não prende `_verify_diagnostics`.
     """
 
     result = run_pso(*repairing_run())
@@ -429,6 +460,68 @@ def test_repairing_run_keeps_the_evaluation_identity() -> None:
         diagnostics["particles_evaluated"] + diagnostics["repair_evaluations"]
         == result.evaluations
         == 100
+    )
+
+
+def test_the_identity_guard_refuses_a_divergent_count() -> None:
+    """Achado F2-01, o corpo da guarda, que nada prendia.
+
+    `_verify_diagnostics` reduzido a `return None` sobrevivia à suíte inteira,
+    porque todo caso existente apenas confere que a identidade vale. Este caso
+    prende o corpo pelos dois lados: o eixo negativo, com a contagem coerente,
+    não pode levantar nada, e o eixo positivo, com uma única avaliação a mais no
+    contexto, tem de recusar com a mensagem da seção 8 de `docs/experiments.md`.
+    """
+
+    diagnostics = pso_module._PsoDiagnostics()
+    diagnostics.particles_evaluated = 60
+    diagnostics.repair_evaluations = 40
+    # Propriedade que torna o caso discriminante, asseverada aqui dentro: as duas
+    # colunas somam exatamente o total coerente, e o total divergente difere dele
+    # por uma unidade.
+    assert diagnostics.particles_evaluated + diagnostics.repair_evaluations == 100
+
+    pso_module._verify_diagnostics(SimpleNamespace(evaluations=100), diagnostics)
+
+    with pytest.raises(ConfigurationError, match="diagnósticos do PSO divergem"):
+        pso_module._verify_diagnostics(SimpleNamespace(evaluations=101), diagnostics)
+
+
+def test_the_identity_guard_is_reached_with_repair_already_counted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Achado F2-01, o sítio da guarda, percorrido com reparo contabilizado.
+
+    O único cenário que exercitava `_verify_diagnostics` não reparava, de modo
+    que a coluna `repair_evaluations` valia zero em toda chamada e a identidade
+    degenerava em `100 + 0 == 100`. O espião abaixo delega para a guarda real,
+    logo não a desliga, e registra o estado de cada chamada. Se o sítio de
+    `pso.py` for removido, ou se ele deixar de ser alcançado depois da
+    contabilidade do reparo, a lista fica vazia ou sem coluna de reparo positiva
+    e o caso cai.
+    """
+
+    registros: list[tuple[int, int, int]] = []
+    original = pso_module._verify_diagnostics
+
+    def espiao(context: Any, diagnostics: Any) -> None:
+        registros.append(
+            (
+                diagnostics.particles_evaluated,
+                diagnostics.repair_evaluations,
+                context.evaluations,
+            )
+        )
+        original(context, diagnostics)
+
+    monkeypatch.setattr(pso_module, "_verify_diagnostics", espiao)
+    result = run_pso(*repairing_run())
+
+    assert registros, "nenhum sítio de `_verify_diagnostics` foi percorrido"
+    assert result.diagnostics["repair_evaluations"] > 0
+    assert any(reparo > 0 for _particulas, reparo, _total in registros)
+    assert all(
+        particulas + reparo == total for particulas, reparo, total in registros
     )
 
 

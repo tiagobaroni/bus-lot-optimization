@@ -833,8 +833,27 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
 - **Decisão:** corrigir. Construir cenário de PSO em que o reparo efetivamente
   ocorra e asseverar a identidade com `repair_evaluations` maior que zero.
 - **Onda:** C, isolada. Não há defeito de código associado.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Teste novo não altera resultado.
+- **Situação:** fechado com dois casos novos, no commit do pacote C3. A metade
+  prescrita pela `Decisão`, cenário de PSO que repara de fato com a identidade
+  asseverada sobre `repair_evaluations` maior que zero, já existia desde o pacote
+  B9, em `tests/test_pso.py::test_repairing_run_keeps_the_evaluation_identity`, e
+  foi mantida; a nota de escopo dela, que dizia o achado não fechado ali, foi
+  atualizada. O que faltava era poder discriminante: todo caso existente confere
+  apenas que a identidade **vale**, o que continua verdadeiro com a guarda
+  desligada, e por isso a mutação `M03` sobrevivia. Os dois casos novos são
+  `test_the_identity_guard_refuses_a_divergent_count`, que prende o corpo de
+  `_verify_diagnostics` pelos dois lados, eixo negativo com contagem coerente e
+  eixo positivo com uma unidade de divergência e a mensagem asseverada, e
+  `test_the_identity_guard_is_reached_with_repair_already_counted`, que prende o
+  sítio: o espião delega para a guarda real, logo não a desliga, e o caso exige ao
+  menos uma chamada com `repair_evaluations` maior que zero. **Evidência por
+  mutação, em cópia isolada e com marcador coletado na mesma execução:** com o
+  corpo de `_verify_diagnostics` reduzido a `return None`, a suíte anterior ao
+  pacote dá `433 passed`, que é a mutação `M03` reproduzida, e a suíte do pacote dá
+  `1 failed`, pelo primeiro caso nomeado. Classe prevista `M2`, classe observada
+  `M2`, sem reclassificação.
+- **Impressão digital:** idêntica no conjunto completo dos 42 cenários. Previsão de
+  diff zero confirmada e a linha de base não foi regravada.
 
 #### F2-02. Teste tautológico da tolerância de desempate do guloso
 
@@ -857,8 +876,22 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
 - **Divergência auditor / verificador:** nenhuma.
 - **Decisão:** corrigir. Trocar a sonda por literal independente da constante.
 - **Onda:** C, isolada.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com a reescrita da sonda, no commit do pacote C3.
+  `tests/test_greedy.py::test_costs_inside_tolerance_are_treated_as_tied` deu lugar
+  a `test_cost_tie_band_is_pinned_by_independent_literals`, parametrizado em três
+  literais independentes da constante: `5e-13` dentro da faixa, `2e-12` e `5e-7`
+  fora. O par prende `greedy.COST_TOLERANCE` entre `5e-13` e `2e-12`, logo troca
+  para `1e-6` e também para `1e-11` derrubam o caso. A propriedade que o torna
+  discriminante, produção acumulada do lote candidato estritamente menor que a do
+  incumbente, é asseverada dentro do próprio caso, para que ela não se perca numa
+  edição futura; e a importação de `COST_TOLERANCE` saiu do arquivo de teste, de
+  modo que a tautologia não possa voltar por descuido. **Evidência por mutação, em
+  cópia isolada e com marcador coletado na mesma execução:** com `greedy.py:16` em
+  `1e-6`, a suíte anterior ao pacote dá `433 passed`, que é a mutação `M01`
+  reproduzida, e a suíte do pacote dá `2 failed`, nos dois casos de fora da faixa.
+  Classe prevista `M2`, classe observada `M2`, sem reclassificação.
+- **Impressão digital:** idêntica no conjunto completo dos 42 cenários. Previsão de
+  diff zero confirmada e a linha de base não foi regravada.
 
 #### F2-03. O afrouxamento de `metrics.COST_TOLERANCE` é detectado apenas por acidente
 
@@ -889,8 +922,43 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
 - **Decisão:** corrigir. Trocar as asserções tautológicas por literais e
   acrescentar teste negativo de afrouxamento nas regras de empate.
 - **Onda:** C, isolada.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado com cinco mudanças, no commit do pacote C3. As três
+  asserções tautológicas de `tests/test_cross_validation.py` deixaram de usar a
+  constante sob verificação: o auxiliar de comparação de avaliações trocou
+  `rtol=COST_TOLERANCE` e `atol=COST_TOLERANCE` por igualdade de `float.hex()`; a
+  monotonicidade da série de checkpoints deixou de admitir a folga de uma
+  tolerância; e a asserção do ótimo da `tiny_manual` trocou
+  `pytest.approx(0.0, abs=COST_TOLERANCE)` por igualdade exata com zero. A
+  importação da constante saiu do arquivo. A quarta mudança é o teste negativo de
+  afrouxamento que faltava, em dois sítios,
+  `tests/test_pso.py::test_best_comparison_does_not_loosen_the_tie_band` e
+  `tests/test_tabu.py::test_the_tie_band_of_the_tabu_rules_does_not_loosen`, os dois
+  com folga de `5e-7`, isto é fora de `1e-12` e dentro de `1e-6`, e com a
+  propriedade discriminante asseverada dentro do caso. A quinta é o adendo da
+  revisão do B6, tratado abaixo. **Coerência com os pacotes B7 e B8, conferida
+  sítio a sítio:** as formas exatas acima são exatamente as que `metrics.py` passou
+  a usar quando o B8 removeu a banda de `_is_better` e de `_same_evaluation`,
+  nenhuma asserção do pacote reintroduz expectativa de banda onde ela foi removida,
+  e a exatidão foi **medida antes de ser exigida**, sobre as parametrizações
+  inteiras dos arquivos, com coincidência exata em todos os casos. **Evidência por
+  mutação, em cópia isolada e com marcador coletado na mesma execução:** com
+  `metrics.py:21` em `1e-6`, a suíte anterior ao pacote dá `2 failed`, e as duas
+  falhas continuam sendo por acidente, `test_deposit_amount_handles_boundaries_and_tolerance`,
+  que testa faixa de depósito de feromônio, e
+  `test_aspiration_boundary_is_strict_at_exactly_one_tolerance`, que compara com a
+  própria constante; a suíte do pacote dá `4 failed`, com os dois casos novos de
+  semântica de empate entre elas. Classe prevista `M2`, classe observada `M2`, sem
+  reclassificação.
+- **Adendo do B6, executado neste mesmo pacote.** `tests/test_core_integration.py`
+  comparava o resultado do guloso com a avaliação pública por
+  `np.allclose(rtol=1e-12, atol=1e-12)` sobre as dezoito combinações oficiais, e é
+  esse arquivo, e não `tests/test_greedy.py`, quem manteve a suíte verde contra o
+  `greedy.py` defeituoso de F1-01, cujos deltas são da ordem de `1e-16`. A folga foi
+  **estreitada, não justificada**: medida sobre as dezoito combinações na árvore
+  corrigida, a coincidência é exata bit a bit, logo a comparação passou a ser de
+  `float.hex()` e o arquivo deixa de ter quatro a cinco ordens de grandeza de folga.
+- **Impressão digital:** idêntica no conjunto completo dos 42 cenários. Previsão de
+  diff zero confirmada e a linha de base não foi regravada.
 
 #### F2-04. A verificação do congelamento não possui teste algum
 
@@ -6553,9 +6621,12 @@ disparar o ramo alterado, e nesse caso está contabilizado em 7.1.
 
 Catorze achados, nenhum com efeito em resultado, todos de legibilidade, cobertura
 isolada ou robustez de manutenção. Nenhum toca a impressão digital com diff esperado
-não zero. **Atualização de 30/08/2026:** a onda foi aberta pelo pacote C1, que fechou
-F1-08 e F2-08 com diff zero no conjunto completo dos 42 cenários, e o pacote C2 fechou
-F5-4 e F5-7, também com diff zero; restam dez dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
+não zero. **Atualização de 31/08/2026:** a onda foi aberta pelo pacote C1, que fechou
+F1-08 e F2-08 com diff zero no conjunto completo dos 42 cenários, o pacote C2 fechou
+F5-4 e F5-7, também com diff zero, e o pacote C3 fechou F2-01, F2-02 e F2-03, de novo
+com diff zero e sem tocar `src/metaheuristica/`, porque é inteiramente de teste; o C3
+executou também o adendo da revisão do B6, estreitando a tolerância de
+`tests/test_core_integration.py` para igualdade exata. Restam sete dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
 isolados, conforme 7.1, e a Onda C passa a dezessete. Os cinco de `gpu/` (F8-1, F8-4, F8-5, F8-9, F8-12) podem ser feitos em
 paralelo com os demais, porque `gpu/` não é protegido pelo congelamento da B11-E.
 
