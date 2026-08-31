@@ -256,11 +256,15 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   congelamento e o pacote R1. **O refazimento do tuning e do piloto, que é a Tarefa 19B,
   já foi executado**, nos commits `d752b6c` e `8d0322c`, e as seções 8 e 9 de
   `docs/auditoria.md` registram o resultado; a menção anterior a ele como ação futura
-  estava atrasada. **A renovação do manifesto depende de decisão pendente**, registrada na
-  seção 11 de `docs/auditoria.md`: o pacote R2 destravou a geração quanto aos commits que
-  só acrescentam artefatos derivados, mas o próprio commit do R2 altera
-  `experiments/benchmark_freeze.py`, que é arquivo protegido e posterior à execução do
-  piloto vigente, de modo que a geração continua recusando.
+  estava atrasada. **A decisão que bloqueava a renovação foi tomada e implementada pelo
+  pacote R3**, registrado na seção 12 de `docs/auditoria.md`: o R2 destravou a geração
+  quanto aos commits que só acrescentam artefatos derivados, e o R3 desfez o segundo
+  impasse, o do roteiro, tornando o fechamento uma transação única. **O que fica pendente
+  é a execução dessa transação**, que é do usuário: reexecutar o piloto sobre um commit
+  que já contenha o R3, cerca de 55 minutos, regerar o roteiro, gerar o manifesto e
+  commitar os três juntos. Até que ela ocorra, a geração contra a árvore real continua
+  recusando por caminho protegido, porque o piloto vigente é anterior ao commit do R3, e
+  isso é o comportamento esperado.
 - **Decisão resolvida em 30/08/2026, e ela precedia a regeneração da campanha:** fechar
   o F8-10 pôs as validações do caminho normativo dentro da região cronometrada da
   réplica, que não as pagava, enquanto o núcleo as paga desde o B6. Medido em
@@ -313,11 +317,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   divergia. **O manifesto não foi regenerado.**
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** no fim do commit do pacote **R2**, impressão digital
+- **Última verificação:** no fim do commit do pacote **R3**, impressão digital
   idêntica no **conjunto completo dos 42 cenários**, sem restrição a subconjunto,
-  suíte de CPU com **511 aprovados e zero reprovados**, contra 507 aprovados na
+  suíte de CPU com **517 aprovados e zero reprovados**, contra 511 aprovados na
   partida, e suíte da réplica com **98** aprovados sobre dispositivo real, nas duas
-  invocações, da raiz e de dentro do próprio subprojeto. A contagem sobe pelos quatro
+  invocações, da raiz e de dentro do próprio subprojeto. A contagem sobe pelos seis
   casos novos do pacote. **A linha de base é a que o refazimento do piloto regravou**,
   com `content_sha256` `a6a550e3...`, e a identidade acima é medida contra ela.
 - **As duas reprovações previstas cessaram**, como estava anunciado, com o

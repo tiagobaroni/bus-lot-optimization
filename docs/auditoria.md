@@ -3463,7 +3463,12 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   recusa veredito cujo `campaign_commit` não é o dos dezoito documentos. A guarda
   de lista vazia que existia no primeiro commit foi removida no segundo, por ser
   inalcançável: `_load_official_documents` levanta `resultado ausente` antes de
-  poder devolver lista vazia.
+  poder devolver lista vazia. **Atualizado pelo pacote R3, em 31/08/2026:** a captura
+  passou a `allow_dirty=True`, mas a recusa sobre worktree suja **não** foi
+  afrouxada, e sim movida para uma pré-verificação mais estreita dentro do próprio
+  `generate_freeze_manifest`, que tolera sujeira apenas nos catorze caminhos que o
+  manifesto hasheia e recusa qualquer outra nomeando os arquivos. A razão e os
+  limites estão na seção 12.
 - **Impressão digital:** zero, conforme previsto.
 
 #### F6-03. A verificação do congelamento não recalcula o escopo protegido e não vê arquivo novo
@@ -7144,8 +7149,8 @@ arquivos de configuração de campanha. O único arquivo protegido que este paco
 `experiments/benchmark_freeze.py`, que já divergia. **O manifesto não foi regenerado**, e
 a renovação continua sendo o Passo 1 da Tarefa 20.
 
-**A decisão que fica em aberto, e ela é a razão de este registro não declarar o fluxo
-fechado.** Depois do commit deste pacote, `generate` ainda recusa, e agora por outro
+**A decisão que ficou em aberto ao fim deste pacote, e que a seção 12 resolveu.** Depois
+do commit deste pacote, `generate` ainda recusava, e agora por outro
 motivo, medido: `erro: commit do piloto diverge do HEAD em caminho protegido: ... em
 ['experiments/benchmark_freeze.py']`. A recusa é a guarda funcionando, porque o próprio
 commit que a introduz altera um arquivo protegido depois da execução do piloto vigente.
@@ -7170,7 +7175,10 @@ conteúdo pela verificação, e dispensá-lo apenas da pré-condição de geraç
 interseção do diff. A justificativa desse terceiro é diferente e mais forte, porque o que
 a pré-condição precisa garantir é que o código que produziu os resultados do piloto não
 mudou, e a ferramenta de congelamento não produz resultado algum: ela guarda a execução.
-**A escolha é do usuário e não foi feita aqui.**
+**A escolha foi feita pelo usuário em 31/08/2026, e não foi nenhuma das três.** Um segundo
+impasse apareceu antes dela, de natureza diferente e circular por construção, e mostrou
+que a origem não estava na fronteira deste arquivo e sim no fluxo: o fechamento é uma
+transação única. A seção 12 registra o segundo impasse, a decisão e o que ela mudou.
 
 **Limitação declarada.** A condição é a interseção do diff com `protected_paths(root)`,
 que é derivado do disco no estado corrente. Um `.py` protegido que tenha sido **removido**
@@ -7184,6 +7192,94 @@ lacuna silenciosa.
 **Impressão digital:** idêntica no conjunto completo dos 42 cenários, medida no fim do
 pacote. `experiments/benchmark_freeze.py` não participa da execução dos cenários da
 conferência, e a previsão de diferença zero se confirmou.
+
+## 12. O fechamento como transação única
+
+**Registrado em 31/08/2026, no commit do pacote R3.** Como a seção 11, este registro não
+fecha achado da auditoria: desfaz o segundo impasse do fluxo de fechamento, que apareceu
+logo depois de o R2 destravar a primeira renovação, e que é circular por construção e não
+por acidente de sequência.
+
+**O impasse, medido e não suposto.** Depois de renovar o manifesto e regerar o roteiro, a
+segunda renovação recusou com `erro: commit do piloto diverge do HEAD em caminho
+protegido: d6f7169 contra 6e4d920, em
+['results/tables/benchmark_execution_schedule.json']`. São três exigências que não podem
+valer ao mesmo tempo: o roteiro depende dos tempos do piloto e só pode ser gerado depois
+dele; o manifesto congela o roteiro, que consta de `FIXED_PROTECTED`, logo o roteiro
+precisa existir antes dele; e a guarda condicional do R2 exige que nada protegido mude
+depois do piloto. Reexecutar o piloto não resolve, porque tempos novos produzem roteiro
+novo e o ciclo recomeça.
+
+**A causa, e é ela que o pacote ataca.** Executar o piloto, regerar o roteiro e gerar o
+manifesto são três passos de **um** ato: cada um produz exatamente os artefatos que o
+seguinte consome, e o manifesto congela todos eles. O código tratava a sequência como três
+commits independentes, e `generate_freeze_manifest`, que exigia árvore limpa por
+`capture_provenance(root, allow_dirty=False)`, não podia rodar no meio da própria
+transação que fecha.
+
+**A tolerância é restrita, derivada e medida.** A geração passa a prosseguir com a árvore
+suja quando, e somente quando, a sujeira estiver contida no conjunto que ela mesma
+hasheia: os treze de `PILOT_ARTIFACTS` mais o roteiro, catorze caminhos. O conjunto é
+derivado em `_tolerated_dirty_paths`, de `PILOT_ARTIFACTS` e da constante nova
+`SCHEDULE_PATH`, que é a mesma que entra em `FIXED_PROTECTED`: não há segunda lista
+escrita à mão, porque duas cópias da mesma verdade voltariam a divergir em silêncio, que é
+o defeito de fronteira já corrigido um nível abaixo. Sujeira em qualquer caminho fora do
+conjunto continua sendo recusa, agora com a mensagem nomeando os arquivos, e essa metade é
+a que dá sentido à mudança: sem ela, a geração passaria a aceitar qualquer árvore suja,
+que é o oposto do que o congelamento existe para garantir. A leitura do estado é feita em
+`_dirty_paths`, com o mesmo `git status --porcelain=v1 -z --untracked-files=all` que
+`capture_provenance` usa, para que as duas concordem sobre o que é sujeira: arquivo não
+rastreado conta, e o nome antigo de uma renomeação entra no conjunto junto com o novo,
+porque mover um arquivo para fora do escopo protegido também é sujeira que precisa ser
+vista.
+
+**A oficialidade não foi rebaixada em silêncio, e a razão é de fundamento.**
+`capture_provenance` julga oficialidade **por commit**, e marca `official` como falso, com
+`dirty_worktree` nas razões, sempre que a árvore está suja. O congelamento julga **por
+conteúdo**: cada um dos catorze caminhos toleráveis é hasheado no próprio manifesto, os
+treze artefatos em `pilot_artifacts` e o roteiro em `protected_files`, e
+`verify_freeze_manifest` os cobra na execução seguinte. A garantia por commit não
+desaparece, é substituída no mesmo ato por uma garantia mais estreita e verificável, e é
+por isso que o manifesto que sai desta transação continua oficial. Para que a substituição
+não seja tácita, o manifesto grava dois campos novos: `tolerated_dirty_paths`, com
+exatamente quais caminhos estavam sujos, e `tolerated_dirty_sha256`, a impressão do estado
+sujo que a proveniência devolve. Árvore limpa grava lista vazia, e não campo ausente. Os
+dois campos são aditivos e o `schema_version` permanece em `1` pela mesma razão da seção
+11: elevá-lo faria `verify_freeze_manifest` recusar o manifesto vigente por versão
+incompatível.
+
+**O que a geração continua recusando.** Árvore suja em arquivo protegido de código, em
+`data/`, nas configurações ou em `pyproject.toml`; arquivo novo não rastreado, em qualquer
+lugar fora do conjunto; e, inalterada, a guarda condicional do R2 sobre o diff entre
+`pilot_commit` e o `HEAD`. Nada saiu do escopo protegido e nada saiu da verificação por
+conteúdo.
+
+**Duas limitações declaradas, e as duas são de fluxo e não de código.** A primeira:
+`results/tables/benchmark_freeze_manifest.json` é rastreado e é escrito pela própria
+geração, mas **não** pertence ao conjunto tolerado; a leitura do estado é feita antes da
+escrita do manifesto, e é por isso, e não por omissão, que ele nunca aparece na própria
+lista. A consequência é que uma segunda execução de `generate` dentro da mesma transação,
+depois de uma primeira bem sucedida, encontra o manifesto sujo fora do conjunto e recusa:
+a transação de fechamento é, por construção, de uma passagem só, e retomá-la exige
+commitar ou restaurar o manifesto antes. Incluí-lo no conjunto tolerado **não** foi feito,
+porque o manifesto é justamente o que está sendo assinado, e tolerá-lo sujo seria tolerar
+a assinatura anterior. A segunda: os documentos por cenário do piloto vivem em
+`results/raw/` e o resumo operacional em `results/operational/`, ambos ignorados pelo
+`.gitignore`, de modo que executar o piloto não suja nada além dos catorze caminhos. Essa
+contenção foi conferida por leitura de `git ls-files results/` e do `.gitignore`, e não
+suposta.
+
+**O que não foi feito.** O manifesto **não** foi regenerado, e a geração **não** foi
+conferida contra a árvore real: o piloto vigente é anterior a este commit, e a guarda
+condicional do R2 recusa por caminho protegido, o que é o comportamento esperado e será
+resolvido pela reexecução do piloto dentro da transação de fechamento. Os casos que provam
+as duas metades correm sobre repositório de brinquedo, com o roteiro e dois artefatos
+rastreados por `add -f` para que a sujeira tolerada seja observável em vez de ignorada
+pelo `.gitignore` da fixture.
+
+**Impressão digital:** idêntica no conjunto completo dos 42 cenários, medida no fim do
+pacote, com saída zero. `experiments/benchmark_freeze.py` não participa da execução dos
+cenários da conferência, e a previsão de diferença zero se confirmou.
 
 ## Apêndice A. Achados refutados
 

@@ -31,6 +31,10 @@ PILOT_ARTIFACTS = (
     "results/figures/pilot_resources.png",
     "results/figures/pilot_resources.pdf",
 )
+# Nomeado porque entra em dois lugares, no escopo protegido e na derivação da
+# sujeira tolerável. A constante existe justamente para que a segunda derivação
+# não seja uma segunda cópia do mesmo caminho.
+SCHEDULE_PATH = "results/tables/benchmark_execution_schedule.json"
 FIXED_PROTECTED = (
     "data/instances/artesp_rmsp_20.json",
     "data/instances/artesp_rmsp_60.json",
@@ -41,7 +45,7 @@ FIXED_PROTECTED = (
     "experiments/configs/pilot.toml",
     "experiments/configs/benchmark.toml",
     "experiments/configs/frozen_parameters.toml",
-    "results/tables/benchmark_execution_schedule.json",
+    SCHEDULE_PATH,
     "pyproject.toml",
     "uv.lock",
 )
@@ -96,6 +100,60 @@ def _protected_paths_changed_between(
         )
     changed = {line for line in completed.stdout.decode().splitlines() if line}
     return tuple(sorted(changed & set(protected_paths(root))))
+
+
+def _tolerated_dirty_paths() -> frozenset[str]:
+    """Sujeira que a geração tolera, derivada do que ela mesma hasheia.
+
+    O fechamento é uma transação única, e não uma sequência de commits
+    independentes: executar o piloto produz os treze artefatos, regerar o
+    roteiro consome os tempos do piloto, e o manifesto congela os catorze. Exigir
+    árvore limpa aqui é exigir que a transação já esteja fechada antes de existir
+    o passo que a fecha, e é essa circularidade que a tolerância desfaz.
+
+    O conjunto é derivado de `PILOT_ARTIFACTS` e de `SCHEDULE_PATH`, e não
+    escrito uma segunda vez: duas cópias da mesma verdade divergiriam em
+    silêncio, que é o defeito de fronteira já corrigido um nível abaixo.
+    """
+
+    return frozenset((*PILOT_ARTIFACTS, SCHEDULE_PATH))
+
+
+def _dirty_paths(root: Path) -> tuple[str, ...]:
+    """Caminhos que o Git reporta como sujos, rastreados ou não.
+
+    A leitura repete a de `capture_provenance`, `--porcelain=v1 -z` com
+    `--untracked-files=all`, para que as duas concordem sobre o que é sujeira:
+    arquivo não rastreado conta, e uma leitura que só olhasse o que já está
+    rastreado deixaria arquivo novo entrar por cima do congelamento. Com `-z` o
+    Git não cita nem escapa caminho algum, e renomeação vem em dois registros; o
+    nome antigo entra no conjunto junto com o novo, porque mover um arquivo para
+    fora do escopo protegido também é sujeira que precisa ser vista.
+    """
+
+    completed = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise ConfigurationError("estado da árvore não pôde ser lido pelo Git")
+    entries = [
+        entry
+        for entry in completed.stdout.decode("utf-8", errors="surrogateescape").split("\0")
+        if entry
+    ]
+    paths: set[str] = set()
+    index = 0
+    while index < len(entries):
+        entry = entries[index]
+        index += 1
+        paths.add(entry[3:])
+        if ("R" in entry[:2] or "C" in entry[:2]) and index < len(entries):
+            paths.add(entries[index])
+            index += 1
+    return tuple(sorted(paths))
 
 
 def _hash_files(root: Path, paths: tuple[str, ...]) -> dict[str, str]:
@@ -156,6 +214,32 @@ def _revalidate_pilot_behaviour(
 
 
 def generate_freeze_manifest(config: CampaignConfig, *, workers: int) -> dict[str, Any]:
+    """Assina o congelamento que autoriza a B11.
+
+    A tolerância a sujeira restrita, e por que o manifesto continua oficial.
+    `capture_provenance` julga oficialidade **por commit**, e por isso marca
+    `official` como falso e acrescenta `dirty_worktree` sempre que a árvore está
+    suja. O congelamento julga **por conteúdo**: cada um dos catorze caminhos
+    toleráveis é hasheado aqui, os treze artefatos em `pilot_artifacts` e o
+    roteiro em `protected_files`, de modo que o conteúdo ainda não commitado fica
+    preso pelo `sha256` que o manifesto grava, e `verify_freeze_manifest` o
+    cobra na execução seguinte. A garantia por commit não é perdida, é
+    substituída por uma garantia mais estreita e verificável no mesmo ato, e é
+    por isso que o manifesto desta transação continua oficial.
+
+    Para que a substituição não seja tácita, o manifesto grava
+    `tolerated_dirty_paths`, com exatamente quais caminhos estavam sujos, e
+    `tolerated_dirty_sha256`, a impressão do estado sujo que a proveniência
+    devolve. Árvore limpa grava lista vazia, e não campo ausente. A leitura do
+    estado é feita **antes** da escrita do manifesto, e é por essa razão, e não
+    por omissão, que `FREEZE_PATH` nunca aparece na própria lista.
+
+    Sujeira em qualquer caminho fora do conjunto continua sendo recusa, com a
+    mensagem nomeando os arquivos: sem essa metade, tolerar sujeira restrita
+    equivaleria a aceitar qualquer árvore suja, que é o oposto do que o
+    congelamento existe para garantir.
+    """
+
     if config.name != "pilot_prebenchmark":
         raise ConfigurationError("congelamento exige o piloto oficial da B10")
     root = config.repository_root
@@ -163,7 +247,14 @@ def generate_freeze_manifest(config: CampaignConfig, *, workers: int) -> dict[st
     if validation.get("passed") is not True or validation.get("reproduction_passed") is not True:
         raise ConfigurationError("piloto ainda não foi integralmente aprovado")
     artifact_hashes = _hash_files(root, PILOT_ARTIFACTS)
-    provenance = capture_provenance(root, allow_dirty=False)
+    dirty = _dirty_paths(root)
+    untolerated = tuple(sorted(set(dirty) - _tolerated_dirty_paths()))
+    if untolerated:
+        raise ConfigurationError(
+            "worktree suja fora dos artefatos que o congelamento hasheia: "
+            f"{list(untolerated)}"
+        )
+    provenance = capture_provenance(root, allow_dirty=True)
     pilot_commit = validation.get("campaign_commit")
     head_commit = provenance["git_commit"]
     if pilot_commit != head_commit:
@@ -190,6 +281,8 @@ def generate_freeze_manifest(config: CampaignConfig, *, workers: int) -> dict[st
         "frozen_parameters_sha256": config.frozen_parameters_sha256,
         "protected_files": _hash_files(root, protected_paths(root)),
         "pilot_artifacts": artifact_hashes,
+        "tolerated_dirty_paths": list(dirty),
+        "tolerated_dirty_sha256": provenance["dirty_sha256"],
         "environment": _environment(provenance),
     }
     path = root / FREEZE_PATH

@@ -29,6 +29,9 @@ DYNAMIC_PROTECTED = (
 GIT_IDENTITY = (
     "-c", "user.email=fixture@example.invalid", "-c", "user.name=Fixture",
 )
+# Literal deliberado: é a derivação de comparação independente do conjunto
+# tolerado, e não uma segunda leitura da constante que o módulo expõe.
+SCHEDULE = "results/tables/benchmark_execution_schedule.json"
 
 
 def test_hash_files_detects_missing_and_changed_file(tmp_path: Path) -> None:
@@ -278,8 +281,9 @@ def test_generation_rejects_dirty_worktree(generation_repository: Path) -> None:
     """F6-02: assinar o congelamento sobre worktree suja congela o que não foi validado."""
 
     _write(generation_repository, "src/metaheuristica/nucleo.py", "alteração não commitada\n")
-    with pytest.raises(ConfigurationError, match="worktree suja"):
+    with pytest.raises(ConfigurationError, match="worktree suja") as error:
         generate_freeze_manifest(_fixture_config(generation_repository), workers=16)
+    assert "src/metaheuristica/nucleo.py" in str(error.value)
     assert not (generation_repository / FREEZE_PATH).exists()
 
 
@@ -327,9 +331,12 @@ def test_generation_accepts_divergent_head_when_only_derived_paths_changed(
     )
     assert manifest["pilot_commit"] == pilot_commit
     assert manifest["head_commit"] == head_commit
+    # R3: árvore limpa registra conjunto sujo vazio, e não ausência de campo.
+    assert manifest["tolerated_dirty_paths"] == []
     written = read_json(generation_repository / FREEZE_PATH)
     assert written["pilot_commit"] == pilot_commit
     assert written["head_commit"] == head_commit
+    assert written["tolerated_dirty_paths"] == []
 
 
 def test_generation_rejects_divergent_head_that_touches_a_protected_path(
@@ -430,3 +437,155 @@ def test_revalidation_rejects_verdict_with_foreign_commit() -> None:
         benchmark_freeze._revalidate_pilot_behaviour(
             config, {**validation, "campaign_commit": "0" * 40}
         )
+
+
+def test_tolerated_dirty_paths_come_from_what_the_manifest_hashes() -> None:
+    """R3: o conjunto tolerado é derivado, e não uma segunda lista escrita à mão.
+
+    A comparação é independente da derivação: o roteiro entra aqui como literal,
+    e a identidade prende o conjunto pelos dois lados, de modo que nem um
+    caminho a mais nem um a menos passa em silêncio.
+    """
+
+    assert benchmark_freeze.SCHEDULE_PATH == SCHEDULE
+    assert SCHEDULE in FIXED_PROTECTED
+    assert benchmark_freeze._tolerated_dirty_paths() == {*PILOT_ARTIFACTS, SCHEDULE}
+    assert len(benchmark_freeze._tolerated_dirty_paths()) == len(PILOT_ARTIFACTS) + 1
+
+
+@pytest.fixture
+def transaction_repository(tmp_path: Path) -> Path:
+    """Repositório onde o roteiro e dois artefatos do piloto são rastreados.
+
+    `_build_repository` ignora `results/`, e arquivo ignorado nunca aparece como
+    sujeira: sem rastrear o roteiro e ao menos um artefato, o caso de sujeira
+    tolerada passaria por vácuo. O `add -f` é nominal para não tirar `results/`
+    do `.gitignore`, e a árvore fica limpa ao fim da montagem, o que a asserção
+    abaixo mede em vez de supor.
+    """
+
+    root = _build_repository(tmp_path)
+    _git(
+        root, "add", "-f", SCHEDULE, "results/tables/pilot_runs.parquet",
+        "results/tables/pilot_manifest.json",
+    )
+    _git(root, *GIT_IDENTITY, "commit", "-m", "rastreia o roteiro e dois artefatos")
+    # O veredito continua ignorado, e por isso escrevê-lo não suja a árvore.
+    _write_verdict(root, commit=_git(root, "rev-parse", "HEAD"))
+    assert _git(root, "status", "--porcelain") == ""
+    return root
+
+
+def _sha256_of(root: Path, relative: str) -> str:
+    return _hash_files(root, (relative,))[relative]
+
+
+def test_generation_proceeds_with_dirt_restricted_to_pilot_artifacts(
+    transaction_repository: Path, monkeypatch
+) -> None:
+    """R3: o fechamento é uma transação única e roda sobre o que ele mesmo produz."""
+
+    relative = "results/tables/pilot_runs.parquet"
+    _write(transaction_repository, relative, "tempos novos do piloto\n")
+    monkeypatch.setattr(
+        benchmark_freeze, "_revalidate_pilot_behaviour", lambda *args, **kwargs: None
+    )
+    manifest = generate_freeze_manifest(
+        _fixture_config(transaction_repository), workers=16
+    )
+    assert manifest["tolerated_dirty_paths"] == [relative]
+    # O que ficou congelado é o conteúdo sujo, e não o conteúdo commitado: é
+    # essa igualdade que sustenta a oficialidade por conteúdo.
+    assert manifest["pilot_artifacts"][relative] == _sha256_of(
+        transaction_repository, relative
+    )
+
+
+def test_generation_proceeds_with_the_regenerated_schedule_dirty(
+    transaction_repository: Path, monkeypatch
+) -> None:
+    """R3: o caso que motivou o pacote, o roteiro regerado depois do piloto."""
+
+    _write(transaction_repository, SCHEDULE, "roteiro regerado sobre os tempos novos\n")
+    monkeypatch.setattr(
+        benchmark_freeze, "_revalidate_pilot_behaviour", lambda *args, **kwargs: None
+    )
+    manifest = generate_freeze_manifest(
+        _fixture_config(transaction_repository), workers=16
+    )
+    assert manifest["tolerated_dirty_paths"] == [SCHEDULE]
+    assert manifest["protected_files"][SCHEDULE] == _sha256_of(
+        transaction_repository, SCHEDULE
+    )
+
+
+def test_generation_still_rejects_dirt_outside_the_tolerated_set(
+    transaction_repository: Path, monkeypatch
+) -> None:
+    """R3: a metade que recusa, sem a qual o pacote vira porta aberta.
+
+    A sujeira tolerada está presente ao mesmo tempo, de propósito: o que decide
+    a recusa é o que sobra fora do conjunto, e não a existência de sujeira.
+    """
+
+    _write(transaction_repository, "results/tables/pilot_runs.parquet", "tempos novos\n")
+    _write(
+        transaction_repository, "src/metaheuristica/nucleo.py",
+        "alteração não commitada\n",
+    )
+    monkeypatch.setattr(
+        benchmark_freeze, "_revalidate_pilot_behaviour", lambda *args, **kwargs: None
+    )
+    with pytest.raises(ConfigurationError, match="worktree suja") as error:
+        generate_freeze_manifest(_fixture_config(transaction_repository), workers=16)
+    message = str(error.value)
+    assert "src/metaheuristica/nucleo.py" in message
+    assert "results/tables/pilot_runs.parquet" not in message
+    assert not (transaction_repository / FREEZE_PATH).exists()
+
+
+def test_generation_rejects_untracked_file_outside_the_tolerated_set(
+    transaction_repository: Path, monkeypatch
+) -> None:
+    """R3: arquivo não rastreado é sujeira, e a leitura do estado precisa vê-lo.
+
+    `capture_provenance` conta arquivo não rastreado como sujeira desde a
+    correção da F5; uma leitura que só olhasse o que já está rastreado deixaria
+    entrar arquivo novo em cima do congelamento.
+    """
+
+    _write(transaction_repository, "sobra.txt", "arquivo novo, fora do conjunto\n")
+    monkeypatch.setattr(
+        benchmark_freeze, "_revalidate_pilot_behaviour", lambda *args, **kwargs: None
+    )
+    with pytest.raises(ConfigurationError, match="worktree suja") as error:
+        generate_freeze_manifest(_fixture_config(transaction_repository), workers=16)
+    assert "sobra.txt" in str(error.value)
+    assert not (transaction_repository / FREEZE_PATH).exists()
+
+
+def test_manifest_records_exactly_the_paths_that_were_dirty(
+    transaction_repository: Path, monkeypatch
+) -> None:
+    """R3: o registro é identidade, e não continência.
+
+    Desigualdade sobre conjunto não prende conjunto: gravar a lista inteira do
+    tolerado, ou o conjunto sujo mais um vizinho, passaria por continência e
+    morre aqui.
+    """
+
+    dirty = {SCHEDULE, "results/tables/pilot_manifest.json"}
+    for relative in sorted(dirty):
+        _write(transaction_repository, relative, f"reescrito na transação: {relative}\n")
+    monkeypatch.setattr(
+        benchmark_freeze, "_revalidate_pilot_behaviour", lambda *args, **kwargs: None
+    )
+    manifest = generate_freeze_manifest(
+        _fixture_config(transaction_repository), workers=16
+    )
+    assert set(manifest["tolerated_dirty_paths"]) == dirty
+    written = read_json(transaction_repository / FREEZE_PATH)
+    assert set(written["tolerated_dirty_paths"]) == dirty
+    # O estado sujo também fica identificado, e não apenas enumerado.
+    assert isinstance(written["tolerated_dirty_sha256"], str)
+    assert len(written["tolerated_dirty_sha256"]) == 64
