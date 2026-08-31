@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Callable
 from time import perf_counter
 from typing import NamedTuple
@@ -12,42 +11,36 @@ import numpy as np
 
 from metaheuristica import (
     EvaluationResult, OptimizationResult, ProblemInstance, PsoConfig, RunConfig,
-    TerminationReason, canonicalize_solution, evaluate_solution,
-    validate_solution,
+    TerminationReason, evaluate_solution, validate_solution,
 )
 from metaheuristica.errors import RepairBudgetExhausted, SolutionValidationError
-from metaheuristica.pso import _project_position, decode_position
+# F8-12. O estado da partícula, a comparação de melhores, a tentativa, a
+# canonicalização do candidato e a partícula inicial deixam de ser cópias locais
+# e passam a ser **os mesmos objetos** do caminho normativo, pelo mecanismo que
+# o pacote B5 usou para o estado parcial da construção do ACO e o B20 para a
+# decodificação e a projeção. A duplicação é ruído de manutenção sob um regime
+# que já a protege contra divergência silenciosa, e não vetor de corrupção
+# despercebida: `execute_scenario` chama `_cpu_readiness()` antes de cada um dos
+# 60 cenários, e essa verificação re-hasheia os catorze arquivos de
+# `src/metaheuristica/` que o manifesto de congelamento da CPU protege.
+#
+# **A restrição dura foi respeitada: nenhuma ordem de somatório mudou.** As
+# cinco funções unificadas têm corpo aritmético idêntico ao da cópia que
+# substituem, termo a termo, e o que elas acrescentam são conferências que o
+# núcleo já fazia: `_trial_state` recusa partícula sem melhor pessoal por
+# exceção em vez de `assert`, e `_initial_particle` confere que a posição
+# sorteada decodifica na alocação gerada. As três estruturas de dados não
+# carregam aritmética alguma.
+from metaheuristica.pso import (
+    VELOCITY_LIMIT, _Best, _Particle, _Trial, _best_comparison,
+    _canonical_candidate, _copy_best, _initial_particle, _project_position,
+    _trial_state, decode_position,
+)
 from metaheuristica.repair import repair_empty_lots_with_evaluation
-from metaheuristica.metrics import COST_TOLERANCE
 
 from metaheuristica_gpu.evaluator import HybridEvaluator
 from metaheuristica_gpu.numerics import require_equivalent
 from metaheuristica_gpu.objective import GpuBatchObjective
-
-
-VELOCITY_LIMIT = 0.5
-
-
-@dataclass(slots=True)
-class _Best:
-    position: np.ndarray
-    solution: np.ndarray
-    evaluation: EvaluationResult
-
-
-@dataclass(slots=True)
-class _Particle:
-    position: np.ndarray
-    velocity: np.ndarray
-    pbest: _Best | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class _Trial:
-    position: np.ndarray
-    velocity: np.ndarray
-    position_clips: int
-    velocity_clips: int
 
 
 class _Pending(NamedTuple):
@@ -84,72 +77,23 @@ def _decode(position: np.ndarray, n: int, k: int) -> np.ndarray:
     return decode_position(position, n_units=n, k=k)
 
 
-def _initial_particle(n: int, k: int, rng: np.random.Generator) -> _Particle:
-    permutation = rng.permutation(n)
-    labels = np.empty(n, dtype=np.int64)
-    labels[permutation] = np.arange(n, dtype=np.int64) % k
-    position = (labels.astype(np.float64) + rng.random(n)) / k
-    velocity = rng.uniform(-VELOCITY_LIMIT, VELOCITY_LIMIT, size=n)
-    return _Particle(position.copy(), velocity.astype(np.float64, copy=False).copy())
-
-
-def _copy_best(position: np.ndarray, solution: np.ndarray, evaluation: EvaluationResult) -> _Best:
-    return _Best(position.copy(), solution.copy(), evaluation)
-
-
-def _better(candidate: _Best, incumbent: _Best) -> bool:
-    difference = candidate.evaluation.total_cost - incumbent.evaluation.total_cost
-    if difference < -COST_TOLERANCE:
-        return True
-    if abs(difference) > COST_TOLERANCE:
-        return False
-    candidate_solution = tuple(int(value) for value in candidate.solution)
-    incumbent_solution = tuple(int(value) for value in incumbent.solution)
-    if candidate_solution != incumbent_solution:
-        return candidate_solution < incumbent_solution
-    return tuple(candidate.position) < tuple(incumbent.position)
-
-
-def _trial(
-    particle: _Particle, gbest: np.ndarray, config: PsoConfig,
-    rng: np.random.Generator,
-) -> _Trial:
-    assert particle.pbest is not None
-    r1 = rng.random(particle.position.shape)
-    r2 = rng.random(particle.position.shape)
-    raw_velocity = (
-        config.inertia * particle.velocity
-        + config.cognitive * r1 * (particle.pbest.position - particle.position)
-        + config.social * r2 * (gbest - particle.position)
-    )
-    velocity_clips = int(
-        np.count_nonzero((raw_velocity < -VELOCITY_LIMIT) | (raw_velocity > VELOCITY_LIMIT))
-    )
-    # A velocidade saturada é a que se aplica à posição: o limite da seção 16 é do
-    # passo, não apenas do estado herdado pelo termo de inércia da iteração
-    # seguinte. Espelha `metaheuristica.pso._trial_state`, corrigida no pacote A1.
-    velocity = np.clip(raw_velocity, -VELOCITY_LIMIT, VELOCITY_LIMIT)
-    raw_position = particle.position + velocity
-    position_clips = int(np.count_nonzero((raw_position < 0.0) | (raw_position > 1.0)))
-    return _Trial(
-        np.clip(raw_position, 0.0, 1.0),
-        velocity,
-        position_clips,
-        velocity_clips,
-    )
-
-
 def _project(
     position: np.ndarray, original: np.ndarray, repaired: np.ndarray, k: int
 ) -> np.ndarray:
     return _project_position(position, original, repaired, k=k)
 
 
-def _canonical(position: np.ndarray, labels: np.ndarray, n: int, k: int) -> tuple[np.ndarray, np.ndarray]:
-    canonical = canonicalize_solution(labels, n_units=n, k=k)
-    if np.array_equal(labels, canonical):
-        return position.copy(), canonical
-    return _project(position, labels, canonical, k), canonical
+# F8-12, o que **não** foi unificado, e por quê. O laço do enxame de
+# `run_pso_gpu`, com `_Pending`, `flush`, `commit` e `close_trial`, permanece
+# duplicado de propósito: o núcleo avalia **um** candidato por vez, por
+# `context.evaluate`, e o caminho da placa acumula tentativas e as submete em
+# lote, truncando pelo orçamento restante dentro de `flush`. Não existe forma de
+# importar o laço do núcleo sem reescrevê-lo em torno do lote, e reescrevê-lo é
+# exatamente o que a restrição dura proíbe. Pela mesma razão os contadores de
+# diagnóstico ficam como estão, e não como `_PsoDiagnostics`: aquela estrutura
+# publica por `context.update_diagnostics`, e aqui não existe contexto.
+# **Metade duplicada com motivo escrito é o resultado aceitável deste pacote;
+# identidade quebrada não é.**
 
 
 def run_pso_gpu(
@@ -187,10 +131,10 @@ def run_pso_gpu(
         nonlocal gbest, particles_evaluated
         particle.position = position.copy(); particle.velocity = velocity.copy()
         candidate = _copy_best(position, solution, evaluation)
-        if particle.pbest is None or _better(candidate, particle.pbest):
+        if particle.pbest is None or _best_comparison(candidate, particle.pbest)[0]:
             particle.pbest = candidate
         assert particle.pbest is not None
-        if gbest is None or _better(particle.pbest, gbest):
+        if gbest is None or _best_comparison(particle.pbest, gbest)[0]:
             gbest = _copy_best(
                 particle.pbest.position, particle.pbest.solution, particle.pbest.evaluation
             )
@@ -217,7 +161,9 @@ def run_pso_gpu(
         initial: list[_Pending] = []
         for particle in particles:
             labels = _decode(particle.position, instance.n_units, run_config.k)
-            position, solution = _canonical(particle.position, labels, instance.n_units, run_config.k)
+            position, solution = _canonical_candidate(
+                particle.position, labels, n_units=instance.n_units, k=run_config.k
+            )
             initial.append(_Pending(particle, position, particle.velocity, solution))
         if flush(initial):
             raise StopIteration
@@ -225,7 +171,7 @@ def run_pso_gpu(
 
         while evaluator.remaining:
             snapshot = gbest.position.copy()
-            trials = [_trial(particle, snapshot, config, rng) for particle in particles]
+            trials = [_trial_state(particle, snapshot, config, rng) for particle in particles]
             pending: list[_Pending] = []
             for index, (particle, trial) in enumerate(zip(particles, trials)):
                 last_trial = index == len(trials) - 1
@@ -281,8 +227,8 @@ def run_pso_gpu(
                     if evaluator.remaining == 0:
                         raise StopIteration
                 else:
-                    position, solution = _canonical(
-                        trial.position, decoded, instance.n_units, run_config.k
+                    position, solution = _canonical_candidate(
+                        trial.position, decoded, n_units=instance.n_units, k=run_config.k
                     )
                     validate_solution(solution, n_units=instance.n_units, k=run_config.k)
                     pending.append(

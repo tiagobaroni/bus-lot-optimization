@@ -9,6 +9,8 @@ import cupy as cp
 import numpy as np
 
 from metaheuristica import EvaluationResult, ObjectiveWeights, ProblemInstance, validate_solution
+from metaheuristica.errors import MetaheuristicaError
+from metaheuristica.objective import _evaluate_provisional_solution
 
 from metaheuristica_gpu.timing import GpuTiming
 
@@ -129,39 +131,44 @@ def evaluate_provisional_cpu(
     k: int,
     weights: ObjectiveWeights,
 ) -> EvaluationResult:
-    labels = np.asarray(solution)
-    if labels.shape != (instance.n_units,) or not np.issubdtype(labels.dtype, np.integer):
-        raise GpuObjectiveError("solução provisória inválida")
-    labels = labels.astype(np.int64, copy=False)
-    if np.any(labels < 0) or np.any(labels >= k):
-        raise GpuObjectiveError("rótulo provisório fora do intervalo")
-    demand = np.bincount(labels, weights=instance.demand, minlength=k)
-    production = np.bincount(labels, weights=instance.production, minlength=k)
-    demand_mean = float(np.mean(demand))
-    production_mean = float(np.mean(production))
-    cv_demand = float(np.std(demand, ddof=0) / demand_mean)
-    cv_production = float(np.std(production, ddof=0) / production_mean)
-    c_demand = cv_demand / (1.0 + cv_demand)
-    c_production = cv_production / (1.0 + cv_production)
-    row, column = np.triu_indices(instance.n_units, k=1)
-    separated = labels[row] != labels[column]
-    territorial_values = instance.s_territorial[row, column]
-    affinity_values = instance.w_affinity[row, column]
-    territorial_total = float(np.sum(territorial_values))
-    affinity_total = float(np.sum(affinity_values))
-    c_territorial = (
-        0.0 if territorial_total == 0.0
-        else float(np.sum(territorial_values[separated])) / territorial_total
-    )
-    c_affinity = (
-        0.0 if affinity_total == 0.0
-        else float(np.sum(affinity_values[separated])) / affinity_total
-    )
-    total = (
-        weights.demand * c_demand + weights.production * c_production
-        + weights.territorial * c_territorial + weights.affinity * c_affinity
-    )
-    return EvaluationResult(
-        total, c_demand, c_production, c_territorial, c_affinity,
-        cv_demand, cv_production,
-    )
+    """Avaliação com lotes vazios, delegada ao caminho normativo.
+
+    F8-12. Esta função era réplica literal de
+    `metaheuristica.objective._evaluate_provisional_solution` combinado com
+    `_evaluate_arrays` e `_evaluate_aggregates`: mesma contagem por
+    `np.bincount`, mesmo desvio com `ddof=0`, mesma ordem dos pares do
+    triângulo superior e mesma soma ponderada dos quatro componentes. A
+    duplicação é **ruído de manutenção sob um regime que já a protege contra
+    divergência silenciosa**, e não vetor de corrupção despercebida:
+    `execute_scenario` chama `_cpu_readiness()` antes de cada um dos 60
+    cenários, e essa verificação re-hasheia os arquivos protegidos do
+    congelamento da CPU, catorze deles sob `src/metaheuristica/`. O que a
+    unificação remove é o ônus, não um alarme ausente.
+
+    **A identidade foi medida antes da unificação, e não presumida:** 840
+    comparações, em quatro instâncias e quatro valores de `K`, com rótulos
+    sorteados, mais os casos com lote vazio que são o uso real desta função,
+    devolveram **zero** divergências bit a bit campo a campo.
+
+    **A recusa é reembalada de propósito.** O caminho normativo levanta
+    `SolutionValidationError`, que herda de `ValueError` e **não** de
+    `RuntimeError`; `GpuObjectiveError` herda de `RuntimeError`, e o pacote
+    depende disso em dois pontos de `run.py`: a CLI devolve código 2 pelo
+    `except (..., RuntimeError)`, e a sessão de um cenário interrompido é
+    gravada como `interrupted` e não como `failed` pelo mesmo teste. Delegar
+    sem reembalar trocaria os dois comportamentos em silêncio, e nenhum teste
+    apanharia a troca, porque esta função não tinha cobertura alguma antes
+    deste pacote.
+
+    O nome importado é privado porque publicá-lo exigiria editar
+    `src/metaheuristica/objective.py`, que está fora da lista deste pacote. É o
+    mesmo mecanismo que o pacote B5 usou para `_PartialConstructionState` e o
+    B20 para `_project_position`.
+    """
+
+    try:
+        return _evaluate_provisional_solution(
+            instance, solution, k=k, weights=weights
+        )
+    except MetaheuristicaError as error:
+        raise GpuObjectiveError(str(error)) from error

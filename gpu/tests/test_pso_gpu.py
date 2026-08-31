@@ -434,3 +434,70 @@ def test_a_trajetoria_oficial_do_pso_reprova_divergencia_de_1e_11() -> None:
     assert gpu.evaluations == _ORCAMENTO_REAL, "a execução completou, sem guarda anterior disparar"
     with pytest.raises(NumericalDivergenceError, match="checkpoint 1: total_cost diverge"):
         require_equivalent_trajectory(gpu, cpu)
+
+
+def test_o_pso_da_replica_compartilha_os_objetos_do_nucleo() -> None:
+    """F8-12: a unificação fica presa por identidade de referência.
+
+    O teste prescrito pelo pacote compara `__module__`, e aqui ele é mais forte
+    do que isso: compara **identidade de objeto**, porque um invólucro definido
+    na réplica teria `__module__` igual a `metaheuristica_gpu.pso` e a asserção
+    por módulo ou falharia ou precisaria ser afrouxada até não medir nada. É a
+    mesma forma que
+    `test_aco_gpu.py::test_gpu_construction_shares_the_cpu_partial_state` já
+    usa desde o pacote B5. Uma divergência futura por cópia reaparece como
+    falha em vez de ficar silenciosa.
+
+    O **eixo negativo** está aqui dentro: o que continua duplicado de propósito,
+    porque o núcleo avalia um candidato por vez e a réplica avalia em lote,
+    continua sendo objeto próprio da réplica. Sem essa metade, uma asserção que
+    exigisse tudo do núcleo passaria por vacuidade se alguém importasse o
+    módulo inteiro.
+    """
+
+    import metaheuristica.pso as nucleo
+    import metaheuristica_gpu.pso as replica
+
+    unificados = (
+        "_Best", "_Particle", "_Trial", "_best_comparison", "_canonical_candidate",
+        "_copy_best", "_initial_particle", "_trial_state", "decode_position",
+        "_project_position",
+    )
+    for nome in unificados:
+        assert getattr(replica, nome) is getattr(nucleo, nome), nome
+        assert getattr(replica, nome).__module__ == "metaheuristica.pso", nome
+    assert replica.VELOCITY_LIMIT is nucleo.VELOCITY_LIMIT
+
+    proprios = ("run_pso_gpu", "_Pending", "_decode", "_project")
+    for nome in proprios:
+        assert getattr(replica, nome).__module__ == "metaheuristica_gpu.pso", nome
+
+
+def test_o_laco_em_lote_do_enxame_continua_proprio_da_replica() -> None:
+    """F8-12: o que **não** foi unificado, medido em vez de afirmado.
+
+    A restrição dura do pacote proíbe alterar a ordem das operações de
+    somatório, e importar o laço do núcleo exigiria reescrevê-lo em torno do
+    lote. O laço da réplica submete várias tentativas de uma vez, e o do núcleo
+    avalia uma por vez: o caso mede essa diferença pelo tamanho dos lotes de
+    fato submetidos ao avaliador, e não por leitura do código.
+    """
+
+    import metaheuristica_gpu.pso as modulo
+    from metaheuristica_gpu.evaluator import HybridEvaluator
+
+    tamanhos: list[int] = []
+    original = HybridEvaluator.evaluate_batch
+
+    def espiao(self, solutions):
+        tamanhos.append(len(solutions))
+        return original(self, solutions)
+
+    instance, run, config = _cenario_real()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(HybridEvaluator, "evaluate_batch", espiao)
+        modulo.run_pso_gpu(instance, run, config)
+
+    assert tamanhos, "denominador do caso: o avaliador em lote foi percorrido"
+    assert max(tamanhos) > 1, "o laço da réplica submete lote, e não um candidato por vez"
+    assert max(tamanhos) <= config.n_particles

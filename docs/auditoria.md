@@ -5473,8 +5473,53 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   que **já** a protege contra divergência silenciosa, e não vetor de corrupção
   despercebida.
 - **Onda:** C.
-- **Situação:** aberto, com o **componente ACO antecipado pelo pacote B5**, no commit
-  `d297377`. Transferência de escopo registrada aqui porque ela não estava prevista em
+- **Situação:** fechado no commit do pacote C7, lote L10, que fecha também a Onda C.
+  **Classe prevista `M3`, classe observada `M3`**, sem reclassificação. O escopo
+  restante era `gpu/objective.py` e o grosso de `gpu/pso.py`, e os dois foram
+  unificados por importação do pacote normativo:
+  `evaluate_provisional_cpu` passou a delegar a
+  `metaheuristica.objective._evaluate_provisional_solution`, e `gpu/pso.py` passou a
+  importar `VELOCITY_LIMIT`, `_Best`, `_Particle`, `_Trial`, `_best_comparison`,
+  `_canonical_candidate`, `_copy_best`, `_initial_particle` e `_trial_state` de
+  `metaheuristica.pso`, no mesmo mecanismo que o B5 usou para o estado parcial da
+  construção do ACO e o B20 para a decodificação e a projeção.
+  **A restrição dura foi respeitada e medida, e não presumida.** Nenhuma ordem de
+  somatório mudou: as cinco funções unificadas têm corpo aritmético idêntico ao da
+  cópia que substituem, e as três estruturas de dados não carregam aritmética alguma.
+  O oráculo de identidade bit a bit foi reexecutado sobre a réplica antes e depois da
+  unificação, em três configurações do enxame e em 50 avaliações provisórias, e
+  comparou solução, os cem checkpoints campo a campo por `float.hex()` e os
+  diagnósticos: **identidade total**. A identidade da avaliação provisória contra o
+  caminho normativo foi medida antes da mudança, em 840 comparações sobre quatro
+  instâncias e quatro valores de `K`, com **zero** divergências bit a bit.
+  **O que não foi unificado, e por quê.** O laço em lote do enxame, com `_Pending`,
+  `flush`, `commit` e `close_trial`, permanece duplicado com o motivo escrito no
+  módulo: o núcleo avalia **um** candidato por vez, por `context.evaluate`, e a
+  réplica acumula tentativas e as submete em lote, truncando pelo orçamento restante
+  dentro de `flush`; importar o laço exigiria reescrevê-lo em torno do lote, que é o
+  que a restrição proíbe. Pela mesma razão os contadores de diagnóstico não viraram
+  `_PsoDiagnostics`, que publica por `context.update_diagnostics` e aqui não tem
+  contexto. **Metade duplicada com motivo escrito é resultado aceitável deste
+  pacote; identidade quebrada não é.** O caso
+  `test_o_laco_em_lote_do_enxame_continua_proprio_da_replica` mede essa diferença
+  pelo tamanho dos lotes de fato submetidos, e não por leitura do código.
+  **Uma consequência operacional que a unificação teria trocado em silêncio.** O
+  caminho normativo recusa por `SolutionValidationError`, que herda de `ValueError` e
+  **não** de `RuntimeError`, ao passo que `GpuObjectiveError` herda de `RuntimeError`,
+  e `run.py` depende disso em dois pontos: a CLI devolve código 2 pelo
+  `except (..., RuntimeError)`, e a sessão de um cenário interrompido é gravada como
+  `interrupted` e não como `failed` pelo mesmo teste. A recusa é reembalada de
+  propósito, e o caso que a prende mede também o eixo negativo, isto é que o núcleo
+  **não** levanta `RuntimeError` para as mesmas entradas. `evaluate_provisional_cpu`
+  não tinha cobertura alguma antes deste pacote, logo nada apanharia a troca.
+  **Nota de nome privado.** Os símbolos importados são privados do pacote normativo.
+  Publicá-los exigiria editar `src/metaheuristica/objective.py`,
+  `src/metaheuristica/pso.py` ou `src/metaheuristica/__init__.py`, todos fora da lista
+  deste pacote; é o mesmo mecanismo já usado pelos pacotes B5 e B20, e a alternativa
+  publicada, no molde de `validated_solution_key`, fica como recomendação para quem
+  reabrir o núcleo.
+  **Nota histórica, e ela precede este commit: o componente ACO foi antecipado pelo
+  pacote B5**, no commit `d297377`. Transferência de escopo registrada aqui porque ela não estava prevista em
   lugar algum. O pacote B5 tinha por escopo declarado **espelhar** em `gpu/aco.py` a
   variante O4 de F4-1; o que ele fez foi **unificar**: a classe local
   `_PartialState` foi apagada e aliasada para `_PartialConstructionState` da CPU
@@ -5513,15 +5558,17 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
      sob `verify_every_batch=True` já é objeto de F8-4 e é o pacote C6 que a resolve; o
      que se registra aqui é a perda de poder discriminante causada pela unificação, que
      é independente daquela.
-  A **ordem de execução de C7 fica em aberto** e não é decidida aqui: a revisão do
-  pacote B5 recomendou reavaliar se C7 ainda precisa ser o último pacote da Onda C,
-  agora que a maior superfície do seu escopo em `gpu/` já foi tocada, e essa reavaliação
-  depende do estado de C5, C6 e B20, que não está estabelecido. A emenda de escopo foi
-  aplicada em `superpowers/B11B_plan_ondas.md`, seção do pacote C7; a emenda de ordem
-  não.
-- **Impressão digital:** pendente para o escopo restante. O componente antecipado não
-  alterou bits: o commit `d297377` deu diff **zero** nos 42 cenários, conforme o Passo F
-  registrado em F4-1.
+  A nota que dizia que **a ordem de execução de C7 ficava em aberto perdeu objeto** e
+  fica registrada como resolvida: a reavaliação era sobre **ordem**, e ela se resolveu
+  sozinha, porque C5, C6 e C7 foram executados no mesmo lote, o L10, e as dependências
+  declaradas já os ordenavam. O C7 foi de fato o último, e não por decisão nova.
+- **Impressão digital:** **diff zero** no conjunto completo dos 42 cenários, medido no
+  fim do commit do pacote C7, e a linha de base não foi tocada. O conjunto completo foi
+  rodado por exceção declarada no plano, e não apenas a suíte da réplica, porque a
+  unificação importa do pacote normativo e uma refatoração malfeita poderia alterar
+  `src/metaheuristica/` por efeito colateral de importação. O componente antecipado
+  também não alterara bits: o commit `d297377` deu diff **zero** nos 42 cenários,
+  conforme o Passo F registrado em F4-1.
 
 #### F8-13. O pareamento do speedup contrapõe CPU com 16 workers simultâneos a GPU sequencial e exclusiva
 
@@ -6767,9 +6814,12 @@ executou também o adendo da revisão do B6, estreitando a tolerância de
 triagem, e F7-9, também com diff zero, porque `experiments/` não é percorrido pelo
 oráculo. O pacote C5 fechou F8-1, F8-5 e F8-9, os três em `gpu/`, também com diff
 zero, e executou junto o item B3 do Apêndice B. O pacote C6 fechou F8-4, também com
-diff zero, e é inteiramente de teste. Resta um dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
-isolados, conforme 7.1, e a Onda C passa a dezessete. Os cinco de `gpu/` (F8-1, F8-4, F8-5, F8-9, F8-12) podem ser feitos em
-paralelo com os demais, porque `gpu/` não é protegido pelo congelamento da B11-E.
+diff zero, e é inteiramente de teste. O pacote C7 fechou F8-12, no escopo restante,
+de novo com diff zero. **A Onda C está encerrada**, e os catorze achados estão
+fechados. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
+isolados, conforme 7.1, e a Onda C passa a dezessete. Os cinco de `gpu/` (F8-1, F8-4, F8-5, F8-9, F8-12) foram feitos em
+paralelo com os demais, nos pacotes C5 a C7 do lote L10, porque `gpu/` não é protegido
+pelo congelamento da B11-E.
 
 **Único item da Onda C com nota de precedência:** F5-4, canonicalização e validação
 repetidas por candidato na Busca Tabu, tem recomendação explícita e mantida de **não
