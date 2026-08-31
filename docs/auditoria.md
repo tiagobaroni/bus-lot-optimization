@@ -7024,6 +7024,40 @@ previa 3 h 43 min antes do pacote B5 e cerca de 1 h 06 min depois dele; o medido
 os dois, mais perto do segundo. O tempo médio do PSO foi de 16,5 s e o da Busca Tabu, de
 9,8 s, o que confirma que o ACO responde por praticamente todo o custo do tuning.
 
+## 9. Resultado do refazimento do piloto e efeito na impressão digital
+
+**Registrado em 31/08/2026.** As 18 execuções do piloto foram refeitas no commit `d752b6c`,
+o mesmo em que os parâmetros congelados já trazem `social = 2.0`. Consolidação **oficial**,
+sem razões de não oficialidade, com 18 de 18, zero falhas e zero faltantes, e 1.800
+checkpoints.
+
+**A validação passou inteira**, incluindo as três reproduções independentes, uma por
+algoritmo, os critérios de recursos e a janela de tempo, com fração de carga em 0,0 contra
+o limite de 0,05.
+
+**O protocolo de interrupção e retomada precisou ser reproduzido, e a razão é o próprio
+B13.** O relatório de interrupção anterior registrava identificadores de cenário que o
+pacote B13 tornou obsoletos, de modo que a guarda `retomada perdeu resultado previamente
+válido` recusava com razão. A demonstração foi refeita: execução interrompida por sinal com
+**17 de 18** completos, dentro da janela aprovada, e retomada até os 18, sem temporários e
+sem falha. Os dois cenários mais caros, `aco` sobre `artesp_rmsp_150`, foram preservados e
+não reexecutados, porque a propriedade que a validação exige é a retomada sem perda, e ela
+é demonstrada igualmente pelos demais.
+
+**A impressão digital mudou, e a mudança está contida.** A linha de base passou de
+`a59235e4...` para `5069e0a9...`. Foram **6.690 diferenças**, das quais **6.689 em
+cenários `pso:*`** e uma no próprio `content_sha256`. **Zero** em `aco:*`, `tabu:*` e
+`greedy:*`, conferido por enumeração antes da regravação.
+
+**A causa é única e atribuível:** a impressão digital deriva os parâmetros de
+`experiments/configs/frozen_parameters.toml`, e o retuning mudou o `social` do enxame de
+`1,5` para `2,0`. Toda trajetória de PSO muda em consequência, e nenhuma outra. A primeira
+diferença enumerada é literalmente
+`scenarios.pso:tiny_manual:2:frozen.fingerprint_parameters.social: 1.5 contra 2.0`.
+
+**Esta é a quarta regravação da linha de base no bloco**, e a única cuja causa não é
+correção de código, e sim seleção de parâmetro pelo retuning.
+
 ## Apêndice A. Achados refutados
 
 Dois achados foram refutados integralmente pela verificação adversarial e recebem
