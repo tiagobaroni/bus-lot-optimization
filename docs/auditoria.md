@@ -7088,6 +7088,93 @@ passou de `5069e0a9...` para `a6a550e3...`.
 mesma causa raiz, que é o retuning ter selecionado parâmetro diferente, e ambas ficaram
 contidas exatamente onde a causa previa.
 
+## 11. A fronteira do congelamento entre campanha e auditoria
+
+**Registrado em 31/08/2026, no commit do pacote R2.** Este pacote não corrige achado
+algum da auditoria: ele desfaz um impasse que as próprias correções do bloco criaram no
+fluxo de fechamento, e por isso fica registrado como seção própria e não como entrada da
+seção 3.
+
+**O impasse, medido e não suposto.** `generate_freeze_manifest` exigia ao mesmo tempo
+árvore limpa, por `capture_provenance(root, allow_dirty=False)`, e `pilot_commit` igual
+ao `HEAD`. As duas condições deixaram de poder ser satisfeitas juntas quando
+`capture_provenance` passou a usar `git status --untracked-files=all` e a contar arquivo
+não rastreado como sujeira: executar o piloto produz artefatos versionados, que sujam a
+árvore; commitá-los muda o `HEAD` e quebra a segunda condição; reexecutar o piloto no
+commit novo recria o problema. Em agosto o manifesto foi gerado com as tabelas do piloto
+ainda como arquivos não rastreados, e é essa a razão de ter funcionado então. O vermelho
+medido na árvore intocada, com `HEAD` em `c32aa8d`, foi `erro: commit do piloto diverge
+do HEAD: d752b6c29d90e1c5d94aba4c911bb390b4f52106 contra
+c32aa8dce0b24e438ee3b2ebbd279fd9c353f8bd`.
+
+**A guarda passou a ser condicional e verificável, e não posicional.** Divergência entre
+`pilot_commit` e `HEAD` deixou de ser recusa automática: o que a guarda mede agora é a
+interseção entre `git diff --name-only --no-renames <pilot_commit>..<HEAD>` e o escopo
+protegido corrente. Interseção vazia significa que o código congelado não mudou desde a
+execução do piloto, e a geração prossegue registrando os dois commits, em `pilot_commit`
+e no campo novo `head_commit`. Interseção não vazia continua sendo recusa, com a mensagem
+nomeando os arquivos. A condição é essa, e não "aceitar o commit anterior", que seria
+truque posicional e quebraria ao segundo commit. `--no-renames` é deliberado: com a
+detecção de renomeação ligada o Git reportaria apenas o nome novo, e um arquivo protegido
+renomeado para fora do escopo passaria despercebido. Intervalo ilegível, como um
+`pilot_commit` que não é objeto do repositório, continua sendo recusa. O campo
+`head_commit` é aditivo e o `schema_version` permanece em `1` de propósito: elevá-lo faria
+`verify_freeze_manifest` recusar o manifesto vigente por versão incompatível.
+
+**A ferramenta de conferência da auditoria saiu do escopo protegido.**
+`experiments/audit_fingerprint.py` nasceu na Tarefa 14 deste bloco, é folha na árvore de
+dependências das campanhas e nenhum código de campanha a importa: conferido por busca em
+todo o repositório, o único importador é `tests/test_audit_fingerprint.py`. Congelá-la era
+erro de fronteira, com duas consequências concretas: ela não constava do manifesto, porque
+nasceu depois dele, e por isso a verificação recusava no teste de escopo antes mesmo de
+comparar conteúdo; e qualquer ajuste na ferramenta que audita passava a invalidar o
+congelamento daquilo que ela audita, que foi o que aconteceu no commit `c32aa8d`. A
+exceção está na constante `AUDIT_ONLY_PATHS`, é nominal arquivo por arquivo e traz no
+código a razão de existir. Ela não é por sufixo, por diretório nem por heurística, de modo
+que qualquer arquivo novo de `experiments/` continua entrando no escopo por padrão, o que
+está preso por caso que compara o conjunto por identidade contra a lista literal do que a
+fixture escreveu.
+
+**O efeito medido no congelamento.** O escopo protegido corrente passou a ter os mesmos 52
+arquivos do manifesto, sem diferença simétrica alguma: a divergência de escopo cessou. As
+divergências de conteúdo foram remedidas por leitura, comparando o `sha256` de cada
+arquivo do manifesto contra o da árvore, e são **30 sobre 52**. A subida de 27 para 30 não
+vem deste pacote: vem do refazimento do tuning, que propagou o parâmetro novo para os três
+arquivos de configuração de campanha. O único arquivo protegido que este pacote altera é
+`experiments/benchmark_freeze.py`, que já divergia. **O manifesto não foi regenerado**, e
+a renovação continua sendo o Passo 1 da Tarefa 20.
+
+**A decisão que fica em aberto, e ela é a razão de este registro não declarar o fluxo
+fechado.** Depois do commit deste pacote, `generate` ainda recusa, e agora por outro
+motivo, medido: `erro: commit do piloto diverge do HEAD em caminho protegido: ... em
+['experiments/benchmark_freeze.py']`. A recusa é a guarda funcionando, porque o próprio
+commit que a introduz altera um arquivo protegido depois da execução do piloto vigente.
+Sonda executada em cópia descartável, com a exclusão adicional da própria ferramenta de
+congelamento apenas para medir o que resta no caminho: a geração prosseguiu até o fim,
+com saída zero, reavaliação do piloto aprovada e manifesto escrito com os dois commits.
+Isto é, a fronteira do arquivo `experiments/benchmark_freeze.py` é o único bloqueio
+restante. Os dois caminhos possíveis são: refazer o piloto sobre um commit que já contenha
+este pacote, isto é executar a Tarefa 19B antes da renovação, e então a guarda passa sem
+alteração de código alguma; ou decidir que a ferramenta que assina o congelamento também
+sai do escopo protegido, que é autoexceção com justificativa mais fraca que a da
+ferramenta de conferência, porque `experiments/benchmark_freeze.py` é importado por
+`experiments/run_benchmark.py`, `experiments/run.py`, `experiments/prepare_benchmark.py` e
+`experiments/benchmark_validation.py`, e portanto não é folha. **A escolha é do usuário e
+não foi feita aqui.**
+
+**Limitação declarada.** A condição é a interseção do diff com `protected_paths(root)`,
+que é derivado do disco no estado corrente. Um `.py` protegido que tenha sido **removido**
+entre o commit do piloto e o `HEAD` não aparece nessa interseção, porque deixou de existir
+em disco e por isso não está mais no escopo. A lacuna é estreita, porque a remoção de
+qualquer item de `FIXED_PROTECTED` continua sendo vista, já que essa lista pertence ao
+escopo exista ou não em disco, e porque `verify_freeze_manifest` acusa a diferença de
+composição na verificação seguinte. Fica registrada como limitação conhecida, e não como
+lacuna silenciosa.
+
+**Impressão digital:** idêntica no conjunto completo dos 42 cenários, medida no fim do
+pacote. `experiments/benchmark_freeze.py` não participa da execução dos cenários da
+conferência, e a previsão de diferença zero se confirmou.
+
 ## Apêndice A. Achados refutados
 
 Dois achados foram refutados integralmente pela verificação adversarial e recebem

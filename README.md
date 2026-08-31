@@ -239,7 +239,11 @@ O escopo protegido do congelamento é recalculado a cada verificação, percorre
 o sistema de arquivos e **não** o índice do Git. Qualquer `.py` novo sob
 `experiments/` ou sob `src/metaheuristica/` faz a verificação recusar com
 `escopo protegido divergente`, inclusive arquivo não rastreado, ignorado pelo
-`.gitignore` ou deixado como rascunho. Durante a campanha isso derruba o portão
+`.gitignore` ou deixado como rascunho. A única exceção é nominal, arquivo por
+arquivo, e está na constante `AUDIT_ONLY_PATHS` de
+`experiments/benchmark_freeze.py`: hoje ela contém apenas
+`experiments/audit_fingerprint.py`, que é ferramenta de conferência da auditoria e
+não é importada por código de campanha algum. Durante a campanha isso derruba o portão
 e, como a causa não é óbvia na mensagem, o diagnóstico é comparar o escopo com o
 que o Git conhece:
 

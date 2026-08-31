@@ -254,7 +254,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   cópia própria dos mesmos dois defeitos.
 - **Próxima ação atômica:** a **Tarefa 20**, com a renovação do manifesto de
   congelamento e o pacote R1, e em seguida o refazimento do tuning e do piloto, que é
-  a Tarefa 19B e faz cessar as duas reprovações previstas.
+  a Tarefa 19B. **A ordem entre as duas depende de decisão pendente**, registrada na
+  seção 11 de `docs/auditoria.md`: o pacote R2 destravou a geração do manifesto quanto
+  aos commits que só acrescentam artefatos derivados, mas o próprio commit do R2 altera
+  `experiments/benchmark_freeze.py`, que é arquivo protegido, de modo que a geração
+  continua recusando enquanto o piloto vigente tiver sido executado antes dele.
 - **Decisão resolvida em 30/08/2026, e ela precedia a regeneração da campanha:** fechar
   o F8-10 pôs as validações do caminho normativo dentro da região cronometrada da
   réplica, que não as pagava, enquanto o núcleo as paga desde o B6. Medido em
@@ -267,14 +271,16 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   ser reutilizáveis e precisam ser rederivados da campanha regenerada, e agora **nada
   precede essa regeneração** além do restante da auditoria.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
-  manifesto de congelamento está divergente de propósito, em **28** dos 53 arquivos do
+  manifesto de congelamento está divergente de propósito, em **30** dos 52 arquivos do
   escopo protegido, e não deve ser renovado antes do fechamento da auditoria. **O número
   estava atrasado**: dizia dez, e a contagem foi remedida por leitura no fim do lote L7,
   sem regenerar o manifesto. Deste lote vem **uma** divergência nova, a de
-  `src/metaheuristica/optimizer.py`; as outras quatro que o lote tocou já divergiam. O
-  `verify` recusa antes de chegar à comparação de conteúdo, no teste de escopo, porque
-  `experiments/audit_fingerprint.py` existe hoje e não constava do manifesto: é o
-  mecanismo do B1 funcionando, e a renovação é da Tarefa 20. **Nem o pacote C1 nem o
+  `src/metaheuristica/optimizer.py`; as outras quatro que o lote tocou já divergiam. Até o
+  pacote R2 o `verify` recusava antes de chegar à comparação de conteúdo, no teste de
+  escopo, porque `experiments/audit_fingerprint.py` existia e não constava do
+  manifesto; o R2 tirou do escopo protegido a ferramenta de conferência da auditoria,
+  a divergência de escopo cessou e a recusa passou a ser de conteúdo. A renovação
+  continua sendo da Tarefa 20. **Nem o pacote C1 nem o
   pacote C2 acrescentaram divergência nova**, porque `src/metaheuristica/objective.py` e
   `src/metaheuristica/tabu.py` já constavam dos 27. O commit decorrente do pacote C1
   também não acrescentou: volta a `src/metaheuristica/objective.py`, que já divergia, e
@@ -294,21 +300,28 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   outro artefato, e não o de congelamento da CPU. **O pacote B13 acrescentou a 28ª
   divergência**, e era esperado: `experiments/scenarios.py` é protegido, não divergia
   e passou a divergir. O número foi remedido por leitura, comparando o `sha256` de
-  cada arquivo do manifesto contra o da árvore, e não por soma: são **27 divergências
+  cada arquivo do manifesto contra o da árvore, e não por soma: eram **27 divergências
   de conteúdo mais uma de escopo**, a de `experiments/audit_fingerprint.py`, que
-  existe e não consta do manifesto. **O manifesto não foi regenerado.**
+  existia e não constava do manifesto. **Remedido de novo no pacote R2**, pelo mesmo
+  método: são **30 divergências de conteúdo e nenhuma de escopo**, sobre 52 arquivos. A
+  subida de 27 para 30 **não vem do R2**, e sim do refazimento do tuning, que propagou o
+  parâmetro novo para `experiments/configs/benchmark.toml`,
+  `experiments/configs/frozen_parameters.toml` e `experiments/configs/pilot.toml`; o
+  único arquivo protegido que o R2 altera é `experiments/benchmark_freeze.py`, que já
+  divergia. **O manifesto não foi regenerado.**
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** no fim do commit do pacote **B13**, impressão digital
+- **Última verificação:** no fim do commit do pacote **R2**, impressão digital
   idêntica no **conjunto completo dos 42 cenários**, sem restrição a subconjunto,
-  suíte de CPU com **505 aprovados e 2 reprovados**, contra 500 aprovados na partida,
-  e suíte da réplica com **98** aprovados sobre dispositivo real, nas duas invocações,
-  da raiz e de dentro do próprio subprojeto. A contagem de aprovados sobe pelos sete
-  casos novos e cai pelas duas reprovações previstas, que estão nomeadas no item
-  abaixo. **A linha de base continua a que o pacote B21 regravou**, com
-  `content_sha256` `a59235e4...`, e nenhum pacote posterior a tocou: a identidade
-  acima é medida contra ela.
-- **A suíte de CPU fica com duas reprovações previstas, e elas não são regressão.**
+  suíte de CPU com **511 aprovados e zero reprovados**, contra 507 aprovados na
+  partida, e suíte da réplica com **98** aprovados sobre dispositivo real, nas duas
+  invocações, da raiz e de dentro do próprio subprojeto. A contagem sobe pelos quatro
+  casos novos do pacote. **A linha de base é a que o refazimento do piloto regravou**,
+  com `content_sha256` `a6a550e3...`, e a identidade acima é medida contra ela.
+- **As duas reprovações previstas cessaram**, como estava anunciado, com o
+  refazimento do piloto no commit `8d0322c`: a suíte de CPU foi medida no pacote R2 com
+  zero reprovações. O registro abaixo fica como história do período em que elas valiam.
+- **A suíte de CPU ficou com duas reprovações previstas, e elas não eram regressão.**
   Desde o commit do pacote B13,
   `tests/test_benchmark_freeze.py::test_revalidation_rejects_altered_objective_function`
   e `tests/test_benchmark_freeze.py::test_revalidation_rejects_verdict_with_foreign_commit`

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 from typing import Any
 
 from metaheuristica.errors import ConfigurationError
@@ -44,6 +45,19 @@ FIXED_PROTECTED = (
     "pyproject.toml",
     "uv.lock",
 )
+AUDIT_ONLY_PATHS = (
+    # `experiments/audit_fingerprint.py` é a ferramenta de conferência da
+    # auditoria, criada pela Tarefa 14 do bloco B11B, e não participa de campanha
+    # alguma: conferido por busca em todo o repositório, nenhum código de campanha
+    # a importa, e o único importador é `tests/test_audit_fingerprint.py`. Ela é
+    # folha na árvore de dependências das campanhas, de modo que congelá-la
+    # confundiria a fronteira: qualquer ajuste na ferramenta que audita passaria a
+    # invalidar o congelamento daquilo que ela audita. A exceção é nominal de
+    # propósito, arquivo por arquivo, e não por sufixo, diretório ou heurística,
+    # para que todo arquivo novo de `experiments/` continue entrando no escopo
+    # protegido por padrão.
+    "experiments/audit_fingerprint.py",
+)
 
 
 def protected_paths(root: Path) -> tuple[str, ...]:
@@ -52,7 +66,36 @@ def protected_paths(root: Path) -> tuple[str, ...]:
         for directory, pattern in ((root / "src/metaheuristica", "*.py"), (root / "experiments", "*.py"))
         for path in directory.rglob(pattern)
     ]
-    return tuple(sorted(set((*FIXED_PROTECTED, *dynamic))))
+    return tuple(sorted(set((*FIXED_PROTECTED, *dynamic)) - set(AUDIT_ONLY_PATHS)))
+
+
+def _protected_paths_changed_between(
+    root: Path, pilot_commit: str, head_commit: str
+) -> tuple[str, ...]:
+    """Caminhos do escopo protegido tocados entre dois commits.
+
+    A comparação é textual entre a lista de caminhos que o Git reporta no
+    intervalo e o escopo protegido corrente. `--no-renames` é deliberado: com a
+    detecção de renomeação ligada, o Git reportaria apenas o nome novo e um
+    arquivo protegido renomeado para fora do escopo passaria despercebido.
+    """
+
+    completed = subprocess.run(
+        [
+            "git", "diff", "--name-only", "--no-renames",
+            f"{pilot_commit}..{head_commit}",
+        ],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise ConfigurationError(
+            "commit do piloto diverge do HEAD e o intervalo entre os dois não pôde "
+            f"ser lido: {pilot_commit} contra {head_commit}"
+        )
+    changed = {line for line in completed.stdout.decode().splitlines() if line}
+    return tuple(sorted(changed & set(protected_paths(root))))
 
 
 def _hash_files(root: Path, paths: tuple[str, ...]) -> dict[str, str]:
@@ -122,17 +165,27 @@ def generate_freeze_manifest(config: CampaignConfig, *, workers: int) -> dict[st
     artifact_hashes = _hash_files(root, PILOT_ARTIFACTS)
     provenance = capture_provenance(root, allow_dirty=False)
     pilot_commit = validation.get("campaign_commit")
-    if pilot_commit != provenance["git_commit"]:
-        raise ConfigurationError(
-            "commit do piloto diverge do HEAD: "
-            f"{pilot_commit} contra {provenance['git_commit']}"
-        )
+    head_commit = provenance["git_commit"]
+    if pilot_commit != head_commit:
+        # A guarda é condicional e verificável, e não posicional. O que ela
+        # precisa garantir é que o código congelado não mudou desde a execução do
+        # piloto, e isso se mede pelo diff entre os dois commits: commits
+        # posteriores que só acrescentem artefatos derivados do próprio piloto
+        # deixam o escopo protegido intacto e não invalidam nada. Aceitar "o
+        # commit anterior" seria truque posicional, que quebra ao segundo commit.
+        touched = _protected_paths_changed_between(root, pilot_commit, head_commit)
+        if touched:
+            raise ConfigurationError(
+                "commit do piloto diverge do HEAD em caminho protegido: "
+                f"{pilot_commit} contra {head_commit}, em {list(touched)}"
+            )
     _revalidate_pilot_behaviour(config, validation)
     manifest = {
         "schema_version": 1,
         "created_at": utc_now(),
         "pilot_campaign": config.name,
         "pilot_commit": pilot_commit,
+        "head_commit": head_commit,
         "approved_workers": workers,
         "frozen_parameters_sha256": config.frozen_parameters_sha256,
         "protected_files": _hash_files(root, protected_paths(root)),

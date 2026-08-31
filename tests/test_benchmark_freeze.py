@@ -294,6 +294,90 @@ def test_generation_rejects_pilot_commit_divergent_from_head(
     assert not (generation_repository / FREEZE_PATH).exists()
 
 
+def _commit_extra(root: Path, relative: str, text: str, message: str) -> str:
+    """Acrescenta um commit ao repositório de brinquedo e devolve o novo HEAD."""
+
+    _write(root, relative, text)
+    _git(root, "add", "-A")
+    _git(root, *GIT_IDENTITY, "commit", "-m", message)
+    return _git(root, "rev-parse", "HEAD")
+
+
+def test_generation_accepts_divergent_head_when_only_derived_paths_changed(
+    generation_repository: Path, monkeypatch
+) -> None:
+    """R2: a guarda é condicional, e o que ela mede é o diff do escopo protegido."""
+
+    pilot_commit = _git(generation_repository, "rev-parse", "HEAD")
+    head_commit = _commit_extra(
+        generation_repository, "docs/nota_derivada.md", "registro posterior\n",
+        "acrescenta documento derivado",
+    )
+    assert head_commit != pilot_commit
+    # O intervalo não é vazio: o que o torna aceitável é a interseção vazia com o
+    # escopo protegido, e não a ausência de mudanças.
+    assert _git(
+        generation_repository, "diff", "--name-only", f"{pilot_commit}..{head_commit}"
+    ) == "docs/nota_derivada.md"
+    monkeypatch.setattr(
+        benchmark_freeze, "_revalidate_pilot_behaviour", lambda *args, **kwargs: None
+    )
+    manifest = generate_freeze_manifest(
+        _fixture_config(generation_repository), workers=16
+    )
+    assert manifest["pilot_commit"] == pilot_commit
+    assert manifest["head_commit"] == head_commit
+    written = read_json(generation_repository / FREEZE_PATH)
+    assert written["pilot_commit"] == pilot_commit
+    assert written["head_commit"] == head_commit
+
+
+def test_generation_rejects_divergent_head_that_touches_a_protected_path(
+    generation_repository: Path, monkeypatch
+) -> None:
+    """R2: a metade que recusa, sem a qual a guarda condicional é porta aberta."""
+
+    pilot_commit = _git(generation_repository, "rev-parse", "HEAD")
+    head_commit = _commit_extra(
+        generation_repository, "src/metaheuristica/nucleo.py", "outro conteúdo\n",
+        "altera módulo protegido",
+    )
+    monkeypatch.setattr(
+        benchmark_freeze, "_revalidate_pilot_behaviour", lambda *args, **kwargs: None
+    )
+    with pytest.raises(ConfigurationError, match="caminho protegido") as error:
+        generate_freeze_manifest(_fixture_config(generation_repository), workers=16)
+    message = str(error.value)
+    assert "src/metaheuristica/nucleo.py" in message
+    assert pilot_commit in message and head_commit in message
+    assert not (generation_repository / FREEZE_PATH).exists()
+
+
+def test_audit_fingerprint_is_outside_the_protected_scope() -> None:
+    """R2: a ferramenta de conferência da auditoria não é código de campanha."""
+
+    relative = "experiments/audit_fingerprint.py"
+    assert (REPOSITORY_ROOT / relative).is_file()
+    assert relative in benchmark_freeze.AUDIT_ONLY_PATHS
+    assert relative not in protected_paths(REPOSITORY_ROOT)
+
+
+def test_new_experiment_module_enters_the_scope_and_only_the_exception_leaves(
+    tmp_path: Path,
+) -> None:
+    """R2: a exceção é estreita, e o conjunto é preso por identidade.
+
+    A derivação de comparação é independente: ela é a lista literal do que a
+    fixture escreveu, e não uma segunda chamada da mesma varredura.
+    """
+
+    root = _build_repository(tmp_path)
+    _write(root, "experiments/audit_fingerprint.py", "ferramenta de auditoria\n")
+    _write(root, "experiments/modulo_novo.py", "print('novo')\n")
+    expected = {*FIXED_PROTECTED, *DYNAMIC_PROTECTED, "experiments/modulo_novo.py"}
+    assert set(protected_paths(root)) == expected
+
+
 def test_generation_revalidates_pilot_behaviour_before_signing(
     generation_repository: Path,
 ) -> None:
