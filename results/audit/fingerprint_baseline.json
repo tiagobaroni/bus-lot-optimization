@@ -5,7 +5,7 @@
     "tabu": 25007,
     "tiny": 101
   },
-  "content_sha256": "5069e0a980891508ed4e96c5091ee4ac45081a4bdbe40b06a48449cf2b8eefe5",
+  "content_sha256": "a6a550e3690932247de2c215edce1436214f5a99bfd02a2cbb2c2eb10af7dc4e",
   "scenarios": {
     "aco:artesp_rmsp_150:3:frozen": {
       "algorithm": "aco",
@@ -33045,1318 +33045,1318 @@
         },
         {
           "evaluation": {
-            "c_affinity": 0.7585359381922123,
-            "c_demand": 0.06824363541018998,
-            "c_production": 0.17304511038752152,
-            "c_territorial": 0.6546297209160775,
-            "cv_demand": 0.07324193104946815,
-            "cv_production": 0.2092558041087497,
-            "total_cost": 0.4136136012265003
+            "c_affinity": 0.747787375082567,
+            "c_demand": 0.12892607133452527,
+            "c_production": 0.18507953936043572,
+            "c_territorial": 0.717480250966468,
+            "cv_demand": 0.1480081851744156,
+            "cv_production": 0.22711362433479948,
+            "total_cost": 0.44481830918599896
           },
           "evaluations": 81,
           "index": 2
         },
         {
           "evaluation": {
-            "c_affinity": 0.7585359381922123,
-            "c_demand": 0.06824363541018998,
-            "c_production": 0.17304511038752152,
-            "c_territorial": 0.6546297209160775,
-            "cv_demand": 0.07324193104946815,
-            "cv_production": 0.2092558041087497,
-            "total_cost": 0.4136136012265003
+            "c_affinity": 0.747787375082567,
+            "c_demand": 0.12892607133452527,
+            "c_production": 0.18507953936043572,
+            "c_territorial": 0.717480250966468,
+            "cv_demand": 0.1480081851744156,
+            "cv_production": 0.22711362433479948,
+            "total_cost": 0.44481830918599896
           },
           "evaluations": 121,
           "index": 3
         },
         {
           "evaluation": {
-            "c_affinity": 0.7585359381922123,
-            "c_demand": 0.06824363541018998,
-            "c_production": 0.17304511038752152,
-            "c_territorial": 0.6546297209160775,
-            "cv_demand": 0.07324193104946815,
-            "cv_production": 0.2092558041087497,
-            "total_cost": 0.4136136012265003
+            "c_affinity": 0.747787375082567,
+            "c_demand": 0.12892607133452527,
+            "c_production": 0.18507953936043572,
+            "c_territorial": 0.717480250966468,
+            "cv_demand": 0.1480081851744156,
+            "cv_production": 0.22711362433479948,
+            "total_cost": 0.44481830918599896
           },
           "evaluations": 161,
           "index": 4
         },
         {
           "evaluation": {
-            "c_affinity": 0.7585359381922123,
-            "c_demand": 0.06824363541018998,
-            "c_production": 0.17304511038752152,
-            "c_territorial": 0.6546297209160775,
-            "cv_demand": 0.07324193104946815,
-            "cv_production": 0.2092558041087497,
-            "total_cost": 0.4136136012265003
+            "c_affinity": 0.7331476572411015,
+            "c_demand": 0.1725226755730463,
+            "c_production": 0.175506790175748,
+            "c_territorial": 0.6509301939276387,
+            "cv_demand": 0.20849233021886376,
+            "cv_production": 0.2128662651001805,
+            "total_cost": 0.4330268292293836
           },
           "evaluations": 201,
           "index": 5
         },
         {
           "evaluation": {
-            "c_affinity": 0.7585359381922123,
-            "c_demand": 0.06824363541018998,
-            "c_production": 0.17304511038752152,
-            "c_territorial": 0.6546297209160775,
-            "cv_demand": 0.07324193104946815,
-            "cv_production": 0.2092558041087497,
-            "total_cost": 0.4136136012265003
+            "c_affinity": 0.7331476572411015,
+            "c_demand": 0.1725226755730463,
+            "c_production": 0.175506790175748,
+            "c_territorial": 0.6509301939276387,
+            "cv_demand": 0.20849233021886376,
+            "cv_production": 0.2128662651001805,
+            "total_cost": 0.4330268292293836
           },
           "evaluations": 241,
           "index": 6
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.7331476572411015,
+            "c_demand": 0.1725226755730463,
+            "c_production": 0.175506790175748,
+            "c_territorial": 0.6509301939276387,
+            "cv_demand": 0.20849233021886376,
+            "cv_production": 0.2128662651001805,
+            "total_cost": 0.4330268292293836
           },
           "evaluations": 281,
           "index": 7
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.7612524390599302,
+            "c_demand": 0.1279481474851003,
+            "c_production": 0.14421417797002098,
+            "c_territorial": 0.6773874205805798,
+            "cv_demand": 0.14672080234232884,
+            "cv_production": 0.16851667117823438,
+            "total_cost": 0.42770054627390786
           },
           "evaluations": 321,
           "index": 8
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.7467369470512858,
+            "c_demand": 0.08971306421630547,
+            "c_production": 0.11699843511647535,
+            "c_territorial": 0.662499747224538,
+            "cv_demand": 0.0985547091687839,
+            "cv_production": 0.13250082419945478,
+            "total_cost": 0.40398704840215116
           },
           "evaluations": 361,
           "index": 9
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.7467369470512858,
+            "c_demand": 0.08971306421630547,
+            "c_production": 0.11699843511647535,
+            "c_territorial": 0.662499747224538,
+            "cv_demand": 0.0985547091687839,
+            "cv_production": 0.13250082419945478,
+            "total_cost": 0.40398704840215116
           },
           "evaluations": 401,
           "index": 10
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.7467369470512858,
+            "c_demand": 0.08971306421630547,
+            "c_production": 0.11699843511647535,
+            "c_territorial": 0.662499747224538,
+            "cv_demand": 0.0985547091687839,
+            "cv_production": 0.13250082419945478,
+            "total_cost": 0.40398704840215116
           },
           "evaluations": 441,
           "index": 11
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.7467369470512858,
+            "c_demand": 0.08971306421630547,
+            "c_production": 0.11699843511647535,
+            "c_territorial": 0.662499747224538,
+            "cv_demand": 0.0985547091687839,
+            "cv_production": 0.13250082419945478,
+            "total_cost": 0.40398704840215116
           },
           "evaluations": 481,
           "index": 12
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.6767505869342132,
+            "c_demand": 0.0611354942448695,
+            "c_production": 0.22104828137918964,
+            "c_territorial": 0.637179857976701,
+            "cv_demand": 0.06511641868460892,
+            "cv_production": 0.2837766142561074,
+            "total_cost": 0.39902855513374336
           },
           "evaluations": 521,
           "index": 13
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.6767505869342132,
+            "c_demand": 0.0611354942448695,
+            "c_production": 0.22104828137918964,
+            "c_territorial": 0.637179857976701,
+            "cv_demand": 0.06511641868460892,
+            "cv_production": 0.2837766142561074,
+            "total_cost": 0.39902855513374336
           },
           "evaluations": 561,
           "index": 14
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.6767505869342132,
+            "c_demand": 0.0611354942448695,
+            "c_production": 0.22104828137918964,
+            "c_territorial": 0.637179857976701,
+            "cv_demand": 0.06511641868460892,
+            "cv_production": 0.2837766142561074,
+            "total_cost": 0.39902855513374336
           },
           "evaluations": 602,
           "index": 15
         },
         {
           "evaluation": {
-            "c_affinity": 0.6704784780301842,
-            "c_demand": 0.19745839069819537,
-            "c_production": 0.11356335253492991,
-            "c_territorial": 0.5683972761909554,
-            "cv_demand": 0.24604131226289971,
-            "cv_production": 0.1281122039117915,
-            "total_cost": 0.38747437436356624
+            "c_affinity": 0.6767505869342132,
+            "c_demand": 0.0611354942448695,
+            "c_production": 0.22104828137918964,
+            "c_territorial": 0.637179857976701,
+            "cv_demand": 0.06511641868460892,
+            "cv_production": 0.2837766142561074,
+            "total_cost": 0.39902855513374336
           },
           "evaluations": 642,
           "index": 16
         },
         {
           "evaluation": {
-            "c_affinity": 0.6597641562372901,
-            "c_demand": 0.18808896748422907,
-            "c_production": 0.12654488163098113,
-            "c_territorial": 0.5552579393872048,
-            "cv_demand": 0.23166204171585209,
-            "cv_production": 0.14487851633095383,
-            "total_cost": 0.3824139861849263
+            "c_affinity": 0.6767505869342132,
+            "c_demand": 0.0611354942448695,
+            "c_production": 0.22104828137918964,
+            "c_territorial": 0.637179857976701,
+            "cv_demand": 0.06511641868460892,
+            "cv_production": 0.2837766142561074,
+            "total_cost": 0.39902855513374336
           },
           "evaluations": 682,
           "index": 17
         },
         {
           "evaluation": {
-            "c_affinity": 0.6597641562372901,
-            "c_demand": 0.18808896748422907,
-            "c_production": 0.12654488163098113,
-            "c_territorial": 0.5552579393872048,
-            "cv_demand": 0.23166204171585209,
-            "cv_production": 0.14487851633095383,
-            "total_cost": 0.3824139861849263
+            "c_affinity": 0.6892745957735169,
+            "c_demand": 0.0747612976144333,
+            "c_production": 0.08200966574213134,
+            "c_territorial": 0.6551266769572593,
+            "cv_demand": 0.08080217291135176,
+            "cv_production": 0.08933608849861197,
+            "total_cost": 0.37529305902183524
           },
           "evaluations": 722,
           "index": 18
         },
         {
           "evaluation": {
-            "c_affinity": 0.6597641562372901,
-            "c_demand": 0.18808896748422907,
-            "c_production": 0.12654488163098113,
-            "c_territorial": 0.5552579393872048,
-            "cv_demand": 0.23166204171585209,
-            "cv_production": 0.14487851633095383,
-            "total_cost": 0.3824139861849263
+            "c_affinity": 0.6892745957735169,
+            "c_demand": 0.0747612976144333,
+            "c_production": 0.08200966574213134,
+            "c_territorial": 0.6551266769572593,
+            "cv_demand": 0.08080217291135176,
+            "cv_production": 0.08933608849861197,
+            "total_cost": 0.37529305902183524
           },
           "evaluations": 762,
           "index": 19
         },
         {
           "evaluation": {
-            "c_affinity": 0.6742123686514377,
-            "c_demand": 0.15856463802540444,
-            "c_production": 0.09563762125348876,
-            "c_territorial": 0.5696806934339204,
-            "cv_demand": 0.1884454174273125,
-            "cv_production": 0.1057514371462986,
-            "total_cost": 0.37452383034106285
+            "c_affinity": 0.6892745957735169,
+            "c_demand": 0.0747612976144333,
+            "c_production": 0.08200966574213134,
+            "c_territorial": 0.6551266769572593,
+            "cv_demand": 0.08080217291135176,
+            "cv_production": 0.08933608849861197,
+            "total_cost": 0.37529305902183524
           },
           "evaluations": 802,
           "index": 20
         },
         {
           "evaluation": {
-            "c_affinity": 0.6710261242970021,
-            "c_demand": 0.1594146196753464,
-            "c_production": 0.09689499549015015,
-            "c_territorial": 0.566158960926237,
-            "cv_demand": 0.18964714757919862,
-            "cv_production": 0.10729095177890065,
-            "total_cost": 0.3733736750971839
+            "c_affinity": 0.6892745957735169,
+            "c_demand": 0.0747612976144333,
+            "c_production": 0.08200966574213134,
+            "c_territorial": 0.6551266769572593,
+            "cv_demand": 0.08080217291135176,
+            "cv_production": 0.08933608849861197,
+            "total_cost": 0.37529305902183524
           },
           "evaluations": 842,
           "index": 21
         },
         {
           "evaluation": {
-            "c_affinity": 0.6710261242970021,
-            "c_demand": 0.1594146196753464,
-            "c_production": 0.09689499549015015,
-            "c_territorial": 0.566158960926237,
-            "cv_demand": 0.18964714757919862,
-            "cv_production": 0.10729095177890065,
-            "total_cost": 0.3733736750971839
+            "c_affinity": 0.6892745957735169,
+            "c_demand": 0.0747612976144333,
+            "c_production": 0.08200966574213134,
+            "c_territorial": 0.6551266769572593,
+            "cv_demand": 0.08080217291135176,
+            "cv_production": 0.08933608849861197,
+            "total_cost": 0.37529305902183524
           },
           "evaluations": 882,
           "index": 22
         },
         {
           "evaluation": {
-            "c_affinity": 0.7196097727137752,
-            "c_demand": 0.092783454800875,
-            "c_production": 0.08319560841317361,
-            "c_territorial": 0.5574938204262545,
-            "cv_demand": 0.10227266609264712,
-            "cv_production": 0.09074521149399897,
-            "total_cost": 0.3632706640885196
+            "c_affinity": 0.6892745957735169,
+            "c_demand": 0.0747612976144333,
+            "c_production": 0.08200966574213134,
+            "c_territorial": 0.6551266769572593,
+            "cv_demand": 0.08080217291135176,
+            "cv_production": 0.08933608849861197,
+            "total_cost": 0.37529305902183524
           },
           "evaluations": 922,
           "index": 23
         },
         {
           "evaluation": {
-            "c_affinity": 0.7072152671506132,
-            "c_demand": 0.08452914883381525,
-            "c_production": 0.08473821449246839,
-            "c_territorial": 0.5448916744996773,
-            "cv_demand": 0.09233406910349648,
-            "cv_production": 0.092583581915287,
-            "total_cost": 0.3553435762441436
+            "c_affinity": 0.6892745957735169,
+            "c_demand": 0.0747612976144333,
+            "c_production": 0.08200966574213134,
+            "c_territorial": 0.6551266769572593,
+            "cv_demand": 0.08080217291135176,
+            "cv_production": 0.08933608849861197,
+            "total_cost": 0.37529305902183524
           },
           "evaluations": 962,
           "index": 24
         },
         {
           "evaluation": {
-            "c_affinity": 0.7072152671506132,
-            "c_demand": 0.08918860472435773,
-            "c_production": 0.07911629623164729,
-            "c_territorial": 0.5448916744996773,
-            "cv_demand": 0.09792214413102095,
-            "cv_production": 0.08591345020863667,
-            "total_cost": 0.3551029606515739
+            "c_affinity": 0.7039911086122327,
+            "c_demand": 0.0607748988696639,
+            "c_production": 0.07106903150524932,
+            "c_territorial": 0.6519154846579416,
+            "cv_demand": 0.0647074900324988,
+            "cv_production": 0.07650625710154794,
+            "total_cost": 0.37193763091127185
           },
           "evaluations": 1002,
           "index": 25
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7039911086122327,
+            "c_demand": 0.0607748988696639,
+            "c_production": 0.07106903150524932,
+            "c_territorial": 0.6519154846579416,
+            "cv_demand": 0.0647074900324988,
+            "cv_production": 0.07650625710154794,
+            "total_cost": 0.37193763091127185
           },
           "evaluations": 1042,
           "index": 26
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7039911086122327,
+            "c_demand": 0.0607748988696639,
+            "c_production": 0.07106903150524932,
+            "c_territorial": 0.6519154846579416,
+            "cv_demand": 0.0647074900324988,
+            "cv_production": 0.07650625710154794,
+            "total_cost": 0.37193763091127185
           },
           "evaluations": 1082,
           "index": 27
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7098427439017683,
+            "c_demand": 0.0835083844265378,
+            "c_production": 0.06469027341146927,
+            "c_territorial": 0.6266455188687409,
+            "cv_demand": 0.09111745596743444,
+            "cv_production": 0.06916454685810014,
+            "total_cost": 0.37117173015212906
           },
           "evaluations": 1122,
           "index": 28
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7070225910351992,
+            "c_demand": 0.04242650863477461,
+            "c_production": 0.05580611545096411,
+            "c_territorial": 0.6414424153855229,
+            "cv_demand": 0.04430626893637852,
+            "cv_production": 0.05910450847456835,
+            "total_cost": 0.3616744076266152
           },
           "evaluations": 1163,
           "index": 29
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7070225910351992,
+            "c_demand": 0.04242650863477461,
+            "c_production": 0.05580611545096411,
+            "c_territorial": 0.6414424153855229,
+            "cv_demand": 0.04430626893637852,
+            "cv_production": 0.05910450847456835,
+            "total_cost": 0.3616744076266152
           },
           "evaluations": 1203,
           "index": 30
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7070225910351992,
+            "c_demand": 0.04242650863477461,
+            "c_production": 0.05580611545096411,
+            "c_territorial": 0.6414424153855229,
+            "cv_demand": 0.04430626893637852,
+            "cv_production": 0.05910450847456835,
+            "total_cost": 0.3616744076266152
           },
           "evaluations": 1243,
           "index": 31
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7070225910351992,
+            "c_demand": 0.04242650863477461,
+            "c_production": 0.05580611545096411,
+            "c_territorial": 0.6414424153855229,
+            "cv_demand": 0.04430626893637852,
+            "cv_production": 0.05910450847456835,
+            "total_cost": 0.3616744076266152
           },
           "evaluations": 1283,
           "index": 32
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7070225910351992,
+            "c_demand": 0.04242650863477461,
+            "c_production": 0.05580611545096411,
+            "c_territorial": 0.6414424153855229,
+            "cv_demand": 0.04430626893637852,
+            "cv_production": 0.05910450847456835,
+            "total_cost": 0.3616744076266152
           },
           "evaluations": 1323,
           "index": 33
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7070225910351992,
+            "c_demand": 0.04242650863477461,
+            "c_production": 0.05580611545096411,
+            "c_territorial": 0.6414424153855229,
+            "cv_demand": 0.04430626893637852,
+            "cv_production": 0.05910450847456835,
+            "total_cost": 0.3616744076266152
           },
           "evaluations": 1363,
           "index": 34
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7070225910351992,
+            "c_demand": 0.04242650863477461,
+            "c_production": 0.05580611545096411,
+            "c_territorial": 0.6414424153855229,
+            "cv_demand": 0.04430626893637852,
+            "cv_production": 0.05910450847456835,
+            "total_cost": 0.3616744076266152
           },
           "evaluations": 1403,
           "index": 35
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7070225910351992,
+            "c_demand": 0.04242650863477461,
+            "c_production": 0.05580611545096411,
+            "c_territorial": 0.6414424153855229,
+            "cv_demand": 0.04430626893637852,
+            "cv_production": 0.05910450847456835,
+            "total_cost": 0.3616744076266152
           },
           "evaluations": 1443,
           "index": 36
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.7070225910351992,
+            "c_demand": 0.04242650863477461,
+            "c_production": 0.05580611545096411,
+            "c_territorial": 0.6414424153855229,
+            "cv_demand": 0.04430626893637852,
+            "cv_production": 0.05910450847456835,
+            "total_cost": 0.3616744076266152
           },
           "evaluations": 1483,
           "index": 37
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6757956507041528,
+            "c_demand": 0.1153671561772851,
+            "c_production": 0.053080698335106036,
+            "c_territorial": 0.600882583661418,
+            "cv_demand": 0.13041247222831495,
+            "cv_production": 0.05605620060946947,
+            "total_cost": 0.3612815222194905
           },
           "evaluations": 1523,
           "index": 38
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6757956507041528,
+            "c_demand": 0.1153671561772851,
+            "c_production": 0.053080698335106036,
+            "c_territorial": 0.600882583661418,
+            "cv_demand": 0.13041247222831495,
+            "cv_production": 0.05605620060946947,
+            "total_cost": 0.3612815222194905
           },
           "evaluations": 1563,
           "index": 39
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6757956507041528,
+            "c_demand": 0.1153671561772851,
+            "c_production": 0.053080698335106036,
+            "c_territorial": 0.600882583661418,
+            "cv_demand": 0.13041247222831495,
+            "cv_production": 0.05605620060946947,
+            "total_cost": 0.3612815222194905
           },
           "evaluations": 1603,
           "index": 40
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6757956507041528,
+            "c_demand": 0.1153671561772851,
+            "c_production": 0.053080698335106036,
+            "c_territorial": 0.600882583661418,
+            "cv_demand": 0.13041247222831495,
+            "cv_production": 0.05605620060946947,
+            "total_cost": 0.3612815222194905
           },
           "evaluations": 1643,
           "index": 41
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6757956507041528,
+            "c_demand": 0.1153671561772851,
+            "c_production": 0.053080698335106036,
+            "c_territorial": 0.600882583661418,
+            "cv_demand": 0.13041247222831495,
+            "cv_production": 0.05605620060946947,
+            "total_cost": 0.3612815222194905
           },
           "evaluations": 1683,
           "index": 42
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6757956507041528,
+            "c_demand": 0.1153671561772851,
+            "c_production": 0.053080698335106036,
+            "c_territorial": 0.600882583661418,
+            "cv_demand": 0.13041247222831495,
+            "cv_production": 0.05605620060946947,
+            "total_cost": 0.3612815222194905
           },
           "evaluations": 1724,
           "index": 43
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6757956507041528,
+            "c_demand": 0.11844707724390516,
+            "c_production": 0.044028250194831996,
+            "c_territorial": 0.600882583661418,
+            "cv_demand": 0.13436184508763374,
+            "cv_production": 0.04605601598980846,
+            "total_cost": 0.359788390451077
           },
           "evaluations": 1764,
           "index": 44
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6785171059810832,
+            "c_demand": 0.03755112940098333,
+            "c_production": 0.07696971582930268,
+            "c_territorial": 0.6081894783392187,
+            "cv_demand": 0.0390162330156946,
+            "cv_production": 0.08338807203758934,
+            "total_cost": 0.350306857387647
           },
           "evaluations": 1804,
           "index": 45
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6011853174180126,
+            "c_demand": 0.10730989655814845,
+            "c_production": 0.07125180282854933,
+            "c_territorial": 0.565051502723277,
+            "cv_demand": 0.12020957345041121,
+            "cv_production": 0.0767181062052667,
+            "total_cost": 0.3361996298819968
           },
           "evaluations": 1844,
           "index": 46
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6011853174180126,
+            "c_demand": 0.10730989655814845,
+            "c_production": 0.07125180282854933,
+            "c_territorial": 0.565051502723277,
+            "cv_demand": 0.12020957345041121,
+            "cv_production": 0.0767181062052667,
+            "total_cost": 0.3361996298819968
           },
           "evaluations": 1884,
           "index": 47
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6011853174180126,
+            "c_demand": 0.10730989655814845,
+            "c_production": 0.07125180282854933,
+            "c_territorial": 0.565051502723277,
+            "cv_demand": 0.12020957345041121,
+            "cv_production": 0.0767181062052667,
+            "total_cost": 0.3361996298819968
           },
           "evaluations": 1924,
           "index": 48
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.625204748257898,
+            "c_demand": 0.08157829665798727,
+            "c_production": 0.042715886073021486,
+            "c_territorial": 0.5850257033072312,
+            "cv_demand": 0.08882444345678554,
+            "cv_production": 0.044621952303994725,
+            "total_cost": 0.33363115857403447
           },
           "evaluations": 1964,
           "index": 49
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.625204748257898,
+            "c_demand": 0.08157829665798727,
+            "c_production": 0.042715886073021486,
+            "c_territorial": 0.5850257033072312,
+            "cv_demand": 0.08882444345678554,
+            "cv_production": 0.044621952303994725,
+            "total_cost": 0.33363115857403447
           },
           "evaluations": 2004,
           "index": 50
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.625204748257898,
+            "c_demand": 0.08157829665798727,
+            "c_production": 0.042715886073021486,
+            "c_territorial": 0.5850257033072312,
+            "cv_demand": 0.08882444345678554,
+            "cv_production": 0.044621952303994725,
+            "total_cost": 0.33363115857403447
           },
           "evaluations": 2044,
           "index": 51
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.625204748257898,
+            "c_demand": 0.08157829665798727,
+            "c_production": 0.042715886073021486,
+            "c_territorial": 0.5850257033072312,
+            "cv_demand": 0.08882444345678554,
+            "cv_production": 0.044621952303994725,
+            "total_cost": 0.33363115857403447
           },
           "evaluations": 2084,
           "index": 52
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.625204748257898,
+            "c_demand": 0.08157829665798727,
+            "c_production": 0.042715886073021486,
+            "c_territorial": 0.5850257033072312,
+            "cv_demand": 0.08882444345678554,
+            "cv_production": 0.044621952303994725,
+            "total_cost": 0.33363115857403447
           },
           "evaluations": 2124,
           "index": 53
         },
         {
           "evaluation": {
-            "c_affinity": 0.695994236040994,
-            "c_demand": 0.114062977813461,
-            "c_production": 0.06494320002067494,
-            "c_territorial": 0.5430432712978239,
-            "cv_demand": 0.12874840418334432,
-            "cv_production": 0.06945374871570463,
-            "total_cost": 0.35451092129323847
+            "c_affinity": 0.6194458606735873,
+            "c_demand": 0.07989766903909676,
+            "c_production": 0.032031989213189095,
+            "c_territorial": 0.5646602116947886,
+            "cv_demand": 0.0868356337665791,
+            "cv_production": 0.03309199152888529,
+            "total_cost": 0.32400893265516545
           },
           "evaluations": 2164,
           "index": 54
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.12014734387497784,
-            "c_production": 0.05273352562011754,
-            "c_territorial": 0.549815206325898,
-            "cv_demand": 0.13655393666039645,
-            "cv_production": 0.05566915651125409,
-            "total_cost": 0.3514672862659712
+            "c_affinity": 0.6194458606735873,
+            "c_demand": 0.07989766903909676,
+            "c_production": 0.032031989213189095,
+            "c_territorial": 0.5646602116947886,
+            "cv_demand": 0.0868356337665791,
+            "cv_production": 0.03309199152888529,
+            "total_cost": 0.32400893265516545
           },
           "evaluations": 2204,
           "index": 55
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.07994311395087902,
-            "c_production": 0.08462063064579961,
-            "c_territorial": 0.5491235186690826,
-            "cv_demand": 0.08688931647929748,
-            "cv_production": 0.0924432355357751,
-            "total_cost": 0.34921508312716315
+            "c_affinity": 0.6194458606735873,
+            "c_demand": 0.07989766903909676,
+            "c_production": 0.032031989213189095,
+            "c_territorial": 0.5646602116947886,
+            "cv_demand": 0.0868356337665791,
+            "cv_production": 0.03309199152888529,
+            "total_cost": 0.32400893265516545
           },
           "evaluations": 2244,
           "index": 56
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.07994311395087902,
-            "c_production": 0.08462063064579961,
-            "c_territorial": 0.5491235186690826,
-            "cv_demand": 0.08688931647929748,
-            "cv_production": 0.0924432355357751,
-            "total_cost": 0.34921508312716315
+            "c_affinity": 0.6194458606735873,
+            "c_demand": 0.07989766903909676,
+            "c_production": 0.032031989213189095,
+            "c_territorial": 0.5646602116947886,
+            "cv_demand": 0.0868356337665791,
+            "cv_production": 0.03309199152888529,
+            "total_cost": 0.32400893265516545
           },
           "evaluations": 2284,
           "index": 57
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.07994311395087902,
-            "c_production": 0.08462063064579961,
-            "c_territorial": 0.5491235186690826,
-            "cv_demand": 0.08688931647929748,
-            "cv_production": 0.0924432355357751,
-            "total_cost": 0.34921508312716315
+            "c_affinity": 0.6194458606735873,
+            "c_demand": 0.07989766903909676,
+            "c_production": 0.032031989213189095,
+            "c_territorial": 0.5646602116947886,
+            "cv_demand": 0.0868356337665791,
+            "cv_production": 0.03309199152888529,
+            "total_cost": 0.32400893265516545
           },
           "evaluations": 2325,
           "index": 58
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.07994311395087902,
-            "c_production": 0.08462063064579961,
-            "c_territorial": 0.5491235186690826,
-            "cv_demand": 0.08688931647929748,
-            "cv_production": 0.0924432355357751,
-            "total_cost": 0.34921508312716315
+            "c_affinity": 0.6194458606735873,
+            "c_demand": 0.07989766903909676,
+            "c_production": 0.032031989213189095,
+            "c_territorial": 0.5646602116947886,
+            "cv_demand": 0.0868356337665791,
+            "cv_production": 0.03309199152888529,
+            "total_cost": 0.32400893265516545
           },
           "evaluations": 2365,
           "index": 59
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.07994311395087902,
-            "c_production": 0.08462063064579961,
-            "c_territorial": 0.5491235186690826,
-            "cv_demand": 0.08688931647929748,
-            "cv_production": 0.0924432355357751,
-            "total_cost": 0.34921508312716315
+            "c_affinity": 0.6194458606735873,
+            "c_demand": 0.07989766903909676,
+            "c_production": 0.032031989213189095,
+            "c_territorial": 0.5646602116947886,
+            "cv_demand": 0.0868356337665791,
+            "cv_production": 0.03309199152888529,
+            "total_cost": 0.32400893265516545
           },
           "evaluations": 2405,
           "index": 60
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.07994311395087902,
-            "c_production": 0.08462063064579961,
-            "c_territorial": 0.5491235186690826,
-            "cv_demand": 0.08688931647929748,
-            "cv_production": 0.0924432355357751,
-            "total_cost": 0.34921508312716315
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2445,
           "index": 61
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.07994311395087902,
-            "c_production": 0.08462063064579961,
-            "c_territorial": 0.5491235186690826,
-            "cv_demand": 0.08688931647929748,
-            "cv_production": 0.0924432355357751,
-            "total_cost": 0.34921508312716315
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2485,
           "index": 62
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.07994311395087902,
-            "c_production": 0.08462063064579961,
-            "c_territorial": 0.5491235186690826,
-            "cv_demand": 0.08688931647929748,
-            "cv_production": 0.0924432355357751,
-            "total_cost": 0.34921508312716315
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2525,
           "index": 63
         },
         {
           "evaluation": {
-            "c_affinity": 0.6831730692428913,
-            "c_demand": 0.07994311395087902,
-            "c_production": 0.08462063064579961,
-            "c_territorial": 0.5491235186690826,
-            "cv_demand": 0.08688931647929748,
-            "cv_production": 0.0924432355357751,
-            "total_cost": 0.34921508312716315
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2565,
           "index": 64
         },
         {
           "evaluation": {
-            "c_affinity": 0.6382261102219688,
-            "c_demand": 0.14837595790006586,
-            "c_production": 0.09075859001715121,
-            "c_territorial": 0.5130502749893716,
-            "cv_demand": 0.1742270656593965,
-            "cv_production": 0.09981792406360288,
-            "total_cost": 0.34760273328213936
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2605,
           "index": 65
         },
         {
           "evaluation": {
-            "c_affinity": 0.630869039017778,
-            "c_demand": 0.1356960143142913,
-            "c_production": 0.10729454741350858,
-            "c_territorial": 0.4762350050370894,
-            "cv_demand": 0.15700033386590806,
-            "cv_production": 0.12019031260830476,
-            "total_cost": 0.3375236514456668
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2645,
           "index": 66
         },
         {
           "evaluation": {
-            "c_affinity": 0.6308690390177781,
-            "c_demand": 0.12786240476757188,
-            "c_production": 0.09225114039908724,
-            "c_territorial": 0.4762350050370894,
-            "cv_demand": 0.14660806444595023,
-            "cv_production": 0.10162628068697876,
-            "total_cost": 0.3318043973053817
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2685,
           "index": 67
         },
         {
           "evaluation": {
-            "c_affinity": 0.6308690390177781,
-            "c_demand": 0.12786240476757188,
-            "c_production": 0.09225114039908724,
-            "c_territorial": 0.4762350050370894,
-            "cv_demand": 0.14660806444595023,
-            "cv_production": 0.10162628068697876,
-            "total_cost": 0.3318043973053817
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2725,
           "index": 68
         },
         {
           "evaluation": {
-            "c_affinity": 0.6308690390177781,
-            "c_demand": 0.12786240476757188,
-            "c_production": 0.09225114039908724,
-            "c_territorial": 0.4762350050370894,
-            "cv_demand": 0.14660806444595023,
-            "cv_production": 0.10162628068697876,
-            "total_cost": 0.3318043973053817
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2765,
           "index": 69
         },
         {
           "evaluation": {
-            "c_affinity": 0.6308690390177781,
-            "c_demand": 0.12786240476757188,
-            "c_production": 0.09225114039908724,
-            "c_territorial": 0.4762350050370894,
-            "cv_demand": 0.14660806444595023,
-            "cv_production": 0.10162628068697876,
-            "total_cost": 0.3318043973053817
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2805,
           "index": 70
         },
         {
           "evaluation": {
-            "c_affinity": 0.6189185682668449,
-            "c_demand": 0.12622369944649794,
-            "c_production": 0.08799141188792624,
-            "c_territorial": 0.46545903309506603,
-            "cv_demand": 0.14445768255163285,
-            "cv_production": 0.09648090274026373,
-            "total_cost": 0.32464817817408376
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2845,
           "index": 71
         },
         {
           "evaluation": {
-            "c_affinity": 0.6189185682668449,
-            "c_demand": 0.12622369944649794,
-            "c_production": 0.08799141188792624,
-            "c_territorial": 0.46545903309506603,
-            "cv_demand": 0.14445768255163285,
-            "cv_production": 0.09648090274026373,
-            "total_cost": 0.32464817817408376
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2886,
           "index": 72
         },
         {
           "evaluation": {
-            "c_affinity": 0.6189185682668449,
-            "c_demand": 0.12622369944649794,
-            "c_production": 0.08799141188792624,
-            "c_territorial": 0.46545903309506603,
-            "cv_demand": 0.14445768255163285,
-            "cv_production": 0.09648090274026373,
-            "total_cost": 0.32464817817408376
+            "c_affinity": 0.6196358580438032,
+            "c_demand": 0.08264359024145143,
+            "c_production": 0.036942528917992594,
+            "c_territorial": 0.5481601826368869,
+            "cv_demand": 0.09008885680888577,
+            "cv_production": 0.03835963068381287,
+            "total_cost": 0.3218455399600335
           },
           "evaluations": 2926,
           "index": 73
         },
         {
           "evaluation": {
-            "c_affinity": 0.6189185682668449,
-            "c_demand": 0.12622369944649794,
-            "c_production": 0.08799141188792624,
-            "c_territorial": 0.46545903309506603,
-            "cv_demand": 0.14445768255163285,
-            "cv_production": 0.09648090274026373,
-            "total_cost": 0.32464817817408376
+            "c_affinity": 0.6058840149792537,
+            "c_demand": 0.0790825395445229,
+            "c_production": 0.032290867797596275,
+            "c_territorial": 0.5465201384137311,
+            "cv_demand": 0.08587364551152003,
+            "cv_production": 0.03336836113565,
+            "total_cost": 0.315944390183776
           },
           "evaluations": 2966,
           "index": 74
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.6058840149792537,
+            "c_demand": 0.0790825395445229,
+            "c_production": 0.032290867797596275,
+            "c_territorial": 0.5465201384137311,
+            "cv_demand": 0.08587364551152003,
+            "cv_production": 0.03336836113565,
+            "total_cost": 0.315944390183776
           },
           "evaluations": 3006,
           "index": 75
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.6058840149792537,
+            "c_demand": 0.0790825395445229,
+            "c_production": 0.032290867797596275,
+            "c_territorial": 0.5465201384137311,
+            "cv_demand": 0.08587364551152003,
+            "cv_production": 0.03336836113565,
+            "total_cost": 0.315944390183776
           },
           "evaluations": 3046,
           "index": 76
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.6058840149792537,
+            "c_demand": 0.0790825395445229,
+            "c_production": 0.032290867797596275,
+            "c_territorial": 0.5465201384137311,
+            "cv_demand": 0.08587364551152003,
+            "cv_production": 0.03336836113565,
+            "total_cost": 0.315944390183776
           },
           "evaluations": 3086,
           "index": 77
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.6058840149792537,
+            "c_demand": 0.0790825395445229,
+            "c_production": 0.032290867797596275,
+            "c_territorial": 0.5465201384137311,
+            "cv_demand": 0.08587364551152003,
+            "cv_production": 0.03336836113565,
+            "total_cost": 0.315944390183776
           },
           "evaluations": 3126,
           "index": 78
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.6058840149792537,
+            "c_demand": 0.0790825395445229,
+            "c_production": 0.032290867797596275,
+            "c_territorial": 0.5465201384137311,
+            "cv_demand": 0.08587364551152003,
+            "cv_production": 0.03336836113565,
+            "total_cost": 0.315944390183776
           },
           "evaluations": 3166,
           "index": 79
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.6058840149792537,
+            "c_demand": 0.0790825395445229,
+            "c_production": 0.032290867797596275,
+            "c_territorial": 0.5465201384137311,
+            "cv_demand": 0.08587364551152003,
+            "cv_production": 0.03336836113565,
+            "total_cost": 0.315944390183776
           },
           "evaluations": 3206,
           "index": 80
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.6058840149792537,
+            "c_demand": 0.0790825395445229,
+            "c_production": 0.032290867797596275,
+            "c_territorial": 0.5465201384137311,
+            "cv_demand": 0.08587364551152003,
+            "cv_production": 0.03336836113565,
+            "total_cost": 0.315944390183776
           },
           "evaluations": 3246,
           "index": 81
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.633810562197516,
+            "c_demand": 0.027100733799425063,
+            "c_production": 0.038192459472768114,
+            "c_territorial": 0.5592073551727205,
+            "cv_demand": 0.02785564214192543,
+            "cv_production": 0.03970904558705397,
+            "total_cost": 0.3145777776606074
           },
           "evaluations": 3286,
           "index": 82
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.633810562197516,
+            "c_demand": 0.027100733799425063,
+            "c_production": 0.038192459472768114,
+            "c_territorial": 0.5592073551727205,
+            "cv_demand": 0.02785564214192543,
+            "cv_production": 0.03970904558705397,
+            "total_cost": 0.3145777776606074
           },
           "evaluations": 3326,
           "index": 83
         },
         {
           "evaluation": {
-            "c_affinity": 0.6245278144635078,
-            "c_demand": 0.10367684668454696,
-            "c_production": 0.09856708049678027,
-            "c_territorial": 0.4662658779496886,
-            "cv_demand": 0.1156690489373745,
-            "cv_production": 0.10934488675108586,
-            "total_cost": 0.3232594048986309
+            "c_affinity": 0.633810562197516,
+            "c_demand": 0.027100733799425063,
+            "c_production": 0.038192459472768114,
+            "c_territorial": 0.5592073551727205,
+            "cv_demand": 0.02785564214192543,
+            "cv_production": 0.03970904558705397,
+            "total_cost": 0.3145777776606074
           },
           "evaluations": 3366,
           "index": 84
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.09581944777432015,
-            "c_production": 0.06205445814515621,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.10597379863839851,
-            "cv_production": 0.06615997984535411,
-            "total_cost": 0.32175809463810395
+            "c_affinity": 0.633810562197516,
+            "c_demand": 0.027100733799425063,
+            "c_production": 0.038192459472768114,
+            "c_territorial": 0.5592073551727205,
+            "cv_demand": 0.02785564214192543,
+            "cv_production": 0.03970904558705397,
+            "total_cost": 0.3145777776606074
           },
           "evaluations": 3406,
           "index": 85
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.633810562197516,
+            "c_demand": 0.027100733799425063,
+            "c_production": 0.038192459472768114,
+            "c_territorial": 0.5592073551727205,
+            "cv_demand": 0.02785564214192543,
+            "cv_production": 0.03970904558705397,
+            "total_cost": 0.3145777776606074
           },
           "evaluations": 3447,
           "index": 86
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.62296088856008,
+            "c_demand": 0.03918348200068559,
+            "c_production": 0.03101756955825948,
+            "c_territorial": 0.5580840799324723,
+            "cv_demand": 0.0407814408543646,
+            "cv_production": 0.032010456107154764,
+            "total_cost": 0.31281150501287436
           },
           "evaluations": 3487,
           "index": 87
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.62296088856008,
+            "c_demand": 0.03918348200068559,
+            "c_production": 0.03101756955825948,
+            "c_territorial": 0.5580840799324723,
+            "cv_demand": 0.0407814408543646,
+            "cv_production": 0.032010456107154764,
+            "total_cost": 0.31281150501287436
           },
           "evaluations": 3527,
           "index": 88
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.62296088856008,
+            "c_demand": 0.03918348200068559,
+            "c_production": 0.03101756955825948,
+            "c_territorial": 0.5580840799324723,
+            "cv_demand": 0.0407814408543646,
+            "cv_production": 0.032010456107154764,
+            "total_cost": 0.31281150501287436
           },
           "evaluations": 3567,
           "index": 89
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.62296088856008,
+            "c_demand": 0.03918348200068559,
+            "c_production": 0.03101756955825948,
+            "c_territorial": 0.5580840799324723,
+            "cv_demand": 0.0407814408543646,
+            "cv_production": 0.032010456107154764,
+            "total_cost": 0.31281150501287436
           },
           "evaluations": 3607,
           "index": 90
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.62296088856008,
+            "c_demand": 0.03918348200068559,
+            "c_production": 0.03101756955825948,
+            "c_territorial": 0.5580840799324723,
+            "cv_demand": 0.0407814408543646,
+            "cv_production": 0.032010456107154764,
+            "total_cost": 0.31281150501287436
           },
           "evaluations": 3647,
           "index": 91
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.62296088856008,
+            "c_demand": 0.03918348200068559,
+            "c_production": 0.03101756955825948,
+            "c_territorial": 0.5580840799324723,
+            "cv_demand": 0.0407814408543646,
+            "cv_production": 0.032010456107154764,
+            "total_cost": 0.31281150501287436
           },
           "evaluations": 3687,
           "index": 92
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.5878277238278806,
+            "c_demand": 0.04315562705149998,
+            "c_production": 0.08209910868346011,
+            "c_territorial": 0.5301770707985864,
+            "cv_demand": 0.04510203359248132,
+            "cv_production": 0.0894422365858103,
+            "total_cost": 0.3108148825903568
           },
           "evaluations": 3727,
           "index": 93
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.6045159758953943,
+            "c_demand": 0.03667487736337584,
+            "c_production": 0.05588117034536734,
+            "c_territorial": 0.5120932889492911,
+            "cv_demand": 0.03807113144002367,
+            "cv_production": 0.05918870441955827,
+            "total_cost": 0.30229132813835713
           },
           "evaluations": 3767,
           "index": 94
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.6045159758953943,
+            "c_demand": 0.03667487736337584,
+            "c_production": 0.05588117034536734,
+            "c_territorial": 0.5120932889492911,
+            "cv_demand": 0.03807113144002367,
+            "cv_production": 0.05918870441955827,
+            "total_cost": 0.30229132813835713
           },
           "evaluations": 3807,
           "index": 95
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.6045159758953943,
+            "c_demand": 0.03667487736337584,
+            "c_production": 0.05588117034536734,
+            "c_territorial": 0.5120932889492911,
+            "cv_demand": 0.03807113144002367,
+            "cv_production": 0.05918870441955827,
+            "total_cost": 0.30229132813835713
           },
           "evaluations": 3847,
           "index": 96
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.6045159758953943,
+            "c_demand": 0.03667487736337584,
+            "c_production": 0.05588117034536734,
+            "c_territorial": 0.5120932889492911,
+            "cv_demand": 0.03807113144002367,
+            "cv_production": 0.05918870441955827,
+            "total_cost": 0.30229132813835713
           },
           "evaluations": 3887,
           "index": 97
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.6045159758953943,
+            "c_demand": 0.03667487736337584,
+            "c_production": 0.05588117034536734,
+            "c_territorial": 0.5120932889492911,
+            "cv_demand": 0.03807113144002367,
+            "cv_production": 0.05918870441955827,
+            "total_cost": 0.30229132813835713
           },
           "evaluations": 3927,
           "index": 98
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.6045159758953943,
+            "c_demand": 0.03667487736337584,
+            "c_production": 0.05588117034536734,
+            "c_territorial": 0.5120932889492911,
+            "cv_demand": 0.03807113144002367,
+            "cv_production": 0.05918870441955827,
+            "total_cost": 0.30229132813835713
           },
           "evaluations": 3967,
           "index": 99
         },
         {
           "evaluation": {
-            "c_affinity": 0.6449271434221087,
-            "c_demand": 0.10145184845614434,
-            "c_production": 0.04559402604053235,
-            "c_territorial": 0.4842313292108308,
-            "cv_demand": 0.11290641273017271,
-            "cv_production": 0.04777215072468592,
-            "total_cost": 0.319051086782404
+            "c_affinity": 0.6045159758953943,
+            "c_demand": 0.03667487736337584,
+            "c_production": 0.05588117034536734,
+            "c_territorial": 0.5120932889492911,
+            "cv_demand": 0.03807113144002367,
+            "cv_production": 0.05918870441955827,
+            "total_cost": 0.30229132813835713
           },
           "evaluations": 4007,
           "index": 100
         }
       ],
       "diagnostics": {
-        "global_best_updates": 120,
-        "iterations_completed": 199,
-        "particles_evaluated": 4007,
-        "personal_best_updates": 389,
-        "position_clips": 27228,
-        "repair_attempts": 0,
-        "repair_evaluations": 0,
+        "global_best_updates": 76,
+        "iterations_completed": 97,
+        "particles_evaluated": 3955,
+        "personal_best_updates": 488,
+        "position_clips": 15173,
+        "repair_attempts": 1,
+        "repair_evaluations": 52,
         "repairs_completed": 0,
-        "strict_global_improvements": 21,
-        "velocity_clips": 24045
+        "strict_global_improvements": 28,
+        "velocity_clips": 15898
       },
       "evaluation": {
-        "c_affinity": 0.6449271434221087,
-        "c_demand": 0.10145184845614434,
-        "c_production": 0.04559402604053235,
-        "c_territorial": 0.4842313292108308,
-        "cv_demand": 0.11290641273017271,
-        "cv_production": 0.04777215072468592,
-        "total_cost": 0.319051086782404
+        "c_affinity": 0.6045159758953943,
+        "c_demand": 0.03667487736337584,
+        "c_production": 0.05588117034536734,
+        "c_territorial": 0.5120932889492911,
+        "cv_demand": 0.03807113144002367,
+        "cv_production": 0.05918870441955827,
+        "total_cost": 0.30229132813835713
       },
       "evaluations": 4007,
       "fingerprint_parameters": {
         "cognitive": 2.0,
         "inertia": 0.4,
-        "n_particles": 20,
+        "n_particles": 40,
         "social": 1.5
       },
       "fingerprint_variant": "runner_up",
@@ -34364,65 +34364,65 @@
       "seed": 20260819,
       "solution": [
         0,
-        0,
         1,
-        0,
         2,
-        2,
-        3,
-        0,
-        3,
         1,
         3,
-        3,
-        3,
-        2,
-        3,
-        4,
-        1,
-        4,
-        4,
-        2,
-        4,
-        1,
-        0,
-        2,
-        4,
-        4,
-        0,
-        2,
-        0,
         2,
         1,
         1,
-        1,
-        4,
-        1,
-        0,
         2,
-        4,
-        0,
-        0,
         3,
-        3,
+        1,
+        1,
+        0,
         4,
         2,
-        0,
-        0,
-        0,
+        3,
+        1,
+        4,
+        3,
         2,
-        1,
-        1,
-        1,
+        4,
         3,
+        2,
+        0,
+        3,
+        1,
+        2,
+        2,
+        2,
+        0,
+        1,
+        4,
+        4,
+        3,
+        1,
         3,
         3,
         4,
-        4,
-        1,
         0,
         4,
-        4
+        4,
+        2,
+        0,
+        1,
+        1,
+        1,
+        1,
+        3,
+        3,
+        3,
+        4,
+        2,
+        0,
+        0,
+        1,
+        3,
+        1,
+        2,
+        0,
+        2
       ],
       "termination_reason": "budget_exhausted",
       "weights": {

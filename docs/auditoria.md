@@ -7058,6 +7058,36 @@ diferença enumerada é literalmente
 **Esta é a quarta regravação da linha de base no bloco**, e a única cuja causa não é
 correção de código, e sim seleção de parâmetro pelo retuning.
 
+## 10. O eixo da sonda de segundo colocado mudou com o retuning
+
+**Registrado em 31/08/2026.** A conferência da impressão digital inclui três cenários
+`runner_up`, um por algoritmo, sobre `artesp_rmsp_60` com `K=5`, cujos parâmetros vêm da
+constante `RUNNER_UP` de `experiments/audit_fingerprint.py`. Eles existem para variar
+**exatamente um parâmetro** em relação ao vencedor, o que os torna **sondas de eixo
+único**.
+
+**O retuning mudou o segundo colocado do enxame**, de `n_particles = 20` para
+`n_particles = 40`, e a constante ficou desatualizada. O teste
+`test_runner_up_coincide_com_o_segundo_colocado_do_tuning` **acusou**, que é precisamente a
+função dele: a conferência contra o Parquet existe para que divergência apareça como falha
+e não seja absorvida em silêncio. Sem ele, o oráculo seguiria usando como "segundo
+colocado" uma configuração que deixara de ser.
+
+**A propriedade de eixo único sobrevive, mas o eixo mudou.** Antes, vencedor e segundo
+diferiam apenas em `n_particles`, 40 contra 20. Agora diferem apenas em `social`, 2,0
+contra 1,5, com `n_particles = 40` nos dois. A sonda passou a medir o eixo do peso social.
+
+Nos outros dois algoritmos o segundo colocado **não mudou**: a Busca Tabu segue com
+`tabu_tenure = 20` e o ACO com `beta = 1,0`.
+
+**Efeito na impressão digital, enumerado antes da regravação:** **758 diferenças, todas no
+único cenário `pso:artesp_rmsp_60:5:runner_up`**, e zero em qualquer outro. A linha de base
+passou de `5069e0a9...` para `a6a550e3...`.
+
+**Esta é a quinta regravação da linha de base no bloco.** Somada à quarta, as duas têm a
+mesma causa raiz, que é o retuning ter selecionado parâmetro diferente, e ambas ficaram
+contidas exatamente onde a causa previa.
+
 ## Apêndice A. Achados refutados
 
 Dois achados foram refutados integralmente pela verificação adversarial e recebem

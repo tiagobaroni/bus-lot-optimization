@@ -58,7 +58,7 @@ BASELINE_PATH = Path("results/audit/fingerprint_baseline.json")
 RUNNER_UP = {
     "tabu": {"tabu_tenure": 20, "neighborhood_size": 20, "stagnation_limit": 100},
     "aco": {"alpha": 1.0, "beta": 1.0, "rho": 0.1, "n_ants": 40},
-    "pso": {"n_particles": 20, "inertia": 0.4, "cognitive": 2.0, "social": 1.5},
+    "pso": {"n_particles": 40, "inertia": 0.4, "cognitive": 2.0, "social": 1.5},
 }
 RUNNER_UP_INSTANCE = "artesp_rmsp_60"
 RUNNER_UP_K = 5
