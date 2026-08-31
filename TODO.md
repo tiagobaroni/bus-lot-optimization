@@ -7,7 +7,7 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 30/08/2026
+- **Atualizado em:** 31/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
 - **Fase do bloco ativo:** Fase 2, correção. **Vinte e três dos 29 pacotes fechados**:
   A1, B1 a B12 exceto o B13, B14 a B21, o C1 e o C2. Restam 6, que são B13 e
@@ -19,7 +19,18 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o commit 2 do lote **L8** fechou o pacote **C2** e com
+- **Última decisão concluída:** o **commit decorrente do pacote C1**, de 31/08/2026,
+  fechou o item **B1 do Apêndice B**, que estava sem pacote alocado, e **não altera a
+  contagem dos 29**, pelo mesmo tratamento que os lotes L6 e L7 deram aos seus commits
+  decorrentes. As duas `assert` de contiguidade de `src/metaheuristica/objective.py`
+  viraram recusa explícita por `raise MemoryLayoutError`, subclasse de
+  `MetaheuristicaError` definida no próprio módulo, porque `src/metaheuristica/errors.py`
+  está fora da lista do commit e é o único candidato protegido ainda não divergente. O
+  ponto do commit é que em modo normal `assert` e `raise` falham igual, de modo que a
+  troca só é observável sob `python -O`; os dois casos novos rodam a verificação num
+  subprocesso otimizado e trazem a metade anti-vácuo dentro do próprio caso. Impressão
+  digital **idêntica** no conjunto completo dos 42 cenários, e a linha de base não foi
+  tocada. Antes dele, o commit 2 do lote **L8** fechou o pacote **C2** e com
   ele o lote, com os achados F5-4 e F5-7 em `src/metaheuristica/tabu.py`. O escopo foi
   decidido pelo usuário pela **leitura restrita**: o laço deixa de pagar duas validações
   por candidato, usando `validated_solution_key`, publicada pelo lote L7, sobre o vetor
@@ -138,7 +149,9 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   `experiments/audit_fingerprint.py` existe hoje e não constava do manifesto: é o
   mecanismo do B1 funcionando, e a renovação é da Tarefa 20. **Nem o pacote C1 nem o
   pacote C2 acrescentaram divergência nova**, porque `src/metaheuristica/objective.py` e
-  `src/metaheuristica/tabu.py` já constavam dos 27.
+  `src/metaheuristica/tabu.py` já constavam dos 27. O commit decorrente do pacote C1
+  também não acrescentou: volta a `src/metaheuristica/objective.py`, que já divergia, e
+  a `tests/test_aco.py`, que não é arquivo protegido.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
 - **Última verificação:** no fim do commit 2 do lote L8, isto é no commit do pacote C2,

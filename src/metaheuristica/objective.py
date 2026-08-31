@@ -8,8 +8,22 @@ from typing import Any
 import numpy as np
 
 from metaheuristica.canonical import validate_k, validate_solution
-from metaheuristica.errors import SolutionValidationError
+from metaheuristica.errors import MetaheuristicaError, SolutionValidationError
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights, ProblemInstance
+
+
+class MemoryLayoutError(MetaheuristicaError):
+    """Recusa uma matriz cuja ordem de memória quebraria a identidade bit a bit.
+
+    Não é `SolutionValidationError`, porque nenhuma solução foi violada: o que
+    falha é uma **pré-condição de layout de memória** do arranjo recebido, e a
+    consequência não é resultado inválido e sim identidade bit a bit rompida em
+    silêncio. Não herda de `ValueError` de propósito, para que nenhum dos
+    `except ValueError` que o projeto usa em leitura de dados e de configuração
+    a absorva: esta recusa precisa chegar inteira a quem executa. Herda de
+    `MetaheuristicaError` para que o tratamento de erro de domínio já existente
+    a capture de forma coerente.
+    """
 
 
 def _provisional_labels(solution: Any, *, n_units: int, k: int) -> np.ndarray:
@@ -73,16 +87,21 @@ def _balance_totals_matrix(matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
     # A identidade bit a bit com np.mean/np.std depende da ordem de memória: em
     # ordem Fortran a redução diverge em até 44% das linhas com K=8. Sem esta
-    # asserção, uma refatoração futura que mude a ordem quebra a identidade em
-    # silêncio, sem que teste algum reclame.
-    assert matrix.flags["C_CONTIGUOUS"], "a redução exige matriz contígua em ordem C"
+    # recusa, uma refatoração futura que mude a ordem quebra a identidade em
+    # silêncio, sem que teste algum reclame. É `raise` e não `assert` porque
+    # `python -O` removeria o `assert` e devolveria a quebra ao silêncio.
+    if not matrix.flags["C_CONTIGUOUS"]:
+        raise MemoryLayoutError("a redução exige a matriz de entrada contígua em ordem C")
     count = matrix.shape[1]
     means = np.add.reduce(matrix, axis=1) / count
     deviations = np.subtract(matrix, means[:, np.newaxis])
     np.square(deviations, out=deviations)
     # A segunda redução corre sobre os desvios, e não sobre a matriz de entrada:
     # a mesma exigência de ordem C vale para ela, e por isso é conferida aqui.
-    assert deviations.flags["C_CONTIGUOUS"], "a redução exige matriz contígua em ordem C"
+    # A mensagem distingue as duas recusas, para que um teste possa asseverar
+    # qual delas disparou.
+    if not deviations.flags["C_CONTIGUOUS"]:
+        raise MemoryLayoutError("a redução exige a matriz de desvios contígua em ordem C")
     variances = np.add.reduce(deviations, axis=1) / count
     cv = np.sqrt(variances) / means
     return cv / (1.0 + cv), cv

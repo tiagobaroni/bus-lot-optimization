@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from copy import deepcopy
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -26,6 +29,7 @@ from metaheuristica.aco import (
 from metaheuristica.errors import ConfigurationError, SolutionValidationError
 from metaheuristica.instances import load_artesp_instance, load_tiny_instance
 from metaheuristica.metrics import RunConfig, TerminationReason
+from metaheuristica import objective as objective_module
 from metaheuristica.objective import _balance_totals_matrix, _evaluate_partial_assignment
 from metaheuristica.problem import EvaluationResult, ObjectiveWeights
 
@@ -274,7 +278,7 @@ def test_balance_matrix_refuses_memory_that_is_not_c_contiguous() -> None:
     """Guarda-corpo obrigatório: a identidade bit a bit depende de ordem C.
 
     Construída em ordem Fortran, a mesma matriz reduzida em `axis=1` diverge da
-    redução linha a linha. Sem a asserção na implementação real, uma refatoração
+    redução linha a linha. Sem a recusa na implementação real, uma refatoração
     futura que produza a matriz por transposição ou com `order="F"` quebraria a
     identidade em silêncio, sem que teste algum reclamasse.
     """
@@ -284,11 +288,123 @@ def test_balance_matrix_refuses_memory_that_is_not_c_contiguous() -> None:
     fortran = np.asfortranarray(matrices[-1])
     assert not fortran.flags["C_CONTIGUOUS"]
     assert np.array_equal(fortran, matrices[-1])
-    with pytest.raises(AssertionError, match="ordem C"):
+    with pytest.raises(objective_module.MemoryLayoutError, match="ordem C"):
         _balance_totals_matrix(fortran)
     divergent, total = _count_divergences(matrices, fortran=True)
     assert total > 0
     assert divergent > 0
+
+
+_PREAMBULO_DA_SONDA = """
+import numpy as np
+
+import metaheuristica.objective as objective
+
+try:
+    assert False, "sentinela anti-vacuo"
+except AssertionError:
+    print("OTIMIZACAO=nao")
+else:
+    print("OTIMIZACAO=sim")
+
+print("MODULO=" + objective.__file__)
+"""
+
+
+def _sonda_otimizada(corpo: str) -> dict[str, str]:
+    """Roda `corpo` num subprocesso com `-O` e devolve os marcadores impressos.
+
+    O caminho de importação sai do módulo que este processo já carregou, e não
+    de uma raiz fixa, para que uma execução sobre cópia carregue a cópia. O
+    marcador `MODULO` prende isso na própria sonda.
+    """
+
+    raiz = Path(objective_module.__file__).parents[1]
+    ambiente = dict(os.environ)
+    ambiente["PYTHONPATH"] = str(raiz)
+    concluido = subprocess.run(
+        [sys.executable, "-O", "-c", _PREAMBULO_DA_SONDA + corpo],
+        capture_output=True,
+        text=True,
+        env=ambiente,
+        check=False,
+    )
+    assert concluido.returncode == 0, concluido.stderr
+    marcadores = dict(
+        linha.split("=", 1)
+        for linha in concluido.stdout.splitlines()
+        if "=" in linha
+    )
+    # Metade anti-vácuo, dentro do próprio caso: um subprocesso que não
+    # estivesse otimizado faria o caso passar sem exercitar nada, porque o
+    # `assert` antigo também recusaria. O `assert` trivialmente falso do
+    # preâmbulo não pode levantar aqui.
+    assert marcadores["OTIMIZACAO"] == "sim"
+    assert marcadores["MODULO"] == objective_module.__file__
+    return marcadores
+
+
+def test_input_matrix_refusal_survives_optimized_mode() -> None:
+    """A recusa da matriz de entrada sobrevive a `python -O`, e o `assert` não sobreviveria.
+
+    Em modo normal `assert` e `raise` falham igual, de modo que trocar um pelo
+    outro não é observável por teste algum. O que os separa é `python -O`, que
+    **remove** o `assert` e mantém o `raise`. Medido contra a forma anterior,
+    este mesmo corpo imprimia `RECUSA=nenhuma`.
+    """
+
+    marcadores = _sonda_otimizada(
+        """
+matriz = np.asfortranarray(np.arange(12, dtype=np.float64).reshape(3, 4) + 1.0)
+print("NAO_CONTIGUA=" + str(not matriz.flags["C_CONTIGUOUS"]))
+try:
+    objective._balance_totals_matrix(matriz)
+except objective.MemoryLayoutError as erro:
+    print("RECUSA=" + type(erro).__name__)
+    print("MENSAGEM=" + str(erro))
+else:
+    print("RECUSA=nenhuma")
+"""
+    )
+    assert marcadores["NAO_CONTIGUA"] == "True"
+    assert marcadores["RECUSA"] == "MemoryLayoutError"
+    assert "matriz de entrada" in marcadores["MENSAGEM"]
+
+
+def test_deviation_matrix_refusal_survives_optimized_mode() -> None:
+    """A recusa dos desvios sobrevive a `python -O`, e é alcançada por injeção.
+
+    Com a entrada contígua em ordem C, `np.subtract` devolve sempre um arranjo
+    contíguo em ordem C, de modo que a segunda recusa é **inalcançável por
+    entrada**: ela guarda uma refatoração futura, não um dado de hoje. O caso
+    encena essa refatoração, fazendo `np.subtract` devolver ordem Fortran, e
+    exige que a recusa dispare mesmo sob otimização. A mensagem distingue as
+    duas recusas, o que impede que a primeira passe por esta.
+    """
+
+    marcadores = _sonda_otimizada(
+        """
+matriz = np.ascontiguousarray(np.arange(12, dtype=np.float64).reshape(3, 4) + 1.0)
+print("ENTRADA_CONTIGUA=" + str(matriz.flags["C_CONTIGUOUS"]))
+original = np.subtract
+np.subtract = lambda a, b: np.asfortranarray(original(a, b))
+try:
+    print("INJECAO_NAO_C=" + str(not np.subtract(matriz, matriz).flags["C_CONTIGUOUS"]))
+    try:
+        objective._balance_totals_matrix(matriz)
+    except objective.MemoryLayoutError as erro:
+        print("RECUSA=" + type(erro).__name__)
+        print("MENSAGEM=" + str(erro))
+    else:
+        print("RECUSA=nenhuma")
+finally:
+    np.subtract = original
+"""
+    )
+    assert marcadores["ENTRADA_CONTIGUA"] == "True"
+    assert marcadores["INJECAO_NAO_C"] == "True"
+    assert marcadores["RECUSA"] == "MemoryLayoutError"
+    assert "matriz de desvios" in marcadores["MENSAGEM"]
 
 
 def test_probability_formula_is_normalized_and_reflects_alpha_beta() -> None:
