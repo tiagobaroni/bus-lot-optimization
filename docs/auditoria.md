@@ -7281,6 +7281,48 @@ pelo `.gitignore` da fixture.
 pacote, com saída zero. `experiments/benchmark_freeze.py` não participa da execução dos
 cenários da conferência, e a previsão de diferença zero se confirmou.
 
+## 11. Decisão sobre a versionação de `results/raw/`
+
+**Tomada em 31/08/2026, na Tarefa 20, e adiada até aqui de propósito**, porque só neste
+ponto os artefatos do piloto são os definitivos: o pacote `B13` altera o `scenario_id` que
+**nomeia** esses arquivos, e decidir antes seria decidir sobre artefatos que deixariam de
+existir na forma atual.
+
+**Decisão: versionar `results/raw/pilot/`, e manter as demais campanhas ignoradas.**
+
+**O que a decisão resolve.** Antes dela, `git ls-files results/raw` devolvia zero e **um
+clone limpo não rodava a suíte integral**: reprovavam
+`test_revalidation_rejects_altered_objective_function` e
+`test_revalidation_rejects_verdict_with_foreign_commit`, as duas por resultado ausente. As
+duas guardas consomem **exclusivamente** os documentos do piloto, e passam a funcionar em
+qualquer clone.
+
+**Por que só o piloto, medido e não estimado:**
+
+| Campanha | Documentos | Tamanho |
+|---|---:|---:|
+| `results/raw/pilot/` | 18 | **576 KB** |
+| `results/raw/tuning/` | 440 | 16 MB |
+| `results/raw/benchmark/`, projetado | 1.620 | ~51 MB |
+| repositório inteiro, antes da decisão | | 27 MB |
+
+Versionar o tuning **dobraria** o repositório e o benchmark futuro o **triplicaria**, para
+guardar artefatos intermediários cujas tabelas consolidadas **já estão versionadas** em
+`results/tables/`. O piloto custa 2% do repositório.
+
+**Coerência com o congelamento.** O piloto é o experimento que o manifesto congela e que as
+guardas revalidam, e seus dezoito documentos são a evidência primária que sustenta a
+assinatura. **Conferido que nenhum caminho de `results/raw` consta do manifesto**, nem em
+`protected_files` nem em `pilot_artifacts`: versioná-los **não altera a assinatura**.
+
+**Alternativa recusada.** Deixar tudo ignorado e fazer os dois testes pularem quando os
+documentos faltam desligaria justamente as guardas que protegem a assinatura do manifesto,
+e no período em que elas mais importam. É a mesma recusa registrada quando o `B13` fechou.
+
+**Nota de forma que custou uma tentativa:** a regra precisou ser escrita como
+`results/raw/*`, e não `results/raw/`, porque o Git **não reinclui** arquivo cujo diretório
+pai esteja excluído. Com a forma antiga, a exceção não tinha efeito algum.
+
 ## Apêndice A. Achados refutados
 
 Dois achados foram refutados integralmente pela verificação adversarial e recebem

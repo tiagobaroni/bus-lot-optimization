@@ -18,7 +18,17 @@ superpowers/
 .superpowers/
 
 # Operational experiment outputs
-results/raw/
+# `results/raw/*` e não `results/raw/`: o Git não reinclui arquivo cujo diretório
+# pai esteja excluído, e a exceção abaixo depende de o diretório permanecer
+# visível.
+results/raw/*
+# Exceção deliberada, decidida na Tarefa 20 em 31/08/2026: os dezoito documentos
+# do piloto são versionados, e as demais campanhas não. São eles, e só eles, que
+# as guardas de revalidação do congelamento consomem, de modo que sem eles um
+# clone limpo não roda a suíte integral. Custam 576 KB, contra 16 MB do tuning e
+# cerca de 51 MB do benchmark projetado, num repositório de 27 MB, e nenhum deles
+# entra no manifesto: versioná-los não altera a assinatura.
+!results/raw/pilot/
 results/failures/
 results/operational/
 results/gpu/raw/
