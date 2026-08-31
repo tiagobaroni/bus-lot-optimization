@@ -983,9 +983,14 @@ canonicalização finais, a serialização e a gravação do resultado.
 
 As campanhas são descritas por TOML estrito e expandidas em cenários
 determinísticos. Cada cenário recebe SHA-256 calculado sobre algoritmo,
-hiperparâmetros, instância, `K`, seed, orçamento, pesos e cache. Resultados
-individuais são publicados atomicamente em JSON e somente um documento válido e
-com hash esperado é considerado concluído.
+hiperparâmetros, instância, `K`, seed, orçamento, pesos e cache. A componente de
+instância cobre o SHA-256 do JSON de definição **e** o SHA-256 de cada arquivo de
+dados que o carregador abre à parte, porque o JSON das instâncias ARTESP traz
+apenas nome, contagem e a lista de unidades: demanda, produção e métricas de par
+vêm de `artesp_rmsp_150_units.parquet` e `artesp_rmsp_150_pair_metrics.parquet`.
+Sem os dois no identificador, dados de objetivo diferentes produziriam cenários
+com o mesmo identificador. Resultados individuais são publicados atomicamente em
+JSON e somente um documento válido e com hash esperado é considerado concluído.
 
 A CLI oferece `plan`, `execute` e `consolidate`. A execução é sequencial por
 padrão e aceita processos independentes por `--workers`, mantendo uma thread por

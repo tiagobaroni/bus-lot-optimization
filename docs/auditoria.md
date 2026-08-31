@@ -1513,8 +1513,51 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   consumir `expected_optimum` do arquivo versionado num teste de núcleo.
 - **Onda:** B, junto de F6-08, que é o defeito real do identificador por conteúdo
   que não cobre os dois Parquet. Ver a conexão 7 da seção 5.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** **fechado em 31/08/2026, no commit do pacote B13**, junto de F6-08,
+  pelas **duas** metades da decisão e não por uma delas, porque cobrem buracos
+  diferentes. **Classe prevista `M2`, classe observada `M2`**, sem reclassificação.
+  Primeira metade, em
+  `tests/test_instances.py::test_versioned_instance_files_are_pinned_by_hash`: os
+  arquivos de instância versionados passam a ter SHA-256 fixado por valor literal
+  no teste. A prescrição falava em três JSON; o caso fixa **quatro**, os três
+  ARTESP mais o `tiny_manual.json`, que é justamente o arquivo da mutação `M38` da
+  evidência, além dos dois Parquet. Segunda metade, em
+  `tests/test_instances.py::test_versioned_tiny_optimum_matches_exhaustive_enumeration`:
+  o bloco `expected_optimum` passa a ser lido do **arquivo versionado**, e não de
+  cópia regerada em `tmp_path`, e é confrontado com a enumeração exaustiva das
+  atribuições de `N=4` unidades em `K=2` lotes, canonicalizadas e avaliadas pelo
+  caminho normativo. A enumeração devolve **ótimo único**, `(0, 0, 1, 1)` com custo
+  `0.0`, o que impede que a asserção de identidade do conjunto passe por vácuo.
+- **Impressão digital:** **idêntica** no conjunto completo dos 42 cenários. O
+  registro da medição está em F6-08, que é o achado que altera a identidade.
+- **Por que `tests/test_generate_instances.py` ficou intocado, e a lista do pacote
+  o inclui.** Ele consta da lista por ser o **campo Código** do achado, isto é o
+  lugar onde o buraco foi visto, e não um arquivo a corrigir. Os três casos que
+  leem `expected_optimum` ali estão sob `@requires_source_package`, e
+  `tests/conftest.py` permite que um clone limpo fique verde com
+  `BUS_LOT_SEM_PACOTE_FONTE=1`, que foi o fechamento correto do F2-16. Pôr ali a
+  linha de defesa dos arquivos versionados a tornaria **pulável e ausente do clone
+  limpo**, que é exatamente o padrão de suíte verde sem cobertura que o F2-15
+  existe para fechar. A fixação ficou em `tests/test_instances.py`, que é núcleo e
+  roda sempre.
+- **Prova por mutação, sobre cópia isolada, com marcador coletado na mesma
+  execução.** Recorte declarado: `tests/test_experiment_scenarios.py`,
+  `tests/test_instances.py` e o caso marcador. O marcador reprova quando a árvore
+  carregada não é a cópia mutada, o que é necessário porque `pyproject.toml` fixa
+  `pythonpath = [".", "src"]` e sobrepõe o ambiente; ele prende as duas metades,
+  exigindo que o módulo importado e o diretório de dados saiam da mesma raiz e que
+  essa raiz carregue a sentinela. **Controle sobre a cópia sem mutação:** 18 alvos
+  aprovados e o marcador **reprovando**, que é o eixo negativo do próprio marcador.
+  Cinco mutantes, todos mortos. `data_sha256` removido do payload mata
+  `test_identity_covers_the_parquet_that_carry_the_objective_data`.
+  `ARTESP_DATA_FILES` sem o Parquet de pares mata o eixo de **suficiência** de
+  `test_the_external_data_map_is_exactly_what_the_loader_opens`.
+  `ARTESP_DATA_FILES` com `selection_manifest.json` a mais mata o eixo de
+  **necessidade** do mesmo caso, por `DID NOT RAISE InstanceDataError`. A mutação
+  `M38` sobre o `tiny_manual.json` versionado, com `cost` de `0.0` para `0.5` e
+  `canonical_solution` de `[0,0,1,1]` para `[0,1,0,1]`, mata as **duas** metades do
+  F2-15 e deixa de devolver os `254 passed` da evidência. E `passengers_day`
+  multiplicado por 1,5 no Parquet versionado mata a fixação por hash.
 
 #### F2-16. Três testes dependem de pacote de dados ignorado pelo Git
 
@@ -1581,10 +1624,15 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   **Consequência: o critério de saída do B13, que exige clone limpo rodando a
   suíte integral, continua não desbloqueado.**
   **Pendência aberta, deliberadamente não corrigida:** a versionação de
-  `results/raw/pilot/` não é achado catalogado entre os 89, amarra com o pacote
-  B13, que está diferido, e a escolha entre versionar os 18 documentos, derivar
-  um substituto ou restringir os dois testes de revalidação é decisão do usuário.
-  Fica registrada aqui e nada foi alterado a respeito.
+  `results/raw/pilot/` não é achado catalogado entre os 89 e a escolha entre
+  versionar os 18 documentos, derivar um substituto ou restringir os dois testes de
+  revalidação é decisão do usuário. Fica registrada aqui e nada foi alterado a
+  respeito. **Atualização de 31/08/2026:** o pacote B13 foi executado e deixou de
+  estar diferido, e com ele as duas reprovações deixaram de depender do clone
+  limpo: elas passam a ocorrer **também na árvore de trabalho**, porque o
+  `scenario_id` mudou e os dezoito documentos do piloto não resolvem mais. A causa
+  é outra, o efeito é o mesmo, e as duas cessam com o refazimento do piloto na
+  Tarefa 19B. Ver o registro em F6-08.
   **Defeito do plano.** A enumeração de saídas parou em duas opções onde havia
   três, e a primeira opção prescrita pelo adendo, derivar os fixtures do que está
   versionado, **não era executável dentro deste pacote**: derivar fixture exige
@@ -3731,11 +3779,68 @@ passariam a `D1` se materializados durante a campanha, e é isso que os mantém 
   contornadas.
 - **Onda:** B, junto de F2-15, que aponta o mesmo buraco pelo lado da cobertura. Ver
   a conexão 7 da seção 5.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero, porque muda apenas o
-  identificador; **atenção**, se o `scenario_id` mudar, os 42 cenários da impressão
-  digital mudam de nome e o oráculo precisa ser gerado depois desta correção, não
-  antes.
+- **Situação:** **fechado em 31/08/2026, no commit do pacote B13**, que é o 29º e
+  último da Fase 2. **Classe prevista `D3`, classe observada `D3`**, sem
+  reclassificação: o dano continuava contido pelas camadas existentes, e o que o
+  commit remove é a possibilidade de dois conjuntos de dados de objetivo produzirem
+  o mesmo identificador. O `payload` de `expand_scenarios` ganhou a chave
+  `data_sha256`, um mapa de nome de arquivo para SHA-256 dos arquivos que a
+  instância carrega à parte do próprio JSON, produzido por `instance_data_hashes`
+  em `experiments/scenarios.py`. O conjunto de definições ARTESP é **derivado de
+  `SUPPORTED_ARTESP_SIZES`**, importado de `src/metaheuristica/instances.py`, e não
+  de uma segunda lista de tamanhos mantida à mão neste módulo: a segunda cópia
+  reintroduziria o mesmo defeito um nível acima, porque passaria a existir tamanho
+  que o carregador aceita e o identificador ignora. Parquet ausente é recusado por
+  `ConfigurationError`, em vez de produzir identidade parcial em silêncio. A
+  premissa da seção 28.1 de `docs/experiments.md`, que estava incompleta, foi
+  corrigida no mesmo commit.
+- **Impressão digital:** **idêntica**, medida no **conjunto completo dos 42
+  cenários** contra a linha de base de `content_sha256` `a59235e4...`, que não foi
+  tocada. A atenção registrada quando o achado foi aberto fica **resolvida e sem
+  objeto**: o identificador dos 42 cenários é `FingerprintScenario.scenario_id`, a
+  interpolação literal `f"{algorithm}:{instance}:{k}:{variant}"`, e
+  `experiments/audit_fingerprint.py` não importa de `experiments/scenarios.py`,
+  logo nenhum cenário da impressão digital é renomeado, o oráculo não precisou ser
+  regerado e os filtros `--only` seguem válidos.
+- **Vermelho do Passo A, medido na árvore intocada antes da correção.** Com
+  `passengers_day` multiplicado por 1,5 sobre cópia dos dois Parquet em `tmp_path`,
+  a asserção de que o `scenario_id` muda reprovou com os dois valores iguais a
+  `9e4acdfbcdbfbdd3fa3606ca7d500394fc3ef97dcb5caf24ecedfefb84fdf38f`, que é a
+  mesma identidade sobre dados de objetivo diferentes descrita na evidência. Os
+  oráculos são, em `tests/test_experiment_scenarios.py`,
+  `test_identity_covers_the_parquet_that_carry_the_objective_data`,
+  `test_the_external_data_map_is_exactly_what_the_loader_opens`,
+  `test_a_size_the_loader_refuses_declares_no_external_data`,
+  `test_identity_of_the_tiny_instance_declares_no_external_data` e
+  `test_missing_parquet_is_refused_instead_of_producing_a_partial_identity`. O
+  segundo prende os dois lados do mapa de dados externos contra o **comportamento
+  do carregador**, e não contra os nomes copiados dele: **suficiência**, porque um
+  diretório com o JSON de definição e apenas os arquivos declarados basta para
+  carregar, logo não há arquivo esquecido, e **necessidade**, porque esconder
+  qualquer um dos declarados faz o carregamento reprovar, logo não há arquivo
+  declarado a mais.
+- **Consequência prevista, aceita por decisão do usuário de 31/08/2026, e que não
+  é regressão.** O mesmo `scenario_id` nomeia todo arquivo sob `results/raw/`,
+  porque `filename` embute `identifier[:12]`. Com os dois Parquet no identificador,
+  o hash de todo cenário ARTESP muda e os dezoito documentos do piloto deixam de
+  resolver, de modo que a suíte de CPU fica com **duas reprovações**,
+  `tests/test_benchmark_freeze.py::test_revalidation_rejects_altered_objective_function`
+  e
+  `tests/test_benchmark_freeze.py::test_revalidation_rejects_verdict_with_foreign_commit`,
+  ambas por `ConfigurationError: resultado ausente`, de `pilot_validation.py:51`.
+  São guardas funcionando sobre artefatos que ficaram obsoletos. Elas **não** foram
+  puladas nem marcadas como esperadas: pular desligaria justamente as guardas que
+  protegem a assinatura do manifesto na Tarefa 20, durante o período em que elas
+  mais importam. Cessam com o refazimento do tuning e do piloto, na Tarefa 19B, que
+  nesta posição nasce já com os identificadores novos, numa passagem só.
+- **Lacuna declarada, e deliberadamente não corrigida aqui:** a terceira camada de
+  contenção **não existe no encerramento**. `finalize_benchmark` chama
+  `consolidate_campaign`, que apenas revalida com `validate_document` e **não
+  reavalia o objetivo**. Uma troca de dados depois da assinatura do primeiro lote
+  deixaria a tabela final misturando conjuntos se as duas primeiras camadas fossem
+  contornadas. Reavaliar o objetivo no encerramento é decisão de desenho e custa
+  uma campanha de reavaliação inteira, logo fica registrada aqui como consequência
+  declarada e não entra neste pacote.
 
 #### F6-09. A barreira de recursos é irreversível e o remédio previsto pelo documento é recusado pela própria CLI
 
@@ -6316,6 +6421,12 @@ chama `consolidate_campaign`, que apenas revalida com `validate_document` e **n�
 reavalia o objetivo**. Consequência de onda: F6-08 e F2-15 entram no mesmo commit,
 depois do commit da conexão 6.
 
+**Fechada em 31/08/2026, no commit do pacote B13**, com os dois achados no mesmo
+commit como a conexão prescrevia. A terceira camada continua **não existindo no
+encerramento**: a lacuna fica registrada como consequência declarada em F6-08 e não
+foi corrigida, porque reavaliar o objetivo em `consolidate_campaign` é decisão de
+desenho e custa uma campanha de reavaliação inteira.
+
 ### Conexão 8. Corrigir F4-1 sem espelhar em `gpu/` destrói o experimento de speedup do ACO
 
 Esta é a conexão de maior consequência prática encontrada nesta passagem, e o diário
@@ -6788,14 +6899,26 @@ grupos com precedência, e o resto pode ser feito em qualquer ordem.
    porque o pacote muda comportamento compartilhado contra o qual a réplica é testada, e
    é a mesma forma do pacote B9.
 5. **Quinto, o identificador por conteúdo: F6-08 com F2-15**, depois do grupo 1,
-   conforme a conexão 7.
+   conforme a conexão 7. **Feito em 31/08/2026, no pacote B13**, que é o 29º e
+   último pacote da Fase 2 e o fecha. Ele rodou depois do fechamento das Ondas B e
+   C e antes do refazimento do tuning e do piloto, e não na posição natural: adiar
+   para depois do refazimento seria circular, porque mudaria o `scenario_id` outra
+   vez e invalidaria o piloto recém-feito.
 
 **Restrição de ordenação que não é conexão e precisa constar.** F6-08 altera a
 composição do `scenario_id`. Se o oráculo da impressão digital dos 42 cenários for
 gerado **antes** dessa correção, os identificadores mudam e o oráculo perde
 comparabilidade. **O oráculo deve ser gerado depois de F6-08, ou F6-08 deve ser
 diferida para depois do fechamento da impressão digital.** Esta é decisão da Tarefa 14
-e está registrada aqui para que não passe.
+e está registrada aqui para que não passe. **Resolvida em 31/08/2026, e sem objeto:**
+a restrição supunha que o `scenario_id` do F6-08 fosse o identificador dos 42
+cenários, e ele não é. O da impressão digital é `FingerprintScenario.scenario_id`, a
+interpolação literal da Tarefa 14, sem dependência alguma de
+`experiments/scenarios.py`. Medido no pacote B13, com impressão digital idêntica no
+conjunto completo: nenhum cenário foi renomeado e o oráculo não precisou ser
+regerado. **O que a restrição não considerou foram os artefatos de campanha**, que
+são nomeados pelo `scenario_id` alterado e ficam obsoletos; essa consequência está
+registrada em F6-08.
 
 **Custo de computação da Onda B.** Zero de campanha, porque nenhuma correção da Onda B
 exige reexecutar cenário oficial. O custo de computação aparece só se a Onda A

@@ -9,17 +9,42 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 31/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Vinte e oito dos 29 pacotes
-  fechados**: A1, B1 a B12 exceto o B13, B14 a B21, e C1 a C7. Resta 1, que
-  é o B13. O **B13 está diferido** para imediatamente antes da Tarefa 19B,
-  porque altera o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
-  enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
-  a redação anterior já esteve errada por um. **A Onda B está encerrada** e a **Onda C
-  está encerrada** também, e o que resta é apenas o B13 diferido.
+- **Fase do bloco ativo:** Fase 2, correção, **encerrada em 31/08/2026**. **Vinte e
+  nove dos 29 pacotes fechados**: A1, B1 a B21 e C1 a C7. Não resta pacote algum. A
+  contagem é conferida por enumeração contra o universo A1 mais B1 a B21 mais C1 a
+  C7, e não por soma, porque a redação anterior já esteve errada por um. **As Ondas B
+  e C estão encerradas**, e o **B13**, que estava diferido para imediatamente antes
+  da Tarefa 19B porque altera o `scenario_id` que nomeia os artefatos de campanha,
+  foi executado nessa posição e **fechou a Fase 2**. O que vem a seguir é a Tarefa
+  20, com a renovação do manifesto e o pacote R1, e depois o refazimento do tuning e
+  do piloto, que é a Tarefa 19B.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o **commit 3 do lote L10**, de 31/08/2026, fechou o
+- **Última decisão concluída:** o **commit do pacote B13**, de 31/08/2026, que é o
+  **29º e último pacote da Fase 2** e a fecha. Ele fechou os achados **F6-08** e
+  **F2-15**, as duas metades do mesmo buraco. O `payload` do `scenario_id` passou a
+  cobrir o SHA-256 dos dois Parquet que carregam demanda, produção e métricas de par,
+  e o conjunto de definições ARTESP é derivado de `SUPPORTED_ARTESP_SIZES`, importado
+  do carregador, para que não exista uma segunda lista de tamanhos a divergir. Os
+  arquivos de instância versionados ganharam fixação por SHA-256 literal em teste de
+  núcleo, e o `expected_optimum` do `tiny_manual.json` **versionado** passou a ser
+  confrontado com enumeração exaustiva sobre `N=4` e `K=2`, que devolve ótimo único.
+  **Consequência prevista, documentada e aceita:** a suíte de CPU fica com **duas
+  reprovações**, `test_revalidation_rejects_altered_objective_function` e
+  `test_revalidation_rejects_verdict_with_foreign_commit`, ambas em
+  `tests/test_benchmark_freeze.py` e ambas por `ConfigurationError: resultado
+  ausente`. **Não são regressão:** o `scenario_id` nomeia todo arquivo sob
+  `results/raw/` e os dezoito documentos do piloto ficaram obsoletos, de modo que as
+  duas são guardas funcionando. Não foram puladas nem marcadas como esperadas, porque
+  pular desligaria as guardas que protegem a assinatura do manifesto na Tarefa 20; as
+  duas cessam com o refazimento do piloto, na Tarefa 19B. Contagens medidas no
+  commit: CPU **505 aprovados e 2 reprovados**, réplica **98** nas duas invocações.
+  Impressão digital **idêntica** no conjunto completo dos 42 cenários, e a linha de
+  base não foi tocada. Uma lacuna fica **registrada e não corrigida** em
+  `docs/auditoria.md`: a terceira camada de contenção não existe no encerramento,
+  porque `consolidate_campaign` revalida o documento e não reavalia o objetivo.
+  Antes dele, o **commit 3 do lote L10**, de 31/08/2026, fechou o
   pacote **C7**, com o achado F8-12 no escopo restante, e com ele **a Onda C**. A
   avaliação provisória da réplica passou a delegar ao caminho normativo, e o enxame da
   réplica passou a importar do núcleo o estado da partícula, a comparação de melhores,
@@ -223,8 +248,9 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** executar o **B13**, diferido para imediatamente antes da
-  Tarefa 19B, e que é o 29º e último pacote da Fase 2.
+- **Próxima ação atômica:** a **Tarefa 20**, com a renovação do manifesto de
+  congelamento e o pacote R1, e em seguida o refazimento do tuning e do piloto, que é
+  a Tarefa 19B e faz cessar as duas reprovações previstas.
 - **Decisão resolvida em 30/08/2026, e ela precedia a regeneração da campanha:** fechar
   o F8-10 pôs as validações do caminho normativo dentro da região cronometrada da
   réplica, que não as pagava, enquanto o núcleo as paga desde o B6. Medido em
@@ -237,7 +263,7 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   ser reutilizáveis e precisam ser rederivados da campanha regenerada, e agora **nada
   precede essa regeneração** além do restante da auditoria.
 - **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
-  manifesto de congelamento está divergente de propósito, em **27** dos 53 arquivos do
+  manifesto de congelamento está divergente de propósito, em **28** dos 53 arquivos do
   escopo protegido, e não deve ser renovado antes do fechamento da auditoria. **O número
   estava atrasado**: dizia dez, e a contagem foi remedida por leitura no fim do lote L7,
   sem regenerar o manifesto. Deste lote vem **uma** divergência nova, a de
@@ -257,25 +283,42 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   tocado**; o único arquivo protegido do pacote é `experiments/resource_monitor.py`,
   que já constava dos 27. **Nenhum dos pacotes C5, C6 e C7 acrescentou**, porque vivem
   inteiramente em `gpu/`, que não pertence ao escopo protegido do congelamento da
-  CPU. O número segue em **27** dos 53. Consequência colateral registrada: dois dos
-  três pacotes deste lote, o C5 e o C7, alteram `gpu/src/`, logo o `gpu_code_sha256` do
+  CPU. O número seguiu em **27** dos 53 até o fim da Onda C. Consequência colateral registrada: dois dos
+  três pacotes do lote L10, o C5 e o C7, alteram `gpu/src/`, logo o `gpu_code_sha256` do
   **manifesto de prontidão da GPU** fica defasado e `verify_manifest` recusará até que ele seja
   regenerado, o que pertence à Tarefa 20 e **não** foi feito aqui. Esse manifesto é
-  outro artefato, e não o de congelamento da CPU.
+  outro artefato, e não o de congelamento da CPU. **O pacote B13 acrescentou a 28ª
+  divergência**, e era esperado: `experiments/scenarios.py` é protegido, não divergia
+  e passou a divergir. O número foi remedido por leitura, comparando o `sha256` de
+  cada arquivo do manifesto contra o da árvore, e não por soma: são **27 divergências
+  de conteúdo mais uma de escopo**, a de `experiments/audit_fingerprint.py`, que
+  existe e não consta do manifesto. **O manifesto não foi regenerado.**
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** no fim do commit 3 do lote L10, isto é no commit do pacote C7,
-  impressão digital idêntica no **conjunto completo dos 42 cenários**, sem restrição a
-  subconjunto, suíte de CPU com **500** aprovados, a mesma contagem da partida do lote,
-  porque nenhum dos três pacotes toca `src/`, e suíte da réplica com **98** aprovados
-  sobre dispositivo real, contra 94 no fim do commit do C6, 88 no do C5 e 71 na
-  partida, nas duas invocações, da raiz e de dentro do próprio subprojeto. **A linha de base
-  continua a que o pacote B21 regravou**, com `content_sha256` `a59235e4...`, e nenhum
-  dos pacotes C1 a C4 a tocou: a identidade acima é medida contra ela.
-- **Limite conhecido da suíte:** um clone limpo **não** roda a suíte integral. Duas
-  reprovações em `tests/test_benchmark_freeze.py`, porque `results/raw/` é ignorado
-  e os dezoito documentos do piloto não estão no Git. A decisão sobre versioná-los
-  ficou para a Tarefa 20, quando os artefatos já serão os definitivos.
+- **Última verificação:** no fim do commit do pacote **B13**, impressão digital
+  idêntica no **conjunto completo dos 42 cenários**, sem restrição a subconjunto,
+  suíte de CPU com **505 aprovados e 2 reprovados**, contra 500 aprovados na partida,
+  e suíte da réplica com **98** aprovados sobre dispositivo real, nas duas invocações,
+  da raiz e de dentro do próprio subprojeto. A contagem de aprovados sobe pelos sete
+  casos novos e cai pelas duas reprovações previstas, que estão nomeadas no item
+  abaixo. **A linha de base continua a que o pacote B21 regravou**, com
+  `content_sha256` `a59235e4...`, e nenhum pacote posterior a tocou: a identidade
+  acima é medida contra ela.
+- **A suíte de CPU fica com duas reprovações previstas, e elas não são regressão.**
+  Desde o commit do pacote B13,
+  `tests/test_benchmark_freeze.py::test_revalidation_rejects_altered_objective_function`
+  e `tests/test_benchmark_freeze.py::test_revalidation_rejects_verdict_with_foreign_commit`
+  reprovam **também na árvore de trabalho**, por `ConfigurationError: resultado
+  ausente`: o B13 pôs os dois Parquet no `scenario_id`, o identificador nomeia todo
+  arquivo sob `results/raw/` e os dezoito documentos do piloto deixaram de resolver.
+  São guardas funcionando sobre artefatos obsoletos, e foram deliberadamente **não
+  puladas**, porque pular desligaria as guardas que protegem a assinatura do manifesto
+  na Tarefa 20. **As duas cessam com o refazimento do tuning e do piloto, na Tarefa
+  19B.** Quem retomar não deve lê-las como regressão, e uma **terceira** reprovação,
+  ou reprovação com outro nome, é defeito novo. Limite anterior, que continua valendo
+  por outra causa: um clone limpo **não** roda a suíte integral, porque `results/raw/`
+  é ignorado e os dezoito documentos do piloto não estão no Git. A decisão sobre
+  versioná-los ficou para a Tarefa 20, quando os artefatos já serão os definitivos.
 - **Achado fechado, e a linha estava atrasada:** rodando a suíte da réplica com o
   diretório de trabalho em `gpu/`, cinco testes falhavam por caminho relativo
   `data/instances/tiny_manual.json` resolvido contra o `cwd`. **Corrigido em `7d1fd68`**,

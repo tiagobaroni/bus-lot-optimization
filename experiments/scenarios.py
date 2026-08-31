@@ -11,6 +11,7 @@ from typing import Any, Mapping
 
 from metaheuristica import RunConfig
 from metaheuristica.errors import ConfigurationError
+from metaheuristica.instances import SUPPORTED_ARTESP_SIZES
 
 from experiments.config import ALGORITHM_FIELDS, CONFIG_TYPES, CampaignConfig
 
@@ -30,6 +31,45 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+# Os tamanhos vêm do próprio carregador, e não de uma lista repetida aqui: uma
+# segunda cópia da mesma verdade reintroduziria o defeito um nível acima, porque
+# passaria a existir tamanho que o carregador aceita e o identificador ignora.
+ARTESP_DEFINITIONS = frozenset(
+    f"artesp_rmsp_{size}.json" for size in SUPPORTED_ARTESP_SIZES
+)
+ARTESP_DATA_FILES = (
+    "artesp_rmsp_150_units.parquet",
+    "artesp_rmsp_150_pair_metrics.parquet",
+)
+
+
+def instance_data_files(path: Path) -> tuple[Path, ...]:
+    """Arquivos de dados que a instância carrega além do próprio JSON.
+
+    O JSON de uma instância ARTESP traz apenas nome, contagem e a lista de
+    unidades. Demanda, produção e todas as métricas de par vivem nos dois
+    Parquet que ``load_artesp_instance`` abre por nome literal no mesmo
+    diretório, iguais para todo tamanho que o carregador suporta. Enquanto eles
+    ficaram fora do identificador, trocar os dados do objetivo não mudava o
+    ``scenario_id``.
+    """
+
+    if path.name in ARTESP_DEFINITIONS:
+        return tuple(path.parent / name for name in ARTESP_DATA_FILES)
+    return ()
+
+
+def instance_data_hashes(path: Path) -> dict[str, str]:
+    """SHA-256, por nome de arquivo, dos dados que a instância carrega à parte."""
+
+    hashes: dict[str, str] = {}
+    for data_path in instance_data_files(path):
+        if not data_path.is_file():
+            raise ConfigurationError(f"arquivo de dados ausente: {data_path.name}")
+        hashes[data_path.name] = file_sha256(data_path)
+    return hashes
+
+
 @dataclass(frozen=True, slots=True)
 class Scenario:
     payload: Mapping[str, Any]
@@ -45,6 +85,10 @@ def _safe_name(value: str) -> str:
 def expand_scenarios(config: CampaignConfig) -> tuple[Scenario, ...]:
     hashes = {
         instance.path: file_sha256(config.repository_root / instance.path)
+        for instance in config.instances
+    }
+    data_hashes = {
+        instance.path: instance_data_hashes(config.repository_root / instance.path)
         for instance in config.instances
     }
     scenarios: list[Scenario] = []
@@ -76,6 +120,7 @@ def expand_scenarios(config: CampaignConfig) -> tuple[Scenario, ...]:
                                 "name": instance.name,
                                 "path": instance.path,
                                 "sha256": hashes[instance.path],
+                                "data_sha256": data_hashes[instance.path],
                             },
                             "k": k,
                             "seed": seed,
