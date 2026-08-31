@@ -15,9 +15,13 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   C7, e não por soma, porque a redação anterior já esteve errada por um. **As Ondas B
   e C estão encerradas**, e o **B13**, que estava diferido para imediatamente antes
   da Tarefa 19B porque altera o `scenario_id` que nomeia os artefatos de campanha,
-  foi executado nessa posição e **fechou a Fase 2**. O que vem a seguir é a Tarefa
-  20, com a renovação do manifesto e o pacote R1, e depois o refazimento do tuning e
-  do piloto, que é a Tarefa 19B.
+  foi executado nessa posição e **fechou a Fase 2**. O que vem a seguir é o
+  **refazimento**, isto é as 440 execuções de tuning, a propagação dos parâmetros e as
+  18 do piloto, e **só então** a Tarefa 20, com a revalidação, o roteiro, a renovação do
+  manifesto e o pacote R1. A ordem é obrigatória e não é preferência: a geração do
+  manifesto exige **simultaneamente** worktree limpa, `campaign_commit` igual ao `HEAD` e
+  proveniência dos dezoito artefatos do piloto uniforme e igual a esse mesmo commit, de
+  modo que renovar antes de reexecutar seria circular.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
