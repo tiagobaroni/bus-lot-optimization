@@ -1,9 +1,9 @@
 schema_version = 1
-campaign_commit = "dc9146841586a36e1bc9eb82c59b8b361470d8b1"
+campaign_commit = "3205687756fe673540f9a7b9f5048ebf4b5fe7ff"
 selection_path = "results/tables/tuning_selection.json"
-selection_sha256 = "effa018d119b1bdbbce16a158114b602526295d13a896825240d955c3e79e3da"
+selection_sha256 = "a5cfce248804864066e0e9042b55640c98901446f8dfe2fa5add3ea4e4ef274f"
 manifest_path = "results/tables/tuning_manifest.json"
-manifest_sha256 = "b576238b75faec3050ded2a968d8e7497e5e33783828864fd197c5fee112db15"
+manifest_sha256 = "1b1785b29e5ce4e0f354b9f99bcc581b746b8d1b228b409999e52b76f63c971e"
 change_policy = "requires_new_tuning"
 
 [tabu]
@@ -21,4 +21,4 @@ n_ants = 40
 n_particles = 40
 inertia = 0.4
 cognitive = 2.0
-social = 1.5
+social = 2.0

@@ -6986,6 +6986,44 @@ obrigações de redação, concentradas na tarefa de fechamento:
   as três condições experimentais misturadas na forma de U da conclusão da F3, e a
   publicação apenas da negativa em F5-1.
 
+## 8. Resultado do retuning executado depois das correções
+
+**Registrado em 31/08/2026, como a Tarefa 19B exige quando os parâmetros selecionados
+mudam.** As 440 execuções de tuning foram refeitas no commit `3205687`, com 16 workers,
+zero falhas e zero faltantes, e a consolidação saiu **oficial**, sem razões de não
+oficialidade.
+
+**Um parâmetro mudou: o `social` do PSO passou de `1.5` para `2.0`.** Os demais ficaram
+como estavam, em todos os três algoritmos.
+
+| Algoritmo | Parâmetros vencedores | Custo médio | Diferença para o segundo |
+|---|---|---|---|
+| ACO | `alpha` 1,0, `beta` 2,0, `n_ants` 40, `rho` 0,1 | 0,146303 | 0,005201 |
+| PSO | `cognitive` 2,0, `inertia` 0,4, `n_particles` 40, **`social` 2,0** | 0,269236 | 0,011333 |
+| Busca Tabu | `neighborhood_size` 20, `stagnation_limit` 100, `tabu_tenure` 10 | 0,126415 | 0,003214 |
+
+**A causa é a própria auditoria, e é atribuível.** O segundo colocado do PSO é exatamente
+a configuração anterior, com `social` 1,5, e a diferença de custo médio entre as duas é de
+`0,011333`. As correções que alteraram o comportamento do PSO foram o **A5** e o **F5-3**,
+no pacote B21, que mudaram a contabilidade da fronteira de orçamento, e o **A3**, **A4** e
+**A6**, nos pacotes B9 e B10, que corrigiram a avaliação de reparo, a cobrança de orçamento
+da partícula reparada e o recuo silencioso da projeção. A seleção é automática, sem
+sobreposição manual, pelos quatro critérios em ordem: custo médio, desvio amostral, tempo
+médio e ordem lexicográfica dos parâmetros.
+
+**Propagação obrigatória, feita no mesmo commit.** `experiments/configs/pilot.toml` e
+`experiments/configs/benchmark.toml` foram atualizados para `social = [2.0]`, porque
+`frozen_parameters.py` exige que a grade de cada algoritmo nas campanhas oficiais contenha
+um único valor **exatamente igual** ao dos parâmetros congelados. Sem isso a execução do
+piloto falharia com `diverge dos parâmetros congelados`. As duas expansões foram
+reconferidas depois da mudança: **18** cenários no piloto e **1.620** no benchmark.
+
+**Custo medido, contra o previsto.** O retuning levou cerca de **1 h 34 min** de relógio
+com 16 workers, dominado pelas 160 execuções de ACO, cuja média foi de **458,3 s**. O plano
+previa 3 h 43 min antes do pacote B5 e cerca de 1 h 06 min depois dele; o medido fica entre
+os dois, mais perto do segundo. O tempo médio do PSO foi de 16,5 s e o da Busca Tabu, de
+9,8 s, o que confirma que o ACO responde por praticamente todo o custo do tuning.
+
 ## Apêndice A. Achados refutados
 
 Dois achados foram refutados integralmente pela verificação adversarial e recebem
