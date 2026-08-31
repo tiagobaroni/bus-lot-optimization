@@ -7364,6 +7364,61 @@ mais estrita que a régua normativa de `1e-12` e pode reprovar noutra placa sem 
 defeito; três dos quatro sítios de `COST_TOLERANCE` no ACO seguem sem caso de afrouxamento;
 e `gpu/configs/gpu_diagnostic.toml` não tem cobertura de carregamento.
 
+## 13. Achados nascidos durante a Fase 2
+
+**Registrados em 31/08/2026, por decisão do usuário.** Os dois **não pertencem aos 89 da
+Fase 1** e não alteram aquela contagem nem a tabela de classes da seção 2: nasceram durante
+a execução das correções, foram confirmados por **medição direta** e **não** passaram pela
+verificação adversarial independente que os 89 receberam. Os dois já estão **fechados**.
+
+#### N1. Um clone limpo não roda a suíte integral, porque os documentos do piloto não eram versionados
+
+- **Origem:** Fase 2, levantado pela Tarefa 20 e medido em `git worktree` limpo.
+- **Classe:** `D3`, defeito latente de risco operacional.
+- **Premissa:** a suíte protege a assinatura do manifesto de congelamento, e essa proteção
+  precisa valer **onde o repositório é consumido**, e não apenas na máquina que o produziu.
+- **Código:** `.gitignore:21`, `results/raw/`, com `git ls-files results/raw` devolvendo
+  zero. Os dezoito documentos do piloto ficavam fora do Git.
+- **Evidência:** medido em `git worktree` limpo de `b9d22c7` com
+  `BUS_LOT_SEM_PACOTE_FONTE=1`: `2 failed, 409 passed, 3 skipped`, reprovando
+  `test_revalidation_rejects_altered_objective_function` e
+  `test_revalidation_rejects_verdict_with_foreign_commit`, **as duas por resultado
+  ausente**, de `pilot_validation.py:51`.
+- **Por que é `D3` e não limitação:** as duas guardas **existiam e ficavam inertes**
+  exatamente no cenário em que mais importam, o de um terceiro clonando o repositório
+  publicado para revalidar o congelamento. Não produz falso verde, e sim falso vermelho:
+  quem clonasse veria a suíte reprovar sem defeito de código.
+- **Situação:** **fechado em 31/08/2026**, na Tarefa 20. `results/raw/pilot/` passou a ser
+  versionado, ao custo de 576 KB, e as demais campanhas seguem fora, porque são elas que
+  pesariam 16 MB e cerca de 51 MB. Conferido que nenhum caminho de `results/raw` consta do
+  manifesto, de modo que a mudança **não altera a assinatura**. A decisão e os números estão
+  na seção 11.
+
+#### N2. Cinco casos da suíte da réplica reprovavam conforme o diretório de invocação
+
+- **Origem:** Fase 2, observado ao preparar o lote L6 e medido antes de corrigir.
+- **Classe:** `D3`, defeito latente de risco operacional.
+- **Premissa:** uma suíte de testes tem de produzir o mesmo veredito independentemente do
+  diretório de trabalho a partir do qual é invocada.
+- **Código:** `gpu/tests/test_batch_evaluator.py` e `gpu/tests/test_microbenchmark.py`,
+  que passavam `data/instances/tiny_manual.json` como caminho **relativo ao diretório
+  corrente**, ao passo que os outros seis arquivos de teste do subprojeto já ancoravam a
+  raiz por `Path(__file__).parents[2]`.
+- **Evidência:** invocada da raiz, a suíte da réplica era verde; invocada de dentro de
+  `gpu/`, **cinco casos reprovavam** com `InstanceDataError`, os quatro parametrizados do
+  avaliador em lote mais o do microbenchmark, antes de exercitar comportamento algum.
+- **Por que importa mais do que parece:** o pacote B19 move a amostragem do monitor para um
+  processo filho criado por `spawn`, que **herda o diretório corrente do pai**. Sem o
+  ancoramento, uma reprovação por caminho relativo se confundiria com a comparação de
+  identificador de processo que aquele pacote precisa asseverar.
+- **Situação:** **fechado em 30/08/2026**, no commit `7d1fd68`, primeiro do lote L6 e
+  deliberadamente isolado antes do pacote do monitor. Os identificadores dos casos
+  parametrizados ficaram inalterados e a suíte passou a ser verde **das duas invocações**,
+  o que virou item permanente do portão dos lotes seguintes.
+
+**Nenhum dos dois altera resultado publicado**, e por isso nenhum aciona reexecução de
+campanha.
+
 ## Apêndice A. Achados refutados
 
 Dois achados foram refutados integralmente pela verificação adversarial e recebem
