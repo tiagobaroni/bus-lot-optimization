@@ -53,6 +53,15 @@ class HybridEvaluator:
         self.objective = objective
         self.timing = GpuTiming()
         self.verify_every_batch = verify_every_batch
+        # F8-5: campo **condicional**, e não medição incondicional. Ele só é
+        # alimentado dentro do bloco `if self.verify_every_batch:` de
+        # `evaluate_batch`; a execução oficial usa o padrão `False`, logo o
+        # campo é estruturalmente `0.0` nas 60 execuções da campanha. Um
+        # revisor que leia `max_numerical_difference: 0.0` ao lado de
+        # checkpoints que divergem em 1 ulp concluiria o oposto do que
+        # aconteceu, e é esse risco de leitura que o achado registra. A
+        # condição passa a ser declarada no documento de cada cenário, por
+        # `run.DIAGNOSTICS_SCHEMA`, em vez de ficar implícita no código.
         self.max_numerical_difference = 0.0
         self.guard = guard
 
@@ -89,6 +98,9 @@ class HybridEvaluator:
             difference = verify_batch(
                 self.instance, matrix, results, k=self.k, weights=self.weights
             )
+            # F8-5, o único sítio que alimenta o campo. Fora deste bloco ele
+            # permanece no valor de inicialização, e é isso que o schema de
+            # diagnóstico declara.
             self.max_numerical_difference = max(self.max_numerical_difference, difference)
             # O modo de conformidade usa os valores normativos para permitir
             # comparação bit a bit do histórico, sem ser usado no speedup.

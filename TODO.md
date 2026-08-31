@@ -9,17 +9,41 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 31/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Vinte e cinco dos 29 pacotes
-  fechados**: A1, B1 a B12 exceto o B13, B14 a B21, e C1 a C4. Restam 4, que
-  são B13 e C5 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B,
+- **Fase do bloco ativo:** Fase 2, correção. **Vinte e seis dos 29 pacotes
+  fechados**: A1, B1 a B12 exceto o B13, B14 a B21, e C1 a C5. Restam 3, que
+  são B13 e C6 e C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B,
   porque altera o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
   enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
   a redação anterior já esteve errada por um. **A Onda B está encerrada** e a **Onda C
-  está aberta**, e o que resta é o B13 diferido mais C5 a C7.
+  está aberta**, e o que resta é o B13 diferido mais C6 e C7.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o **commit 2 do lote L9**, de 31/08/2026, fechou o
+- **Última decisão concluída:** o **commit 1 do lote L10**, de 31/08/2026, fechou o
+  pacote **C5**, com os achados F8-1, nas duas componentes, F8-5 e F8-9, todos em
+  `gpu/`, que não é protegido pelo congelamento da B11-E. O código morto de desempate
+  e de sincronização saiu: `arbitrate_best`, `synchronized_call` e o campo
+  `synchronization_seconds` não tinham chamador nem atribuição em lugar algum, e
+  manter uma segunda regra de desempate com chave diferente da normativa era convite
+  ao erro que o próprio achado cometeu. O portão de conformidade passou a **afirmar** a
+  equivalência de trajetória, e não só a registrá-la, sobre par CPU e GPU em **modo
+  oficial** e instância real, com a régua normativa de `1e-12` e não igualdade exata.
+  **A prescrição foi corrigida, e isso precisa de leitura:** o plano não dizia em que
+  modo a asserção nova rodava, e as duas execuções pareadas que já existiam ali rodam
+  com `verify_every_batch=True`, modo em que os resultados da GPU são substituídos
+  pelos normativos; escrita dentro daquele par, a asserção compararia CPU com CPU, que
+  é exatamente o vício que o pacote C6 existe para eliminar. Medido no par novo, os
+  cem checkpoints diferem bit a bit dos da CPU já no primeiro, com `max |delta|` de
+  `2,220e-16`, isto é 1/4503 da tolerância normativa, com solução final idêntica. O
+  campo `max_numerical_difference` passou a ter a condição declarada no documento de
+  cada cenário, e a fração de dispositivo passou a acompanhar o `speedup` na tabela
+  consolidada, o que executa junto o item B3 do Apêndice B. `n_ants` e `n_particles`
+  passaram a ser cruzados contra o teto de lote no carregamento; o literal de
+  `objective.py` continua duplicado de propósito, porque aquele arquivo está fora da
+  lista do pacote, e a duplicação ficou presa por caso que mede o teto pelo
+  comportamento do objetivo. Impressão digital **idêntica** no conjunto completo dos
+  42 cenários e a linha de base não foi tocada. Antes dele, o **commit 2 do lote
+  L9**, de 31/08/2026, fechou o
   pacote **C4** e com ele o lote, com os achados F2-12, de escopo reduzido por
   triagem, e F7-9. A leitura estrita do TOML de campanha tem **28** sítios de recusa,
   e não os 23 que o registro anterior dizia; a suíte passou a alcançar os 28, com a
@@ -157,8 +181,8 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** despachar o lote **L10**, que fecha a Onda C com os
-  pacotes **C5 a C7**, e em seguida o B13 diferido, imediatamente antes da Tarefa 19B.
+- **Próxima ação atômica:** seguir no lote **L10**, com os pacotes **C6** e **C7**,
+  que fecham a Onda C, e em seguida o B13 diferido, imediatamente antes da Tarefa 19B.
 - **Decisão resolvida em 30/08/2026, e ela precedia a regeneração da campanha:** fechar
   o F8-10 pôs as validações do caminho normativo dentro da região cronometrada da
   réplica, que não as pagava, enquanto o núcleo as paga desde o B6. Medido em
@@ -189,14 +213,21 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   previsão supunha alteração em `experiments/config.py`, que é protegido e não
   divergia, mas o achado F2-12 é de cobertura e o arquivo **não precisou ser
   tocado**; o único arquivo protegido do pacote é `experiments/resource_monitor.py`,
-  que já constava dos 27. O número segue em **27** dos 53.
+  que já constava dos 27. **O pacote C5 também não acrescentou**, porque vive
+  inteiramente em `gpu/`, que não pertence ao escopo protegido do congelamento da
+  CPU. O número segue em **27** dos 53. Consequência colateral registrada: os três
+  pacotes deste lote alteram `gpu/src/`, logo o `gpu_code_sha256` do **manifesto de
+  prontidão da GPU** fica defasado e `verify_manifest` recusará até que ele seja
+  regenerado, o que pertence à Tarefa 20 e **não** foi feito aqui. Esse manifesto é
+  outro artefato, e não o de congelamento da CPU.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** no fim do commit 2 do lote L9, isto é no commit do pacote C4,
+- **Última verificação:** no fim do commit 1 do lote L10, isto é no commit do pacote C5,
   impressão digital idêntica no **conjunto completo dos 42 cenários**, sem restrição a
-  subconjunto, suíte de CPU com **500** aprovados, contra 466 no fim do commit do C3 e
-  460 na partida do lote, e suíte da réplica com 71 aprovados sobre dispositivo real,
-  nas duas invocações, da raiz e de dentro do próprio subprojeto. **A linha de base
+  subconjunto, suíte de CPU com **500** aprovados, a mesma contagem da partida do lote,
+  porque o pacote não toca `src/`, e suíte da réplica com **86** aprovados sobre
+  dispositivo real, contra 71 na partida, nas duas invocações, da raiz e de dentro do
+  próprio subprojeto. **A linha de base
   continua a que o pacote B21 regravou**, com `content_sha256` `a59235e4...`, e nenhum
   dos pacotes C1 a C4 a tocou: a identidade acima é medida contra ela.
 - **Limite conhecido da suíte:** um clone limpo **não** roda a suíte integral. Duas

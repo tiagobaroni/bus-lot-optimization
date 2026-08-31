@@ -42,7 +42,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from metaheuristica import RunConfig, load_artesp_instance, load_tiny_instance
+from metaheuristica import (
+    RunConfig, load_artesp_instance, load_tiny_instance, run_aco, run_pso,
+)
 
 from metaheuristica_gpu.aco import run_aco_gpu
 from metaheuristica_gpu.config import GpuCampaignConfig, GpuConfigError, load_gpu_config
@@ -51,7 +53,9 @@ from metaheuristica_gpu.environment import (
 )
 from metaheuristica_gpu.microbenchmark import run_microbenchmark
 from metaheuristica_gpu.monitor import cooldown, monitor_process, preflight_idle
-from metaheuristica_gpu.numerics import verify_batch
+from metaheuristica_gpu.numerics import (
+    ABS_TOL, require_equivalent_trajectory, verify_batch,
+)
 from metaheuristica_gpu.objective import GpuBatchObjective
 from metaheuristica_gpu.pso import run_pso_gpu
 from metaheuristica_gpu.scenarios import GpuScenario, canonical_json, expand_gpu_scenarios
@@ -66,6 +70,49 @@ DEFAULT_CONFIG = ROOT / "gpu/configs/gpu_benchmark.toml"
 MANIFEST = ROOT / "results/gpu/metadata/gpu_readiness_manifest.json"
 CONFORMANCE = ROOT / "results/gpu/metadata/gpu_conformance.json"
 SCHEDULE = ROOT / "results/gpu/metadata/gpu_execution_schedule.json"
+
+# F8-1, componente `M2`. O par de conformidade em **modo oficial**, isto é com
+# `verify_every_batch` no padrão `False`, roda sobre instância real. Com
+# `tiny_manual` e `K=2` o custo é exatamente zero em 99 dos 100 checkpoints do
+# ACO e em 98 dos 100 do PSO, de modo que a trajetória não é exercitada e a
+# igualdade passaria por vacuidade.
+CONFORMANCE_TRAJECTORY_SIZE = 20
+CONFORMANCE_TRAJECTORY_K = 5
+CONFORMANCE_TRAJECTORY_SEED = 10
+CONFORMANCE_TRAJECTORY_BUDGET = 400
+
+# F8-5. Os campos abaixo são publicados em todo documento de cenário e valem
+# zero por **desenho**, não por medição. A declaração viaja junto do resultado
+# para que quem audite os JSON leia a condição no mesmo lugar em que lê o
+# valor, em vez de precisar reconstruí-la do código.
+DIAGNOSTICS_SCHEMA: dict[str, Any] = {
+    "schema_version": 1,
+    "conditional_fields": {
+        "result.diagnostics.max_numerical_difference": {
+            "condition": "verify_every_batch",
+            "value_without_condition": 0.0,
+            "meaning": (
+                "maior divergência entre GPU e CPU observada na verificação "
+                "lote a lote; a execução oficial usa verify_every_batch=False, "
+                "logo o campo é estruturalmente 0.0 e NÃO significa ausência "
+                "de divergência. A divergência real do modo oficial é de 1 ulp "
+                "por avaliação, conforme a conformidade registrada em "
+                "gpu_conformance.json."
+            ),
+        },
+        "result.diagnostics.gpu_timing.arbitration_cpu_seconds": {
+            "condition": None,
+            "value_without_condition": 0.0,
+            "meaning": (
+                "tempo de arbitragem CPU de quase empates; o único sítio que o "
+                "incrementava era `arbitrate_best`, removida por não ter "
+                "chamador algum, logo o campo é sempre 0.0. A arbitragem que a "
+                "seção 29.1 exige é executada pelo código normativo "
+                "compartilhado, no ConvergenceRecorder."
+            ),
+        },
+    },
+}
 
 
 def _git_clean() -> tuple[str, bool]:
@@ -140,6 +187,49 @@ def schedule_document(config: GpuCampaignConfig) -> dict[str, Any]:
     }
 
 
+def conformance_trajectories(config: GpuCampaignConfig) -> list[dict[str, Any]]:
+    """Assevera a equivalência de trajetória em modo oficial, e não só a registra.
+
+    F8-1, componente `M2`. `run_conformance` apenas **registrava**
+    `reproducible_data()` das duas execuções pareadas e não **afirmava** nada;
+    e as duas rodavam com `verify_every_batch=True`, modo em que
+    `HybridEvaluator.evaluate_batch` substitui os resultados da GPU pelos
+    normativos, de modo que qualquer comparação ali é CPU contra CPU. O par
+    abaixo roda em **modo oficial**, que é o caminho que os 60 cenários
+    executam, sobre **instância real**, e a comparação é asseverada por
+    `require_equivalent_trajectory`, com a régua normativa de `1e-12`.
+
+    A divergência esperada é conforme, e não defeito: medida em
+    `artesp_rmsp_20`, `K=5`, semente 10 e orçamento 400, os cem checkpoints
+    diferem bit a bit dos da CPU já a partir do checkpoint 1, com
+    `max |delta|` de `2,220e-16`, isto é 1/4503 do `abs_tol` normativo, com
+    solução final idêntica rótulo a rótulo nos dois algoritmos.
+    """
+
+    instance = load_artesp_instance(ROOT / "data/instances", CONFORMANCE_TRAJECTORY_SIZE)
+    run = RunConfig(
+        k=CONFORMANCE_TRAJECTORY_K,
+        seed=CONFORMANCE_TRAJECTORY_SEED,
+        budget=CONFORMANCE_TRAJECTORY_BUDGET,
+    )
+    pairs = (
+        ("aco", run_aco_gpu, run_aco, config.aco),
+        ("pso", run_pso_gpu, run_pso, config.pso),
+    )
+    trajectories = []
+    for algorithm, on_gpu, on_cpu, algorithm_config in pairs:
+        gpu = on_gpu(instance, run, algorithm_config)
+        cpu = on_cpu(instance, run, algorithm_config)
+        difference = require_equivalent_trajectory(gpu, cpu)
+        trajectories.append({
+            "algorithm": algorithm, "instance": CONFORMANCE_TRAJECTORY_SIZE,
+            "k": run.k, "seed": run.seed, "budget": run.budget,
+            "verify_every_batch": False, "checkpoints": len(gpu.checkpoints),
+            "maximum_difference": difference, "tolerance": ABS_TOL,
+        })
+    return trajectories
+
+
 def run_conformance(config: GpuCampaignConfig) -> dict[str, Any]:
     environment = inspect_gpu_environment()
     maximum = 0.0; cases = []
@@ -155,9 +245,12 @@ def run_conformance(config: GpuCampaignConfig) -> dict[str, Any]:
     run = RunConfig(k=2, seed=0, budget=100)
     aco = run_aco_gpu(tiny, run, config.aco, verify_every_batch=True)
     pso = run_pso_gpu(tiny, run, config.pso, verify_every_batch=True)
+    trajectories = conformance_trajectories(config)
+    maximum = max(maximum, *(item["maximum_difference"] for item in trajectories))
     report = {
         "schema_version": 1, "passed": True, "environment": environment.to_dict(),
         "maximum_difference": maximum, "cases": cases,
+        "trajectories": trajectories,
         "aco": aco.reproducible_data(), "pso": pso.reproducible_data(),
     }
     atomic_write_json(CONFORMANCE, report); return report
@@ -205,6 +298,34 @@ def readiness(config: GpuCampaignConfig) -> dict[str, Any]:
     }
 
 
+def scenario_document(
+    scenario: GpuScenario,
+    result: Any,
+    environment: Any,
+    warmup: dict[str, float],
+    *,
+    cold_total_seconds: float,
+    telemetry: str,
+) -> dict[str, Any]:
+    """Monta o documento oficial de um cenário.
+
+    Extraído de `execute_scenario` para que o conteúdo do documento seja
+    testável sem exigir a campanha da CPU concluída, exclusividade da placa e
+    os 60 artefatos: `execute_scenario` recusa antes de qualquer computação
+    quando `_b11_complete()` é falso, que é o estado de hoje.
+    """
+
+    return {
+        "schema_version": 1, "scenario_id": scenario.scenario_id,
+        "scenario": scenario.payload, "result": result.to_dict(),
+        "environment": environment.to_dict(), "warmup": warmup,
+        "cold_total_seconds": cold_total_seconds,
+        "telemetry": telemetry,
+        # F8-5: a condição viaja junto do valor, e não só no código.
+        "diagnostics_schema": DIAGNOSTICS_SCHEMA,
+    }
+
+
 def execute_scenario(config: GpuCampaignConfig, scenario: GpuScenario) -> dict[str, Any]:
     if not _b11_complete():
         raise GpuConfigurationError("B11-E ainda não foi concluída")
@@ -244,16 +365,66 @@ def execute_scenario(config: GpuCampaignConfig, scenario: GpuScenario) -> dict[s
                 "error_type": type(error).__name__, "message": str(error),
             })
             raise
-    document = {
-        "schema_version": 1, "scenario_id": scenario.scenario_id,
-        "scenario": scenario.payload, "result": result.to_dict(),
-        "environment": environment.to_dict(), "warmup": warmup,
-        "cold_total_seconds": perf_counter() - cold_start,
-        "telemetry": str(monitor_path.relative_to(ROOT)),
-    }
+    document = scenario_document(
+        scenario, result, environment, warmup,
+        cold_total_seconds=perf_counter() - cold_start,
+        telemetry=str(monitor_path.relative_to(ROOT)),
+    )
     validate_result(document, scenario); atomic_write_json(result_path(output, scenario), document)
     atomic_write_json(session_path, {"scenario_id": scenario.scenario_id, "status": "complete"})
     return document
+
+
+def device_fraction(gpu_timing: dict[str, Any], runtime_seconds: float) -> float:
+    """Fração do tempo oficial que de fato ocorreu no dispositivo.
+
+    F8-5, item B3 do Apêndice B do registro. `consolidate` publicava `speedup`
+    e descartava `diagnostics.gpu_timing` ao montar `gpu_runs.parquet`, de modo
+    que a tabela oficial trazia o ganho sem a grandeza que o interpreta: um
+    `speedup` de 1,35 com 0,09% de dispositivo e um de 1,35 com 16% são
+    afirmações muito diferentes sobre o que foi acelerado, e a tabela não as
+    distinguia. **Este item não passou por verificação adversarial e entra como
+    recomendação, e não como achado.**
+
+    O numerador é o tempo das três fases do dispositivo, transferência de ida,
+    kernel e transferência de volta, e o denominador é o tempo oficial do
+    cenário, que é o mesmo que entra no `speedup`.
+    """
+
+    if not isinstance(runtime_seconds, (int, float)) or runtime_seconds <= 0.0:
+        raise GpuStorageError("tempo oficial GPU não positivo ao derivar device_fraction")
+    on_device = 0.0
+    for phase in ("host_to_device_seconds", "kernel_seconds", "device_to_host_seconds"):
+        value = gpu_timing.get(phase)
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0.0:
+            raise GpuStorageError(f"gpu_timing sem a fase {phase}")
+        on_device += float(value)
+    return on_device / float(runtime_seconds)
+
+
+def consolidated_row(document: dict[str, Any]) -> dict[str, Any]:
+    """Linha de `gpu_runs.parquet` derivada de um documento de cenário.
+
+    Extraída de `consolidate` pelo mesmo motivo que `scenario_document`: rodar
+    `consolidate` exige os 60 documentos completos e a tabela oficial da CPU, e
+    hoje ela recusa antes de montar linha alguma.
+    """
+
+    return {
+        "scenario_id": document["scenario_id"],
+        "algorithm": document["scenario"]["algorithm"],
+        "instance": document["scenario"]["instance"],
+        "k": document["scenario"]["k"],
+        "seed": document["scenario"]["seed"],
+        "gpu_runtime_seconds": document["result"]["runtime_seconds"],
+        "total_cost": document["result"]["evaluation"]["total_cost"],
+        # F8-5: a fração de dispositivo acompanha o `speedup` na mesma linha, em
+        # vez de o `gpu_timing` que a produz ser descartado aqui.
+        "device_fraction": device_fraction(
+            document["result"]["diagnostics"]["gpu_timing"],
+            document["result"]["runtime_seconds"],
+        ),
+    }
 
 
 def consolidate(config: GpuCampaignConfig) -> dict[str, Any]:
@@ -263,12 +434,7 @@ def consolidate(config: GpuCampaignConfig) -> dict[str, Any]:
         if not is_complete(output, scenario):
             raise GpuStorageError("campanha GPU incompleta")
         documents.append(read_json(result_path(output, scenario)))
-    rows = [{
-        "scenario_id": doc["scenario_id"], "algorithm": doc["scenario"]["algorithm"],
-        "instance": doc["scenario"]["instance"], "k": doc["scenario"]["k"],
-        "seed": doc["scenario"]["seed"], "gpu_runtime_seconds": doc["result"]["runtime_seconds"],
-        "total_cost": doc["result"]["evaluation"]["total_cost"],
-    } for doc in documents]
+    rows = [consolidated_row(doc) for doc in documents]
     frame = pd.DataFrame(rows).sort_values(["algorithm", "seed"])
     cpu_path = ROOT / "results/tables/benchmark_runs.parquet"
     if not cpu_path.is_file():

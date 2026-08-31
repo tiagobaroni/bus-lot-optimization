@@ -4752,9 +4752,31 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   pareada, com pelo menos uma instância real, porque hoje `run.py:117-137` apenas
   **registra** `reproducible_data()` e não **afirma** nada.
 - **Onda:** C para a componente `M3`; a componente `M2` acompanha, no mesmo commit.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero para a campanha CPU, porque a
-  correção vive inteiramente em `gpu/`.
+- **Situação:** fechado no commit do pacote C5, lote L10. **Classe prevista `M3`
+  com componente `M2`, classe observada `M3` com componente `M2`**, sem
+  reclassificação. Componente `M3`: `arbitrate_best`, `synchronized_call` e o campo
+  `synchronization_seconds` foram removidos, e a busca por chamadores em `gpu/` e em
+  `src/` devolvia apenas as definições, refeita no commit. A remoção fica presa por
+  `gpu/tests/test_numerics.py::test_o_codigo_morto_de_desempate_e_de_sincronizacao_nao_volta`,
+  com eixo negativo sobre os campos que permanecem. Componente `M2`:
+  `run_conformance` passou a **afirmar**, e não só a registrar, por
+  `numerics.require_equivalent_trajectory` sobre par CPU e GPU em **modo oficial**,
+  isto é `verify_every_batch=False`, sobre `artesp_rmsp_20` com `K=5`, semente 10 e
+  orçamento 400. **Correção de prescrição, e ela é a razão de o modo estar escrito
+  aqui:** o plano não dizia em que modo a asserção nova roda, e as duas execuções
+  pareadas que já existiam em `run_conformance` rodam com `verify_every_batch=True`,
+  modo em que `evaluator.py` substitui os resultados da GPU pelos normativos.
+  Escrita dentro daquele par, a asserção compararia CPU com CPU, que é o padrão
+  `F2-02` que o pacote C6 existe para eliminar. Medido no par novo: os cem
+  checkpoints do ACO e os cem do PSO diferem bit a bit dos da CPU já no checkpoint 1,
+  com `max |delta|` de `2,220e-16`, isto é **1/4503 do `abs_tol` normativo**, e a
+  solução final coincide rótulo a rótulo nos dois algoritmos. A régua da asserção é
+  `1e-12` e **não** igualdade exata; o que é comparado por igualdade exata é o que
+  não depende de ponto flutuante, isto é orçamento consumido, rótulos da solução
+  final, quantidade de checkpoints e o par índice e avaliação de cada um.
+- **Impressão digital:** **diff zero** no conjunto completo dos 42 cenários,
+  conforme previsto, porque a correção vive inteiramente em `gpu/`. A linha de base
+  não foi tocada.
 - **Limite declarado pelo verificador:** as medições usaram orçamentos de 2.000,
   4.000 e 20.000, e **não** os 150.000 oficiais, porque uma execução pareada de ACO
   em `artesp_rmsp_150` com orçamento cheio custaria cerca de 2,3 h de CPU. **A
@@ -4893,8 +4915,25 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   do campo, ou publicando campo derivado que interprete o `speedup`, como a
   `device_fraction` proposta para `consolidate`.
 - **Onda:** C, junto de F8-1 e do item derivado sobre `gpu_timing`.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado no commit do pacote C5, lote L10. **Classe prevista `M3`,
+  classe observada `M3`**, sem reclassificação. O significado **condicional** de
+  `max_numerical_difference` passou a ser declarado no documento de cada cenário,
+  por `run.DIAGNOSTICS_SCHEMA`, e não só comentado no código; a declaração é medida
+  nos dois modos pelo caso dirigido, que exige `0.0` em modo oficial e valor positivo
+  sob `verify_every_batch=True`, de modo que uma declaração falsa reprova. O campo
+  derivado `device_fraction` passou a ser publicado em `gpu_runs.parquet`, ao lado do
+  `speedup` que ele interpreta, o que executa também o item B3 do Apêndice B.
+  `arbitration_cpu_seconds` **permanece** na estrutura, porque a remoção prescrita
+  nomeia apenas `synchronization_seconds`, e entra no mesmo schema declarado como
+  estruturalmente nulo desde a remoção de `arbitrate_best`. Duas notas de método: o
+  teste prescrito para o item derivado não é alcançável ponta a ponta, porque
+  `consolidate` exige os 60 documentos completos e a tabela oficial da CPU, e por
+  isso a montagem da linha e a do documento foram extraídas para
+  `consolidated_row` e `scenario_document`, que os casos medem; e **este item
+  continua entrando como recomendação, e não como achado**, porque não passou por
+  verificação adversarial independente.
+- **Impressão digital:** **diff zero** no conjunto completo dos 42 cenários. A linha
+  de base não foi tocada.
 
 #### F8-6. O limiar de resfriamento libera acima do limiar aceito pelo preflight
 
@@ -5128,8 +5167,21 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   `n_ants`/`n_particles` contra o teto de `objective.py` em `config.py`, **antes do
   próximo ciclo de tuning** e não com urgência de campanha.
 - **Onda:** C.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado no commit do pacote C5, lote L10. **Classe prevista `M3`,
+  classe observada `M3`**, sem reclassificação. `load_gpu_config` passou a cruzar
+  `n_ants` e `n_particles` contra o teto de lote, com recusa por `GpuConfigError` no
+  carregamento, antes de a placa ser tocada. **O literal de `objective.py` continua
+  duplicado, de propósito e declarado:** aquele arquivo não pertence à lista do
+  pacote C5, logo o teto não pôde ser retirado de lá; a duplicação fica presa por
+  `test_o_teto_do_carregador_e_o_teto_que_o_objetivo_aplica`, que mede o teto real
+  **pelo comportamento** de `GpuBatchObjective.evaluate`, com lote de 40 aceito e de
+  41 recusado, de modo que um dos dois lados mudar sozinho reprova. O caso da recusa
+  é parametrizado com eixo negativo, `41` recusado e `40` aceito, e o erro factual
+  secundário do dossiê fica registrado no comentário do carregador: a sessão seria
+  gravada como `interrupted`, e não como `failed`, porque `GpuObjectiveError` é
+  subclasse de `RuntimeError`.
+- **Impressão digital:** **diff zero** no conjunto completo dos 42 cenários,
+  conforme previsto.
 
 #### F8-10. As réplicas GPU omitem as validações defensivas do caminho normativo e registram a chave do incumbente sem canonicalizar
 
@@ -6269,7 +6321,10 @@ quatro. Uma correção que "unifique o desempate" sem notar essa diferença intr
 divergência de critério entre CPU e GPU exatamente onde hoje não existe nenhuma, que
 é precisamente o erro que a correção proposta por F8-1 cometia. **A onda de correção
 deve tratar as quatro instâncias normativas como um único problema e deixar
-`arbitrate_best` fora dele, removendo-o.**
+`arbitrate_best` fora dele, removendo-o.** **Executado no commit do pacote C5, lote
+L10:** `arbitrate_best` foi removida, e a busca por chamadores em `gpu/` e em `src/`
+devolvia apenas a definição, refeita no commit. A instrução desta conexão está
+cumprida pelos dois lados, o da unificação, pelo pacote B8, e o da remoção, pelo C5.
 
 ### Conexão 11. A comparação central do relatório final repousa sobre duas fundações moles ao mesmo tempo
 
@@ -6680,7 +6735,8 @@ com diff zero e sem tocar `src/metaheuristica/`, porque é inteiramente de teste
 executou também o adendo da revisão do B6, estreitando a tolerância de
 `tests/test_core_integration.py` para igualdade exata. O pacote C4 fechou F2-12, pela
 triagem, e F7-9, também com diff zero, porque `experiments/` não é percorrido pelo
-oráculo. Restam cinco dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
+oráculo. O pacote C5 fechou F8-1, F8-5 e F8-9, os três em `gpu/`, também com diff
+zero, e executou junto o item B3 do Apêndice B. Restam dois dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
 isolados, conforme 7.1, e a Onda C passa a dezessete. Os cinco de `gpu/` (F8-1, F8-4, F8-5, F8-9, F8-12) podem ser feitos em
 paralelo com os demais, porque `gpu/` não é protegido pelo congelamento da B11-E.
 
@@ -6866,7 +6922,7 @@ verificados. São anotações, cada uma ancorada no achado que a originou.
 |---|---|---|---|---|
 | B1 | A identidade bit a bit de O2 e O4 **depende de ordem C**: em ordem Fortran a redução diverge em 22 de 50 linhas (44%) com `K=8` e 17 de 50 (34%) com `K=12`. Recomendação: incluir `assert matrix.flags['C_CONTIGUOUS']` na implementação real. **Satisfeito pelo pacote B5**, no commit `d297377`: a asserção está na implementação real, em `src/metaheuristica/objective.py`, e uma segunda cobre a matriz de desvios, sobre a qual corre a segunda redução. `tests/test_aco.py::test_balance_matrix_refuses_memory_that_is_not_c_contiguous` dispara a asserção com uma matriz em ordem Fortran e, no mesmo teste, mede que a redução em ordem Fortran de fato diverge, o que impede que o teste vire ritual. Ressalva registrada pela revisão independente do pacote, verdadeira como história do estado então medido: as duas eram `assert` e sumiam sob `python -O`, o que era risco latente e não atual, porque não havia ocorrência de `-O`, `-OO` ou `PYTHONOPTIMIZE` em `experiments/`, `gpu/`, `configs/` ou `pyproject.toml`; a troca por recusa explícita cabia ao pacote da Onda C que voltasse a tocar o arquivo. **Nota de 30/08/2026:** o pacote C1 voltou ao arquivo, mas apenas para remover as duas funções mortas do F1-08, e a troca das duas `assert` por recusa explícita ficou fora da lista dele; C1 era o único pacote da Onda C cuja lista incluía `src/metaheuristica/objective.py`, logo a recomendação ficou **sem pacote alocado**. **Fechado em 31/08/2026, no commit decorrente do pacote C1**, que não altera a contagem dos 29 pacotes. As duas guardas passaram a `raise MemoryLayoutError`, subclasse de `MetaheuristicaError` definida no próprio `src/metaheuristica/objective.py`, em `:94` para a matriz de entrada e em `:104` para a matriz de desvios, com mensagens distintas para que um teste possa asseverar qual das duas disparou. Não é `SolutionValidationError` porque não se trata de solução inválida e sim de pré-condição de layout de memória violada. A reconferência do risco, refeita no commit, continua devolvendo zero ocorrência de `-O`, `-OO` ou `PYTHONOPTIMIZE` em `experiments/`, `gpu/`, `configs/` e `pyproject.toml`; as únicas ocorrências de `-O` no repositório versionado passam a ser as do próprio oráculo, em `tests/test_aco.py`. O oráculo é `test_input_matrix_refusal_survives_optimized_mode` e `test_deviation_matrix_refusal_survives_optimized_mode`, que rodam a verificação num subprocesso com `-O` e trazem a metade anti-vácuo dentro do próprio caso, provando na mesma execução que o subprocesso está mesmo otimizado: em modo normal `assert` e `raise` falham igual, e sem o subprocesso otimizado a troca não teria oráculo algum. A recusa dos desvios é **inalcançável por entrada**, porque com a entrada contígua em ordem C `np.subtract` devolve sempre ordem C, medido nas formas `(3,4)`, `(1,1)`, `(1,5)`, `(5,1)`, `(0,4)`, `(3,0)` e `(2,2)`; o caso a alcança encenando a refatoração que ela guarda. O caso anterior acompanhou a troca e preservou as duas medições que já fazia. Impressão digital **idêntica** no conjunto completo dos 42 cenários, e a linha de base não foi tocada. | verificador da F4 | robustez, sem classe atribuída | F4-1 |
 | B2 | A identidade bit a bit precisa ser **reestabelecida contra a implementação real** quando a onda materializar O2 e O4 em código versionado, porque as 176.557 linhas e 176 execuções do protótipo original não são re-verificáveis: o protótipo foi escrito fora da árvore e não existe mais. **Satisfeito pelo pacote B5**, no commit `d297377`: `_PartialConstructionState.evaluate_choice` foi preservado intacto como referência normativa (`src/metaheuristica/aco.py:170-199`) e `tests/test_aco.py::test_batched_choice_costs_reproduce_the_reference_bit_by_bit` compara `choice_costs` contra ele por `float.hex()`, em 27 combinações parametrizadas de instância e `K`, percorrendo construções reais e comparando em toda posição não forçada. A identidade passou a ser medida contra a implementação real, e não herdada do protótipo descartado. Lacuna residual, medida pela revisão independente: o ramo de denominador nulo de `_cut_fractions` nunca é percorrido pelas instâncias congeladas, logo a identidade nele é afirmada por leitura; fechada por teste dirigido em `tests/test_objective.py`. | verificador da F4 | limitação de escopo | F4-1 |
-| B3 | `consolidate` descarta `diagnostics.gpu_timing` ao montar `gpu_runs.parquet`, publicando `speedup` sem a fração de dispositivo que o interpreta. Recomendação: publicar campo derivado `device_fraction`. | verificador dedicado dos `D1` da GPU | `M3` | F8-2 |
+| B3 | `consolidate` descarta `diagnostics.gpu_timing` ao montar `gpu_runs.parquet`, publicando `speedup` sem a fração de dispositivo que o interpreta. Recomendação: publicar campo derivado `device_fraction`. **Executado no commit do pacote C5, lote L10**, junto de F8-5: `device_fraction` passou a ser derivada das três fases do cronômetro do dispositivo sobre o tempo oficial e a acompanhar o `speedup` na mesma linha da tabela. Continua sendo **recomendação, e não achado**, porque não passou por verificação adversarial independente. | verificador dedicado dos `D1` da GPU | `M3` | F8-2 |
 | B4 | A metodologia de mutação de `frente-3-report.md` não declara o diretório de trabalho com precisão suficiente para excluir, por si só, o padrão defeituoso de `PYTHONPATH`. Lacuna de reprodutibilidade do relatório, não dos resultados. | verificador da F2 | `L1` | seção 6.2 |
 | B5 | O padrão de comando de mutação documentado em `frente-6-report.md:292` não carrega o mutante. **Os dois verificadores divergem na classe**: o da F5 propõe `D3` de metodologia da auditoria, o da F2 propõe `L1`. A divergência não foi arbitrada. | verificadores da F5 e da F2 | `D3` ou `L1`, em disputa | seção 6.2 |
 | B6 | **A última iteração de qualquer execução do PSO nunca é contada**, mesmo em orçamento que divide exato por `n_particles`, porque `_stop_at_limit` verifica `remaining == 0` **depois** de uma avaliação bem sucedida e o caminho de exceção nunca alcança o incremento de `iterations_completed`. Medido: orçamento 100 com `n_particles=4` dá 23 iterações e não 24. **Fechado pelo pacote B21**, junto de A5 e pela mesma correção de contrato: a última tentativa de cada iteração carrega o incremento no ponto de fechamento que `context.evaluate` executa antes do teste de fronteira, e o cenário de orçamento 100 com `n_particles=4` passou a publicar 24. Os 42 cenários **não** exercitam este caminho, porque a Tarefa 14 calibrou os orçamentos para não serem múltiplos de `n_particles`, e por isso o caso de teste dirigido é o único oráculo do item. | verificador da F3 | reforça `D2` | A5 |

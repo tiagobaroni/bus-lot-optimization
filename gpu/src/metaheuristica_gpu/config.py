@@ -14,6 +14,23 @@ class GpuConfigError(RuntimeError):
     pass
 
 
+# F8-9. `GpuBatchObjective.evaluate` recusa lote fora de `1 <= B <= 40`, por
+# literal em `objective.py`, sem relação declarada com a configuração, e a
+# campanha usa exatamente `n_ants = 40` e `n_particles = 40`: folga zero, e
+# nenhuma conferência que ligasse os dois valores. O carregador passa a cruzá-los
+# contra o teto, para que um ciclo de tuning futuro que suba a população seja
+# recusado no carregamento e não a meio de execução.
+#
+# **O literal de `objective.py` continua duplicado aqui, de propósito.**
+# `gpu/src/metaheuristica_gpu/objective.py` não pertence à lista de arquivos
+# deste pacote, logo o teto não pode ser retirado de lá e importado daqui neste
+# commit. A duplicação fica presa por
+# `gpu/tests/test_config_scenarios.py::test_o_teto_do_carregador_e_o_teto_que_o_objetivo_aplica`,
+# que mede o teto real pelo comportamento do objetivo em lote: se um dos dois
+# lados mudar sozinho, o caso reprova em vez de a divergência ficar silenciosa.
+BATCH_CEILING = 40
+
+
 @dataclass(frozen=True, slots=True)
 class GpuCampaignConfig:
     schema_version: int
@@ -63,10 +80,22 @@ def load_gpu_config(path: str | Path, *, repository_root: Path | None = None) ->
     if output.is_absolute() or not (root / output).resolve().is_relative_to(root):
         raise GpuConfigError("output_root GPU deve permanecer no repositório")
     weights = ObjectiveWeights(**data["weights"])
+    aco = AcoConfig(**data["aco"])
+    pso = PsoConfig(**data["pso"])
+    # F8-9: os dois valores são a largura do lote que cada algoritmo submete ao
+    # dispositivo, logo qualquer um deles acima do teto faria a primeira
+    # avaliação levantar `GpuObjectiveError`. A recusa aqui é de configuração,
+    # antes de a placa ser tocada; sem ela, a sessão do cenário seria gravada
+    # como `interrupted`, porque `GpuObjectiveError` é subclasse de
+    # `RuntimeError`, e não como `failed`.
+    for name, population in (("n_ants", aco.n_ants), ("n_particles", pso.n_particles)):
+        if not 1 <= population <= BATCH_CEILING:
+            raise GpuConfigError(
+                f"{name} = {population} excede o teto de lote da GPU, de {BATCH_CEILING}"
+            )
     return GpuCampaignConfig(
         1, str(data["name"]), str(data["purpose"]), str(output),
         str(data["instance"]), int(data["instance_size"]), int(data["k"]),
         int(data["budget"]), seeds, algorithms, str(data["backend"]),
-        str(data["precision"]), weights, AcoConfig(**data["aco"]),
-        PsoConfig(**data["pso"]), source, root,
+        str(data["precision"]), weights, aco, pso, source, root,
     )
