@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import csv
+from dataclasses import MISSING, fields
+import os
 from pathlib import Path
+import sys
+import warnings
 
 import pytest
 
@@ -203,3 +207,63 @@ def test_reading_tolerates_the_new_columns_absent_from_an_inherited_row(
     summary = summarize_samples(rows, workers=16)
     assert summary["session_id"] == "legado"
     assert summary["schema_version"] == 2
+
+
+def test_root_pid_is_captured_by_the_process_that_instantiates(tmp_path: Path) -> None:
+    """Achado F7-9: `root_pid` saía da importação do módulo, não da instanciação.
+
+    O valor padrão de um campo de `dataclass` é avaliado uma única vez, quando a
+    classe é criada, isto é na primeira importação do módulo. Sob `spawn` o
+    defeito é **invisível**, porque o filho reexecuta o módulo do zero e a
+    expressão é reavaliada; medido, `spawn` e `forkserver` devolvem o PID do
+    próprio filho tanto antes quanto depois da correção. O eixo que discrimina é
+    `fork`, em que o filho herda o objeto de classe já construído, com o valor do
+    pai congelado dentro dele. Se o monitor fosse instanciado num worker da
+    campanha, `root_pid` seria o do processo principal, `descendants` viria vazio
+    e os critérios de thread e de otimizador ficariam verdadeiros de forma vazia,
+    com `passed` verdadeiro sem ter observado nada.
+    """
+
+    leitura, escrita = os.pipe()
+    with warnings.catch_warnings():
+        # O aviso de `fork` em processo com threads é pertinente em geral. Aqui o
+        # filho não toma trava alguma: ele lê o próprio PID, constrói o monitor,
+        # que só cria um `Event` e listas vazias, escreve no cano e sai por
+        # `os._exit`, sem `atexit` e sem descarga de buffers herdados.
+        warnings.simplefilter("ignore", DeprecationWarning)
+        filho = os.fork()
+    if filho == 0:  # pragma: no cover - executa apenas no processo filho
+        try:
+            os.close(leitura)
+            monitor = ResourceMonitor(tmp_path / "recursos.csv", workers=1)
+            herdado = int("experiments.resource_monitor" in sys.modules)
+            os.write(escrita, f"{os.getpid()} {monitor.root_pid} {herdado}".encode())
+            os.close(escrita)
+        finally:
+            os._exit(0)
+
+    os.close(escrita)
+    with os.fdopen(leitura, "rb") as cano:
+        bruto = cano.read()
+    _, estado = os.waitpid(filho, 0)
+
+    assert os.waitstatus_to_exitcode(estado) == 0
+    filho_pid, root_pid, herdado = (int(campo) for campo in bruto.split())
+    # As duas propriedades que tornam o caso discriminante, asseveradas aqui
+    # dentro: o filho é outro processo, e o módulo já estava importado nele, isto
+    # é ele não o reexecutou, logo a classe que ele usa é a que o pai construiu.
+    # Sem a segunda, o caso passaria por vácuo sob qualquer método de partida que
+    # reimporte o módulo.
+    assert filho_pid != os.getpid()
+    assert herdado == 1
+
+    assert root_pid == filho_pid
+
+
+def test_root_pid_is_declared_as_a_factory_and_not_as_a_frozen_default() -> None:
+    """A forma do campo, que é o que o achado F7-9 pede corrigido."""
+
+    field_by_name = {item.name: item for item in fields(ResourceMonitor)}
+    root_pid = field_by_name["root_pid"]
+    assert root_pid.default is MISSING
+    assert root_pid.default_factory is os.getpid

@@ -1355,8 +1355,39 @@ sozinha, e por isso não foram inflados pela confusão descrita na seção 6.
   cenários, em especial as 23 recusas de TOML estrito de `experiments/config.py`.
   Cobrir 177 sítios indiscriminadamente não é decisão que a auditoria recomende.
 - **Onda:** C, isolada, com escopo reduzido pela triagem.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado pela triagem, no commit do pacote C4, sobre
+  `experiments/config.py`, que é o alvo prescrito. **Reconciliação da contagem, e
+  ela corrige o registro:** o plano falava em 23 recusas neste arquivo; a leitura
+  da fonte hoje encontra **28** linhas `raise ConfigurationError`, e a suíte passou
+  a alcançar as **28**, medidas pelo último quadro do traceback de cada recusa. Das
+  28, três já tinham caso, `configuração inexistente`, `campos desconhecidos` e
+  `contém valores duplicados`, e uma delas estava **errada**, conforme o defeito não
+  previsto registrado abaixo. As 33 transformações de TOML vivem em `tmp_path`,
+  cada uma assevera que de fato alterou o texto de partida, e a mensagem é
+  comparada por **igualdade com a mensagem inteira**, e não por trecho, porque
+  recusa sem mensagem verificada não distingue uma recusa da outra. Duas asserções
+  fecham o conjunto: os sítios alcançados formam **identidade** com os sítios
+  derivados da leitura da própria fonte, e não desigualdade, de modo que sítio novo
+  de recusa que nasça sem caso derruba o teste; e as mensagens coletadas são
+  duas a duas distintas. **Evidência por mutação, em cópia isolada e com marcador
+  coletado na mesma execução:** removida a recusa de grade múltipla fora do tuning,
+  a suíte anterior ao pacote dá `14 passed`, isto é não observa nada, e a suíte do
+  pacote dá `2 failed`, no caso da recusa e na identidade do conjunto; trocado o
+  texto de `campos desconhecidos`, caem os `4` casos que passam por aquele sítio.
+  **Os 9 sítios de `benchmark_freeze.py` continuam cobertos pelo pacote B1 e não
+  são recontados aqui**, e os demais arquivos da concentração seguem fora do
+  escopo, por triagem. Classe prevista `M2`, classe observada `M2`.
+- **Defeito não previsto, encontrado ao escrever os casos e preso por caso.**
+  `test_unknown_root_field_is_rejected` acrescentava `unknown = 1` ao **fim** do
+  arquivo, e no TOML isso não põe a chave na raiz: ela cai dentro do último
+  cabeçalho, hoje `[algorithms.pso]`. O teste dizia recusar campo raiz desconhecido
+  e exercitava a recusa de campo desconhecido do PSO, com a asserção por trecho,
+  `match="desconhecidos"`, passando nos dois casos. Corrigido: a inserção agora é
+  feita logo depois de `schema_version`, e os dois sítios têm caso próprio com a
+  mensagem inteira asseverada, `config: campos desconhecidos: ['desconhecido']` e
+  `algorithms.tabu: campos desconhecidos: ['extra']`.
+- **Impressão digital:** idêntica no conjunto completo dos 42 cenários. Previsão de
+  diff zero confirmada; `experiments/` não é percorrido pelo oráculo.
 
 #### F2-13. O afrouxamento da tolerância de empate do tuning não é detectado
 
@@ -4533,8 +4564,29 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
 - **Divergência auditor / verificador:** nenhuma.
 - **Decisão:** corrigir, usando `field(default_factory=os.getpid)`.
 - **Onda:** C.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado com a correção prescrita e dois casos novos, no commit do
+  pacote C4. `experiments/resource_monitor.py:226` passou a declarar
+  `root_pid: int = field(default_factory=os.getpid)`. **Divergência entre a
+  estratégia de teste prescrita e a que discrimina, medida antes de escrever o
+  caso:** a estratégia mandava instanciar o monitor em processo diferente **por
+  `spawn`**, e sob `spawn` o defeito é **invisível**, porque o filho reexecuta o
+  módulo do zero e a expressão de valor padrão é reavaliada; medido, `spawn` e
+  `forkserver` devolvem o PID do próprio filho tanto antes quanto depois da
+  correção, e o caso passaria por vácuo. O eixo que discrimina é **`fork`**, em que
+  o filho herda o objeto de classe já construído com o valor do pai congelado
+  dentro dele, e é ele que este pacote usa. A observação não contradiz a
+  `Evidência` acima, que já descrevia a reavaliação sob `spawn`; o que ela corrige
+  é a `Estratégia de teste` que foi derivada dela. O caso assevera dentro de si as
+  duas propriedades que o tornam não vazio, que o filho é outro processo e que o
+  módulo **não** foi reexecutado nele. O segundo caso prende a forma do campo por
+  `dataclasses.fields`, exigindo `default` ausente e `default_factory` igual a
+  `os.getpid`. **Vermelho do Passo A, medido na árvore anterior à correção:**
+  `assert 218953 == 218958`, isto é `root_pid` igual ao PID do processo pai, e
+  `assert 218953 is <_MISSING_TYPE>`. Classe prevista `M3`, classe observada `M3`,
+  sem reclassificação: o caminho continua inalcançável no grafo de chamadas atual,
+  porque o único chamador roda no processo principal.
+- **Impressão digital:** idêntica no conjunto completo dos 42 cenários. Previsão de
+  diff zero confirmada; `experiments/` não é percorrido pelo oráculo.
 
 #### F7-10. A estimativa do roteiro ancora em duas medidas de uma única semente, e em 5 dos 9 pares a inclinação interpolada é decrescente em `K`
 
@@ -6626,7 +6678,9 @@ F1-08 e F2-08 com diff zero no conjunto completo dos 42 cenários, o pacote C2 f
 F5-4 e F5-7, também com diff zero, e o pacote C3 fechou F2-01, F2-02 e F2-03, de novo
 com diff zero e sem tocar `src/metaheuristica/`, porque é inteiramente de teste; o C3
 executou também o adendo da revisão do B6, estreitando a tolerância de
-`tests/test_core_integration.py` para igualdade exata. Restam sete dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
+`tests/test_core_integration.py` para igualdade exata. O pacote C4 fechou F2-12, pela
+triagem, e F7-9, também com diff zero, porque `experiments/` não é percorrido pelo
+oráculo. Restam cinco dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
 isolados, conforme 7.1, e a Onda C passa a dezessete. Os cinco de `gpu/` (F8-1, F8-4, F8-5, F8-9, F8-12) podem ser feitos em
 paralelo com os demais, porque `gpu/` não é protegido pelo congelamento da B11-E.
 

@@ -218,7 +218,12 @@ class ResourceMonitor:
     path: Path
     workers: int
     interval_seconds: float = 1.0
-    root_pid: int = os.getpid()
+    # O padrão precisa ser fábrica: expressão em valor padrão de `dataclass` é
+    # avaliada uma única vez, na criação da classe, isto é na primeira importação
+    # do módulo, e não a cada instanciação. Sob `fork` o filho herda a classe já
+    # construída, e o monitor instanciado nele passaria a observar a árvore do
+    # processo pai.
+    root_pid: int = field(default_factory=os.getpid)
     # A coluna de sessão é a fronteira que faltava: sem ela, o CSV recarregado é
     # uma série contínua fictícia, e o intervalo não monitorado entre sessões
     # entra nos critérios como se tivesse sido observado.

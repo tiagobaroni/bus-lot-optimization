@@ -9,18 +9,32 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 - **Atualizado em:** 31/08/2026
 - **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção. **Vinte e quatro dos 29 pacotes
-  fechados**: A1, B1 a B12 exceto o B13, B14 a B21, o C1, o C2 e o C3. Restam 5, que
-  são B13 e C4 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B,
+- **Fase do bloco ativo:** Fase 2, correção. **Vinte e cinco dos 29 pacotes
+  fechados**: A1, B1 a B12 exceto o B13, B14 a B21, e C1 a C4. Restam 4, que
+  são B13 e C5 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B,
   porque altera
   o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
   enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
   a redação anterior já esteve errada por um. **A Onda B está encerrada** e a **Onda C
-  está aberta**, e o que resta é o B13 diferido mais C4 a C7.
+  está aberta**, e o que resta é o B13 diferido mais C5 a C7.
 - **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
 - **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
   merge em `main` foi feito.
-- **Última decisão concluída:** o **commit 1 do lote L9**, de 31/08/2026, fechou o
+- **Última decisão concluída:** o **commit 2 do lote L9**, de 31/08/2026, fechou o
+  pacote **C4** e com ele o lote, com os achados F2-12, de escopo reduzido por
+  triagem, e F7-9. A leitura estrita do TOML de campanha tem **28** sítios de recusa,
+  e não os 23 que o registro anterior dizia; a suíte passou a alcançar os 28, com a
+  mensagem inteira asseverada em cada caso e com a **identidade** entre os sítios
+  alcançados e os sítios derivados da leitura da fonte, de modo que recusa nova sem
+  caso derruba o teste. Ao escrever os casos apareceu um defeito não previsto e ele
+  ficou preso por caso: o teste que dizia recusar campo raiz desconhecido
+  acrescentava a chave ao fim do arquivo, onde o TOML a põe dentro do último
+  cabeçalho, e exercitava a recusa do PSO. O `root_pid` do monitor virou
+  `field(default_factory=os.getpid)`; a estratégia prescrita mandava provar por
+  `spawn`, e sob `spawn` o defeito é invisível, porque o filho reexecuta o módulo,
+  logo o caso foi escrito sobre `fork`, que é o eixo que discrimina. Impressão
+  digital **idêntica** no conjunto completo dos 42 cenários e a linha de base não foi
+  tocada. Antes dele, o **commit 1 do lote L9**, de 31/08/2026, fechou o
   pacote **C3**, com os achados F2-01, F2-02 e F2-03. O commit é inteiramente de
   teste: nada de `src/metaheuristica/` foi tocado, e por isso ele não acrescenta
   divergência ao manifesto. As sondas que saíam da própria constante sob verificação
@@ -144,10 +158,8 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** executar o **commit 2 do lote L9**, que fecha o pacote
-  **C4**, com os achados F2-12, de escopo reduzido por triagem, e F7-9. Depois do L9
-  vem o L10, que fecha a Onda C, e em seguida o B13 diferido, imediatamente antes da
-  Tarefa 19B.
+- **Próxima ação atômica:** despachar o lote **L10**, que fecha a Onda C com os
+  pacotes **C5 a C7**, e em seguida o B13 diferido, imediatamente antes da Tarefa 19B.
 - **Decisão resolvida em 30/08/2026, e ela precedia a regeneração da campanha:** fechar
   o F8-10 pôs as validações do caminho normativo dentro da região cronometrada da
   réplica, que não as pagava, enquanto o núcleo as paga desde o B6. Medido em
@@ -173,16 +185,21 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   também não acrescentou: volta a `src/metaheuristica/objective.py`, que já divergia, e
   a `tests/test_aco.py`, que não é arquivo protegido. **O pacote C3 também não
   acrescentou**, e por razão mais forte: ele é inteiramente de teste e de registro,
-  logo não toca arquivo algum do escopo protegido.
+  logo não toca arquivo algum do escopo protegido. **O pacote C4 tampouco
+  acrescentou, contra a previsão do plano**, que esperava a subida para 28: a
+  previsão supunha alteração em `experiments/config.py`, que é protegido e não
+  divergia, mas o achado F2-12 é de cobertura e o arquivo **não precisou ser
+  tocado**; o único arquivo protegido do pacote é `experiments/resource_monitor.py`,
+  que já constava dos 27. O número segue em **27** dos 53.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
-- **Última verificação:** no fim do commit 1 do lote L9, isto é no commit do pacote C3,
+- **Última verificação:** no fim do commit 2 do lote L9, isto é no commit do pacote C4,
   impressão digital idêntica no **conjunto completo dos 42 cenários**, sem restrição a
-  subconjunto, suíte de CPU com **466** aprovados, seis a mais que os 460 da partida
-  pelos casos novos do C3, e suíte da réplica com 71 aprovados sobre dispositivo real,
+  subconjunto, suíte de CPU com **500** aprovados, contra 466 no fim do commit do C3 e
+  460 na partida do lote, e suíte da réplica com 71 aprovados sobre dispositivo real,
   nas duas invocações, da raiz e de dentro do próprio subprojeto. **A linha de base
-  continua a que o pacote B21 regravou**, com `content_sha256` `a59235e4...`, e nem o
-  C1, nem o C2, nem o C3 a tocaram: a identidade acima é medida contra ela.
+  continua a que o pacote B21 regravou**, com `content_sha256` `a59235e4...`, e nenhum
+  dos pacotes C1 a C4 a tocou: a identidade acima é medida contra ela.
 - **Limite conhecido da suíte:** um clone limpo **não** roda a suíte integral. Duas
   reprovações em `tests/test_benchmark_freeze.py`, porque `results/raw/` é ignorado
   e os dezoito documentos do piloto não estão no Git. A decisão sobre versioná-los
