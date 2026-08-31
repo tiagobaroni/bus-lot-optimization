@@ -62,9 +62,13 @@ O trabalho exige, entre outros itens:
 
 ## Estado atual
 
+**Em 31/08/2026 a auditoria técnica pré-execução foi concluída**, com 29 pacotes de
+correção fechados, e o tuning e o piloto foram refeitos sobre o código corrigido. O
+congelamento experimental foi renovado e a execução do benchmark principal está
+liberada, com 1.620 cenários distribuídos em 270 subgrupos e 5 lotes.
+
 O projeto concluiu a preparação dos dados, o núcleo comum do problema, o
-contrato comum dos otimizadores, a Busca Tabu, o ACO, o PSO e o tuning oficial.
-As
+contrato comum dos otimizadores, a Busca Tabu, o ACO, o PSO e o tuning oficial. As
 instâncias, o carregamento, a canonicalização, a função objetivo, o orçamento de
 avaliações, o cache opcional, o reparo de lotes vazios e o baseline guloso
 determinístico estão implementados e testados. Também estão implementados a

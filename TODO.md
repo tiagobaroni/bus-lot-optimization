@@ -8,313 +8,45 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 31/08/2026
-- **Bloco ativo:** B11B - Auditoria técnica pré-execução
-- **Fase do bloco ativo:** Fase 2, correção, **encerrada em 31/08/2026**. **Vinte e
-  nove dos 29 pacotes fechados**: A1, B1 a B21 e C1 a C7. Não resta pacote algum. A
-  contagem é conferida por enumeração contra o universo A1 mais B1 a B21 mais C1 a
-  C7, e não por soma, porque a redação anterior já esteve errada por um. **As Ondas B
-  e C estão encerradas**, e o **B13**, que estava diferido para imediatamente antes
-  da Tarefa 19B porque altera o `scenario_id` que nomeia os artefatos de campanha,
-  foi executado nessa posição e **fechou a Fase 2**. O que vem a seguir é o
-  **refazimento**, isto é as 440 execuções de tuning, a propagação dos parâmetros e as
-  18 do piloto, e **só então** a Tarefa 20, com a revalidação, o roteiro, a renovação do
-  manifesto e o pacote R1. A ordem é obrigatória e não é preferência: a geração do
-  manifesto exige **simultaneamente** worktree limpa, `campaign_commit` igual ao `HEAD` e
-  proveniência dos dezoito artefatos do piloto uniforme e igual a esse mesmo commit, de
-  modo que renovar antes de reexecutar seria circular.
-- **Último bloco concluído:** B11A-I - Infraestrutura do experimento adicional com GPU
-- **Branch de trabalho:** `auditoria-b11b`, criada a partir de `ca5b81f`. Nenhum
-  merge em `main` foi feito.
-- **Última decisão concluída:** o **commit do pacote B13**, de 31/08/2026, que é o
-  **29º e último pacote da Fase 2** e a fecha. Ele fechou os achados **F6-08** e
-  **F2-15**, as duas metades do mesmo buraco. O `payload` do `scenario_id` passou a
-  cobrir o SHA-256 dos dois Parquet que carregam demanda, produção e métricas de par,
-  e o conjunto de definições ARTESP é derivado de `SUPPORTED_ARTESP_SIZES`, importado
-  do carregador, para que não exista uma segunda lista de tamanhos a divergir. Os
-  arquivos de instância versionados ganharam fixação por SHA-256 literal em teste de
-  núcleo, e o `expected_optimum` do `tiny_manual.json` **versionado** passou a ser
-  confrontado com enumeração exaustiva sobre `N=4` e `K=2`, que devolve ótimo único.
-  **Consequência prevista, documentada e aceita:** a suíte de CPU fica com **duas
-  reprovações**, `test_revalidation_rejects_altered_objective_function` e
-  `test_revalidation_rejects_verdict_with_foreign_commit`, ambas em
-  `tests/test_benchmark_freeze.py` e ambas por `ConfigurationError: resultado
-  ausente`. **Não são regressão:** o `scenario_id` nomeia todo arquivo sob
-  `results/raw/` e os dezoito documentos do piloto ficaram obsoletos, de modo que as
-  duas são guardas funcionando. Não foram puladas nem marcadas como esperadas, porque
-  pular desligaria as guardas que protegem a assinatura do manifesto na Tarefa 20; as
-  duas cessam com o refazimento do piloto, na Tarefa 19B. Contagens medidas no
-  commit: CPU **505 aprovados e 2 reprovados**, réplica **98** nas duas invocações.
-  Impressão digital **idêntica** no conjunto completo dos 42 cenários, e a linha de
-  base não foi tocada. Uma lacuna fica **registrada e não corrigida** em
-  `docs/auditoria.md`: a terceira camada de contenção não existe no encerramento,
-  porque `consolidate_campaign` revalida o documento e não reavalia o objetivo.
-  Antes dele, o **commit 3 do lote L10**, de 31/08/2026, fechou o
-  pacote **C7**, com o achado F8-12 no escopo restante, e com ele **a Onda C**. A
-  avaliação provisória da réplica passou a delegar ao caminho normativo, e o enxame da
-  réplica passou a importar do núcleo o estado da partícula, a comparação de melhores,
-  a tentativa, a canonicalização do candidato e a partícula inicial, pelo mesmo
-  mecanismo que os pacotes B5 e B20 usaram. **A restrição dura de não alterar a ordem
-  das operações de somatório foi respeitada e medida:** o oráculo de identidade bit a
-  bit foi reexecutado sobre a réplica antes e depois, em três configurações do enxame e
-  em 50 avaliações provisórias, comparando solução, os cem checkpoints campo a campo
-  por `float.hex()` e os diagnósticos, com identidade total; e a identidade da
-  avaliação provisória contra o núcleo fora medida antes da mudança, em 840
-  comparações, com zero divergências. **O laço em lote do enxame continua duplicado, de
-  propósito e com o motivo escrito no módulo:** o núcleo avalia um candidato por vez e
-  a réplica submete em lote, logo importá-lo exigiria reescrevê-lo em torno do lote,
-  que é o que a restrição proíbe; metade duplicada com motivo escrito é o resultado
-  aceitável do pacote. **Uma consequência operacional foi apanhada antes de causar
-  dano:** o caminho normativo recusa por `SolutionValidationError`, que não é
-  `RuntimeError`, e a réplica recusava por `GpuObjectiveError`, que é; delegar sem
-  reembalar trocaria em silêncio o código de saída da CLI e o rótulo da sessão de
-  `interrupted` para `failed`, e a função não tinha cobertura alguma que apanhasse a
-  troca. A nota do plano que dizia ficar em aberto a posição de C7 como último pacote
-  da Onda C **perdeu objeto** e está registrada como resolvida: a reavaliação era sobre
-  ordem, e os três pacotes foram executados no mesmo lote, já ordenados pelas
-  dependências declaradas. Impressão digital **idêntica** no conjunto completo dos 42
-  cenários, rodado por exceção declarada no plano porque a unificação importa do pacote
-  normativo, e a linha de base não foi tocada. Antes dele, o **commit 2 do lote L10**,
-  de 31/08/2026, fechou o pacote **C6**, com o achado F8-4, e é inteiramente de teste. Cada um dos dois
-  arquivos de equivalência da réplica ganhou três casos, e os que já existiam
-  permanecem, porque o modo exato também é válido. O caso principal roda a trajetória
-  completa em **modo oficial**, que é o caminho que os 60 cenários executam, sobre
-  instância real e não sobre a `tiny_manual`, cujo custo é exatamente zero em 98 ou 99
-  dos 100 checkpoints, e compara pela régua normativa de `1e-12` e não por igualdade
-  exata. **A vacuidade alegada foi medida, e sem injeção alguma:** com tudo fixo e só
-  o modo mudando, a igualdade de checkpoints contra a CPU é exata sob verificação e
-  falha em modo oficial, o que só é possível porque no primeiro modo os resultados da
-  placa são substituídos pelos normativos. **A validação negativa prescrita precisou
-  ser corrigida, e isso precisa de leitura:** injetada em todos os lotes, a
-  divergência de `1e-11` é apanhada antes, pela guarda que já existia sobre o
-  incumbente, e o caso provaria apenas que uma guarda anterior tem dentes; confinada
-  ao primeiro lote, ela não alcança o incumbente, a execução completa sem nenhuma
-  guarda de produção vê-la, e só a comparação de trajetória a apanha. Impressão
-  digital **idêntica** no conjunto completo dos 42 cenários e a linha de base não foi
-  tocada. Antes dele, o **commit 1 do lote L10**, de 31/08/2026, fechou o
-  pacote **C5**, com os achados F8-1, nas duas componentes, F8-5 e F8-9, todos em
-  `gpu/`, que não é protegido pelo congelamento da B11-E. O código morto de desempate
-  e de sincronização saiu: `arbitrate_best`, `synchronized_call` e o campo
-  `synchronization_seconds` não tinham chamador nem atribuição em lugar algum, e
-  manter uma segunda regra de desempate com chave diferente da normativa era convite
-  ao erro que o próprio achado cometeu. O portão de conformidade passou a **afirmar** a
-  equivalência de trajetória, e não só a registrá-la, sobre par CPU e GPU em **modo
-  oficial** e instância real, com a régua normativa de `1e-12` e não igualdade exata.
-  **A prescrição foi corrigida, e isso precisa de leitura:** o plano não dizia em que
-  modo a asserção nova rodava, e as duas execuções pareadas que já existiam ali rodam
-  com `verify_every_batch=True`, modo em que os resultados da GPU são substituídos
-  pelos normativos; escrita dentro daquele par, a asserção compararia CPU com CPU, que
-  é exatamente o vício que o pacote C6 existe para eliminar. Medido no par novo, os
-  cem checkpoints diferem bit a bit dos da CPU já no primeiro, com `max |delta|` de
-  `2,220e-16`, isto é 1/4503 da tolerância normativa, com solução final idêntica. O
-  campo `max_numerical_difference` passou a ter a condição declarada no documento de
-  cada cenário, e a fração de dispositivo passou a acompanhar o `speedup` na tabela
-  consolidada, o que executa junto o item B3 do Apêndice B. `n_ants` e `n_particles`
-  passaram a ser cruzados contra o teto de lote no carregamento; o literal de
-  `objective.py` continua duplicado de propósito, porque aquele arquivo está fora da
-  lista do pacote, e a duplicação ficou presa por caso que mede o teto pelo
-  comportamento do objetivo. Impressão digital **idêntica** no conjunto completo dos
-  42 cenários e a linha de base não foi tocada. Antes dele, o **commit 2 do lote
-  L9**, de 31/08/2026, fechou o
-  pacote **C4** e com ele o lote, com os achados F2-12, de escopo reduzido por
-  triagem, e F7-9. A leitura estrita do TOML de campanha tem **28** sítios de recusa,
-  e não os 23 que o registro anterior dizia; a suíte passou a alcançar os 28, com a
-  mensagem inteira asseverada em cada caso e com a **identidade** entre os sítios
-  alcançados e os sítios derivados da leitura da fonte, de modo que recusa nova sem
-  caso derruba o teste. Ao escrever os casos apareceu um defeito não previsto e ele
-  ficou preso por caso: o teste que dizia recusar campo raiz desconhecido
-  acrescentava a chave ao fim do arquivo, onde o TOML a põe dentro do último
-  cabeçalho, e exercitava a recusa do PSO. O `root_pid` do monitor virou
-  `field(default_factory=os.getpid)`; a estratégia prescrita mandava provar por
-  `spawn`, e sob `spawn` o defeito é invisível, porque o filho reexecuta o módulo,
-  logo o caso foi escrito sobre `fork`, que é o eixo que discrimina. Impressão
-  digital **idêntica** no conjunto completo dos 42 cenários e a linha de base não foi
-  tocada. Antes dele, o **commit 1 do lote L9**, de 31/08/2026, fechou o
-  pacote **C3**, com os achados F2-01, F2-02 e F2-03. O commit é inteiramente de
-  teste: nada de `src/metaheuristica/` foi tocado, e por isso ele não acrescenta
-  divergência ao manifesto. As sondas que saíam da própria constante sob verificação
-  viraram literais independentes, `5e-13` dentro da faixa contra `2e-12` e `5e-7`
-  fora, o que prende a tolerância do guloso entre `5e-13` e `2e-12`; as três
-  asserções de `tests/test_cross_validation.py` que usavam `COST_TOLERANCE` como
-  folga passaram a exigir igualdade exata, na forma que os pacotes B7 e B8 já haviam
-  adotado no núcleo; e entraram os testes negativos de afrouxamento que faltavam,
-  com folga de `5e-7`, isto é fora de `1e-12` e dentro de `1e-6`. O adendo da revisão
-  do B6 foi executado junto: a tolerância de `tests/test_core_integration.py`, que
-  tinha quatro a cinco ordens de folga sobre as dezoito combinações oficiais, foi
-  **estreitada para igualdade exata** depois de medida. **A prova por mutação é o
-  oráculo do pacote e foi feita em cópia isolada, com marcador coletado na mesma
-  execução:** as três mutações, tolerância do guloso em `1e-6`, tolerância do núcleo
-  em `1e-6` e corpo de `_verify_diagnostics` reduzido a `return None`, sobreviviam à
-  suíte anterior, salvo duas falhas por acidente na segunda, e passaram a ser mortas
-  por casos nomeados. Impressão digital **idêntica** no conjunto completo dos 42
-  cenários e a linha de base não foi tocada. Antes dele, o **commit decorrente do
-  pacote C1**, de 31/08/2026,
-  fechou o item **B1 do Apêndice B**, que estava sem pacote alocado, e **não altera a
-  contagem dos 29**, pelo mesmo tratamento que os lotes L6 e L7 deram aos seus commits
-  decorrentes. As duas `assert` de contiguidade de `src/metaheuristica/objective.py`
-  viraram recusa explícita por `raise MemoryLayoutError`, subclasse de
-  `MetaheuristicaError` definida no próprio módulo, porque `src/metaheuristica/errors.py`
-  está fora da lista do commit e é o único candidato protegido ainda não divergente. O
-  ponto do commit é que em modo normal `assert` e `raise` falham igual, de modo que a
-  troca só é observável sob `python -O`; os dois casos novos rodam a verificação num
-  subprocesso otimizado e trazem a metade anti-vácuo dentro do próprio caso. Impressão
-  digital **idêntica** no conjunto completo dos 42 cenários, e a linha de base não foi
-  tocada. Antes dele, o commit 2 do lote **L8** fechou o pacote **C2** e com
-  ele o lote, com os achados F5-4 e F5-7 em `src/metaheuristica/tabu.py`. O escopo foi
-  decidido pelo usuário pela **leitura restrita**: o laço deixa de pagar duas validações
-  por candidato, usando `validated_solution_key`, publicada pelo lote L7, sobre o vetor
-  que a enumeração de movimentos já validou, e a canonicalização por candidato
-  permanece, porque removê-la exigiria editar `optimizer.py` ou `evaluator.py`, fora da
-  lista do pacote. Medido por instrumentação, **242 validações caem para 53** no cenário
-  fixado, uma por iteração. O F5-7 exigiu mais que a sentinela explícita prescrita: a
-  sentinela sozinha devolve a mesma função, porque a ponta que faltava é a de baixo, e a
-  janela só fica igual à do achado, `{7,8,9,10}`, guardando também o contador do
-  registro; o invariante do contador, antes apoio não escrito da leitura, passou a ser
-  asseverado, com o piso do segmento no último expurgo e o reinício abrindo segmento
-  novo. **A previsão de diff do plano não se confirmou, e isso é o resultado mais
-  importante do pacote:** o plano previa diff não zero garantido nos 11 cenários
-  `tabu:*` e mandava regravar a linha de base, mas a previsão foi escrita contra
-  `ca5b81f` e o pacote B6 mudou o caminho, tornando a chave do laço e a do avaliador a
-  mesma função sobre o mesmo vetor. O diff medido foi **zero** no subconjunto `tabu:*` e
-  no conjunto completo dos 42, e **a linha de base não foi regravada**. O commit 1 do
-  mesmo lote fechou o pacote **C1**, que
-  abre a Onda C, com os achados F1-08 e F2-08 em `src/metaheuristica/objective.py`. As
-  duas funções mortas, `_balance_component` e `_cut_component`, foram removidas depois
-  de a busca por chamadores em todo o repositório, inclusive na réplica em placa
-  gráfica, devolver apenas as duas linhas de definição. A razão de remover em vez de
-  documentar é que `_cut_component` **aparenta** ser o cálculo do componente
-  territorial, mas o cálculo vivo está embutido em `_evaluate_arrays`, e o risco
-  concreto é uma correção futura ser aplicada na função morta com a suíte continuando
-  verde. O caso de teste novo prende a manutenção dos `K` lotes nos vetores de totais
-  com lote vazio de rótulo alto, comportamento que já estava implementado e que nenhum
-  teste fixava; a prova por mutação sobre cópia mostra que, sem o comprimento mínimo
-  nas duas chamadas de contagem, o custo provisório da solução com um lote inteiro
-  vazio cai a zero, isto é ao ótimo documentado da instância. Impressão digital
-  **idêntica** no conjunto completo dos 42 cenários, conforme previsto, e a linha de
-  base não foi tocada. O lote L7 fechou o
-  pacote **B21**, último da Onda B, com
-  os achados F1-04, A5 e F5-3 tratados como um único problema de contrato em
-  `optimizer.py`, conforme a conexão 9 do registro. Os dois métodos de avaliação
-  passaram a aceitar um ponto de fechamento executado depois da avaliação e antes do
-  teste de fronteira do orçamento, e com ele a mensagem passou a trazer o orçamento no
-  denominador, as saturações do enxame deixaram de incluir as tentativas que nunca foram
-  avaliadas, a última iteração do enxame passou a ser contada, e o reinício da Busca
-  Tabu que consome a última avaliação deixou de sumir do registro. A lista do pacote foi
-  alargada por decisão do usuário para incluir a réplica em placa gráfica, pelo
-  precedente do pacote B9, e o realinhamento entrou no mesmo commit. A conferência da
-  impressão digital mediu 22 diferenças, todas em `position_clips` e `velocity_clips` dos
-  onze cenários do enxame, com zero nos demais algoritmos e zero em todo campo proibido;
-  a contenção foi enumerada e provada antes de a linha de base ser regravada. O A5
-  reclassificou para `D1` e o F5-3 permaneceu `D2`, e as duas leituras estavam previstas.
-  O commit decorrente do mesmo lote fechou o **F1-06 na réplica em placa gráfica**,
-  desfazendo a validação excedente que o lote anterior introduziu ao seguir a forma
-  literal prescrita: o núcleo passou a publicar a chave canônica a partir de rótulos já
-  validados, e a réplica passou a usá-la no lugar da que revalidava o mesmo vetor.
-  Medido em três pontos na mesma sessão, o commit removeu **39%** da subida atribuível à
-  chave canônica, e não cerca de metade, e a subida do tempo oficial do PSO da réplica
-  cai de 22% para cerca de 15%. Diff zero na impressão digital, contra a linha de base
-  nova. O lote L6 fechou
-  por inteiro, em duas partes. A parte 2
-  fechou o pacote **B20**, com os achados F8-10 e F8-14, alinhando as réplicas em placa
-  gráfica ao caminho normativo: as cópias locais da normalização de probabilidades e da
-  atualização de feromônio passaram a delegar ao núcleo, a formiga publicada passou a
-  ser conferidamente canônica, e o custo de preparação do dispositivo ganhou campo
-  próprio sem mover o cronômetro oficial. O commit decorrente publicou a chave de
-  viabilidade e removeu dela a validação repetida. Commits em `27d466e` e `519682d`,
-  revisão independente com um achado de registro, corrigido em seguida. **Nenhuma das
-  sete observações sem destino alocado sobrevive.** A parte 1 fechou o pacote B19, com
-  os achados F8-6, F8-7, F8-8 e F8-11. O monitor térmico da réplica em placa gráfica
-  saiu do processo que executa o laço cronometrado e passou a viver em processo
-  próprio, o preflight e o resfriamento passaram a ler um limiar único, a telemetria
-  deixou de se perder quando a primeira amostra reprova, e o valor desconhecido de
-  throttling virou categoria própria em vez de ser lido como evento térmico. Duas
-  armadilhas que a própria mudança criava foram fechadas junto, e nenhuma das duas
-  estava prevista: a contagem de processos concorrentes teria acusado o processo
-  medido em todos os cenários, e um evento entre processos como canal de parada
-  travaria o laço cronometrado se o monitor morresse segurando o semáforo. Commits em
-  `7d1fd68` e `72ce39e`. A revisão independente sondou os casos novos por mutação
-  sobre cópia e achou um sobrevivente, a segunda armadilha, cuja correção estava
-  provada só por leitura; acabamento em `78b5571` e `c3488b3`. A suíte da réplica
-  passou de 27 para 53 casos e ficou verde também quando invocada de dentro do
-  próprio subprojeto. O lote L5, anterior, com o pacote B11, fechou os achados F4-3
-  e F4-4. A evaporação do feromônio ganhou piso no menor subnormal positivo, o que
-  impede o aborto da execução com taxas de evaporação altas, e o mínimo publicado
-  passou a ser tomado sobre as células que a construção pode alcançar. A medição
-  confirmou a degenerescência: antes da correção o campo valia o mesmo número em dez
-  dos onze cenários, porque media apenas evaporação. Commit em `84d6d46`, revisão
-  independente sem bloqueantes, acabamento em `cc6971e`. O lote anterior, L4, fechou os
-  achados A3, A4 e A6. A avaliação de reparo integralmente viável passou a competir
-  pelo incumbente, a partícula reparada deixou de pagar uma segunda unidade de
-  orçamento pela mesma solução, e o recuo silencioso da projeção do enxame virou
-  falha explícita. Commits em `25403ba` e `3ddb539`, revisão independente sem
-  bloqueantes, acabamento em `f9a7841` e `aa29b21`. É o primeiro lote com diff não
-  zero na conferência: o efeito ficou contido em quatro dos onze cenários do enxame,
-  com zero diferenças nos demais algoritmos, e a linha de base foi regravada só
-  depois de provada a contenção. O escopo do pacote B9 foi alargado por decisão do
-  usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
-  cópia própria dos mesmos dois defeitos.
-- **Próxima ação atômica:** a **Tarefa 20**, com a renovação do manifesto de
-  congelamento e o pacote R1. **O refazimento do tuning e do piloto, que é a Tarefa 19B,
-  já foi executado**, nos commits `d752b6c` e `8d0322c`, e as seções 8 e 9 de
-  `docs/auditoria.md` registram o resultado; a menção anterior a ele como ação futura
-  estava atrasada. **A decisão que bloqueava a renovação foi tomada e implementada pelo
-  pacote R3**, registrado na seção 12 de `docs/auditoria.md`: o R2 destravou a geração
-  quanto aos commits que só acrescentam artefatos derivados, e o R3 desfez o segundo
-  impasse, o do roteiro, tornando o fechamento uma transação única. **O que fica pendente
-  é a execução dessa transação**, que é do usuário: reexecutar o piloto sobre um commit
-  que já contenha o R3, cerca de 55 minutos, regerar o roteiro, gerar o manifesto e
-  commitar os três juntos. Até que ela ocorra, a geração contra a árvore real continua
-  recusando por caminho protegido, porque o piloto vigente é anterior ao commit do R3, e
-  isso é o comportamento esperado.
-- **Decisão resolvida em 30/08/2026, e ela precedia a regeneração da campanha:** fechar
-  o F8-10 pôs as validações do caminho normativo dentro da região cronometrada da
-  réplica, que não as pagava, enquanto o núcleo as paga desde o B6. Medido em
-  `artesp_rmsp_150` com K igual a cinco, o tempo oficial subiu **3,8% no ACO** e **22% no
-  PSO**. O commit decorrente do lote L7 removeu a validação excedente, e a repartição foi
-  medida em três pontos na mesma sessão: dos 6,28 s atribuíveis à chave canônica no PSO,
-  **2,45 s saíram** e **3,83 s ficam**, porque são o trabalho que o núcleo também paga.
-  Removidos **39%** e não cerca de metade, que era a expectativa registrada. A subida do
-  PSO cai de 22% para cerca de 15%. Os números `1,006`, `1,0072` e `16,3%` continuam sem
-  ser reutilizáveis e precisam ser rederivados da campanha regenerada, e agora **nada
-  precede essa regeneração** além do restante da auditoria.
-- **Bloqueios conhecidos:** B11-E e B11A-E aguardam a conclusão da B11B. O
-  manifesto de congelamento está divergente de propósito, em **30** dos 52 arquivos do
-  escopo protegido, e não deve ser renovado antes do fechamento da auditoria. **O número
-  estava atrasado**: dizia dez, e a contagem foi remedida por leitura no fim do lote L7,
-  sem regenerar o manifesto. Deste lote vem **uma** divergência nova, a de
-  `src/metaheuristica/optimizer.py`; as outras quatro que o lote tocou já divergiam. Até o
-  pacote R2 o `verify` recusava antes de chegar à comparação de conteúdo, no teste de
-  escopo, porque `experiments/audit_fingerprint.py` existia e não constava do
-  manifesto; o R2 tirou do escopo protegido a ferramenta de conferência da auditoria,
-  a divergência de escopo cessou e a recusa passou a ser de conteúdo. A renovação
-  continua sendo da Tarefa 20. **Nem o pacote C1 nem o
-  pacote C2 acrescentaram divergência nova**, porque `src/metaheuristica/objective.py` e
-  `src/metaheuristica/tabu.py` já constavam dos 27. O commit decorrente do pacote C1
-  também não acrescentou: volta a `src/metaheuristica/objective.py`, que já divergia, e
-  a `tests/test_aco.py`, que não é arquivo protegido. **O pacote C3 também não
-  acrescentou**, e por razão mais forte: ele é inteiramente de teste e de registro,
-  logo não toca arquivo algum do escopo protegido. **O pacote C4 tampouco
-  acrescentou, contra a previsão do plano**, que esperava a subida para 28: a
-  previsão supunha alteração em `experiments/config.py`, que é protegido e não
-  divergia, mas o achado F2-12 é de cobertura e o arquivo **não precisou ser
-  tocado**; o único arquivo protegido do pacote é `experiments/resource_monitor.py`,
-  que já constava dos 27. **Nenhum dos pacotes C5, C6 e C7 acrescentou**, porque vivem
-  inteiramente em `gpu/`, que não pertence ao escopo protegido do congelamento da
-  CPU. O número seguiu em **27** dos 53 até o fim da Onda C. Consequência colateral registrada: dois dos
-  três pacotes do lote L10, o C5 e o C7, alteram `gpu/src/`, logo o `gpu_code_sha256` do
-  **manifesto de prontidão da GPU** fica defasado e `verify_manifest` recusará até que ele seja
-  regenerado, o que pertence à Tarefa 20 e **não** foi feito aqui. Esse manifesto é
-  outro artefato, e não o de congelamento da CPU. **O pacote B13 acrescentou a 28ª
-  divergência**, e era esperado: `experiments/scenarios.py` é protegido, não divergia
-  e passou a divergir. O número foi remedido por leitura, comparando o `sha256` de
-  cada arquivo do manifesto contra o da árvore, e não por soma: eram **27 divergências
-  de conteúdo mais uma de escopo**, a de `experiments/audit_fingerprint.py`, que
-  existia e não constava do manifesto. **Remedido de novo no pacote R2**, pelo mesmo
-  método: são **30 divergências de conteúdo e nenhuma de escopo**, sobre 52 arquivos. A
-  subida de 27 para 30 **não vem do R2**, e sim do refazimento do tuning, que propagou o
-  parâmetro novo para `experiments/configs/benchmark.toml`,
-  `experiments/configs/frozen_parameters.toml` e `experiments/configs/pilot.toml`; o
-  único arquivo protegido que o R2 altera é `experiments/benchmark_freeze.py`, que já
-  divergia. **O manifesto não foi regenerado.**
+- **Bloco ativo:** nenhum. **A B11B está encerrada.**
+- **Fase do bloco encerrado:** Fase 2 completa, **29 de 29 pacotes**, mais três pacotes
+  de fechamento decididos durante a Tarefa 20. A contagem é conferida por enumeração
+  contra o universo A1 mais B1 a B21 mais C1 a C7.
+- **Último bloco concluído:** B11B - Auditoria técnica pré-execução
+- **Branch de trabalho:** nenhuma. O trabalho foi mesclado em `main`, que está publicada,
+  e a branch da auditoria foi apagada local e remotamente.
+- **Última decisão concluída:** a Tarefa 20 fechou o congelamento. O tuning e o piloto
+  foram refeitos sobre o código corrigido, o retuning mudou o peso social do enxame de
+  `1,5` para `2,0` e a mudança foi propagada às campanhas oficiais, o roteiro foi regerado
+  e o manifesto renovado. Três pacotes de fechamento foram necessários e não estavam
+  previstos: a guarda condicional entre o commit do piloto e o commit corrente, a saída da
+  ferramenta de conferência do escopo congelado, e a tolerância de sujeira restrita aos
+  artefatos que o próprio manifesto assina.
+- **Próxima ação atômica:** executar a **B11-E**, o benchmark principal, com 1.620
+  cenários em 270 subgrupos e 5 lotes. `run_benchmark readiness` devolve `ready: true`.
+  Depois dela, a **B11A-E**, a campanha da réplica em placa gráfica, **que exige fechar
+  antes o processo gráfico que ocupa a placa nesta máquina**, senão o preflight recusa.
+- **Bloqueios conhecidos:** **nenhum para a B11-E.** O manifesto de congelamento foi
+  **renovado** na Tarefa 20, sobre o piloto refeito, e `run_benchmark readiness` devolve
+  `ready: true`. O histórico da divergência, que chegou a 30 dos 52 arquivos durante as
+  ondas e era o mecanismo do pacote B1 funcionando, está registrado em `docs/auditoria.md`
+  e **deixou de existir com a renovação**.
+  **A B11A-E tem um bloqueio operacional, e ele não é de código:** há um processo gráfico
+  de navegador ocupando a placa nesta máquina, o que faz `preflight_idle` recusar. Precisa
+  estar fechado antes de iniciar a campanha da réplica.
+- **Pendências de registro que não bloqueiam nada, e ficam para quem retomar:**
+  tornar **incondicional** a exigência de `inherited_thread_limits` na validação do piloto,
+  hoje possível porque **os dezoito documentos passaram a ter o campo**, conferido, mas que
+  exige tocar `experiments/pilot_validation.py`, **arquivo protegido**, e portanto refazer a
+  transação de fechamento inteira; decidir se a dependência de `results/raw/` e o defeito de
+  diretório de trabalho da suíte da réplica viram **achados novos** no registro; a asserção
+  `diferenca < 1e-15` em `gpu/tests/test_numerics.py`, mais estrita que a régua normativa;
+  três dos quatro sítios de `COST_TOLERANCE` no ACO sem caso de afrouxamento;
+  `gpu/configs/gpu_diagnostic.toml` sem cobertura de carregamento; e dois símbolos
+  declarados em vez de removidos, `arbitration_cpu_seconds` e `MemoryLayoutError`.
+  **O limiar de `max_active_optimizer_threads` está resolvido:** a sessão real que o plano
+  exigia medir antes de decidir já existe, e o valor medido é **1**, dentro do que a
+  validação exige.
 - **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
   e o piloto oficiais serão refeitos antes da B11-E.
 - **Última verificação:** no fim do commit do pacote **R3**, impressão digital

@@ -462,7 +462,23 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
-Estado registrado em 18/08/2026:
+**Estado registrado em 31/08/2026, com a auditoria B11B concluída.**
+
+- a **auditoria técnica B11B está encerrada**, com os **29 pacotes** de correção
+  fechados e mais três de fechamento, e foi incorporada à `main`, que hoje está no
+  commit do fecho. A branch `auditoria-b11b` foi mesclada e apagada;
+- o **tuning e o piloto foram refeitos** depois das correções, porque a correção do
+  PSO alterou resultados. O retuning mudou um parâmetro, o peso social do enxame, de
+  `1,5` para `2,0`, e a mudança foi propagada às campanhas oficiais;
+- o **manifesto de congelamento foi renovado** sobre o piloto refeito, e
+  `run_benchmark readiness` devolve `ready: true`, com 1.620 cenários, 270 subgrupos e
+  5 lotes. **A B11-E está liberada**;
+- a suíte de CPU está em **517 casos**, contra 254 no estado auditado, e a da réplica
+  em placa gráfica em **98**, contra 27;
+- os **dezoito documentos do piloto passaram a ser versionados**, para que um clone
+  limpo rode a suíte integral; as demais campanhas seguem fora do Git.
+
+Estado anterior, registrado em 18/08/2026:
 
 - a B5 foi incorporada à branch `main` e enviada ao remoto
   `https://github.com/tiagobaroni/bus-lot-optimization.git` no commit `ee9026c`;

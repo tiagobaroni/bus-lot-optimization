@@ -7323,6 +7323,47 @@ e no período em que elas mais importam. É a mesma recusa registrada quando o `
 `results/raw/*`, e não `results/raw/`, porque o Git **não reinclui** arquivo cujo diretório
 pai esteja excluído. Com a forma antiga, a exceção não tinha efeito algum.
 
+## 12. Fecho da auditoria B11B
+
+**Encerrada em 31/08/2026.** A Fase 1 diagnosticou **89 achados**, todos verificados
+adversarialmente. A Fase 2 fechou **29 pacotes** de correção, conferidos por enumeração
+contra o universo `A1` mais `B1` a `B21` mais `C1` a `C7`, e **três pacotes de fechamento**
+que não estavam previstos e nasceram do próprio endurecimento das guardas.
+
+**Suítes:** a de CPU foi de **254 para 517** casos; a da réplica em placa gráfica, de **27
+para 98**, e passou a ser verde também quando invocada de dentro de `gpu/`.
+
+**A linha de base da impressão digital foi regravada cinco vezes**, todas com a contenção
+**enumerada antes** da regravação: pelo `B9` e pelo `B21`, por correção de código; e duas
+vezes pelo retuning, uma pela mudança do parâmetro e outra pelo realinhamento da sonda de
+segundo colocado.
+
+**O que o refazimento mudou.** O retuning selecionou um parâmetro diferente, o peso social
+do enxame, de `1,5` para `2,0`, e a causa é atribuível às correções do próprio bloco: o
+segundo colocado é exatamente a configuração anterior. O tuning custou **1 h 34 min**, e o
+plano previa 3 h 43 min antes do pacote `B5` e cerca de 1 h 06 min depois dele.
+
+**Os três pacotes de fechamento, e por que foram necessários.** O congelamento passou a
+recusar o próprio fluxo que o fecha, e a causa é que as correções da auditoria o
+endureceram: `capture_provenance` passou a contar arquivo não rastreado como sujo. O `R2`
+tornou **condicional e verificável** a guarda entre o commit do piloto e o commit corrente,
+e tirou do escopo congelado a **ferramenta de conferência da auditoria**, que não participa
+de campanha alguma. O `R3` reconheceu que **o fechamento é uma transação única** e passou a
+tolerar sujeira **restrita aos artefatos que o próprio manifesto assina**, registrando-os
+no manifesto em vez de omiti-los.
+
+**Estado final.** `run_benchmark readiness` devolve `ready: true`, com **1.620 cenários,
+270 subgrupos e 5 lotes**, zero resultados existentes e árvore limpa. **A B11-E está
+liberada.** A B11A-E depende de fechar o processo gráfico que ocupa a placa nesta máquina.
+
+**Limitações que seguem para o relatório**, e nenhuma bloqueia execução: a exigência de
+`inherited_thread_limits` na validação do piloto pode passar a incondicional, porque os
+dezoito documentos agora têm o campo, mas isso toca arquivo protegido e exigiria refazer a
+transação de fechamento; a asserção que prende a **magnitude** da divergência em `1e-15` é
+mais estrita que a régua normativa de `1e-12` e pode reprovar noutra placa sem haver
+defeito; três dos quatro sítios de `COST_TOLERANCE` no ACO seguem sem caso de afrouxamento;
+e `gpu/configs/gpu_diagnostic.toml` não tem cobertura de carregamento.
+
 ## Apêndice A. Achados refutados
 
 Dois achados foram refutados integralmente pela verificação adversarial e recebem
