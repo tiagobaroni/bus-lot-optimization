@@ -7153,14 +7153,24 @@ Sonda executada em cópia descartável, com a exclusão adicional da própria fe
 congelamento apenas para medir o que resta no caminho: a geração prosseguiu até o fim,
 com saída zero, reavaliação do piloto aprovada e manifesto escrito com os dois commits.
 Isto é, a fronteira do arquivo `experiments/benchmark_freeze.py` é o único bloqueio
-restante. Os dois caminhos possíveis são: refazer o piloto sobre um commit que já contenha
-este pacote, isto é executar a Tarefa 19B antes da renovação, e então a guarda passa sem
-alteração de código alguma; ou decidir que a ferramenta que assina o congelamento também
-sai do escopo protegido, que é autoexceção com justificativa mais fraca que a da
-ferramenta de conferência, porque `experiments/benchmark_freeze.py` é importado por
-`experiments/run_benchmark.py`, `experiments/run.py`, `experiments/prepare_benchmark.py` e
-`experiments/benchmark_validation.py`, e portanto não é folha. **A escolha é do usuário e
-não foi feita aqui.**
+restante. Os caminhos possíveis são três. O primeiro é **reexecutar o
+piloto** sobre um commit que já contenha este pacote, e então a guarda passa sem alteração
+de código alguma; o custo é uma execução inteira das 18 execuções do piloto, porque a
+Tarefa 19B **já foi executada**, nos commits `d752b6c` e `8d0322c`, e o que está em causa
+é uma execução adicional. Os resultados seriam numericamente os mesmos, porque entre
+`d752b6c` e este commit nenhum arquivo que participa da execução mudou. O segundo é
+**decidir que a ferramenta que assina o congelamento também sai do escopo protegido**, que
+é autoexceção com justificativa mais fraca que a da ferramenta de conferência, porque
+`experiments/benchmark_freeze.py` é importado por `experiments/run_benchmark.py`,
+`experiments/run.py`, `experiments/prepare_benchmark.py` e
+`experiments/benchmark_validation.py`, e portanto não é folha; ela também enfraqueceria a
+verificação, porque o arquivo deixaria de ser cotejado por conteúdo. O terceiro é o mais
+estreito: **manter o arquivo dentro do escopo protegido**, e portanto cotejado por
+conteúdo pela verificação, e dispensá-lo apenas da pré-condição de geração, isto é da
+interseção do diff. A justificativa desse terceiro é diferente e mais forte, porque o que
+a pré-condição precisa garantir é que o código que produziu os resultados do piloto não
+mudou, e a ferramenta de congelamento não produz resultado algum: ela guarda a execução.
+**A escolha é do usuário e não foi feita aqui.**
 
 **Limitação declarada.** A condição é a interseção do diff com `protected_paths(root)`,
 que é derivado do disco no estado corrente. Um `.py` protegido que tenha sido **removido**

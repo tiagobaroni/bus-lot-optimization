@@ -253,12 +253,14 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   usuário para incluir os dois arquivos da réplica em placa gráfica, que tinham
   cópia própria dos mesmos dois defeitos.
 - **Próxima ação atômica:** a **Tarefa 20**, com a renovação do manifesto de
-  congelamento e o pacote R1, e em seguida o refazimento do tuning e do piloto, que é
-  a Tarefa 19B. **A ordem entre as duas depende de decisão pendente**, registrada na
-  seção 11 de `docs/auditoria.md`: o pacote R2 destravou a geração do manifesto quanto
-  aos commits que só acrescentam artefatos derivados, mas o próprio commit do R2 altera
-  `experiments/benchmark_freeze.py`, que é arquivo protegido, de modo que a geração
-  continua recusando enquanto o piloto vigente tiver sido executado antes dele.
+  congelamento e o pacote R1. **O refazimento do tuning e do piloto, que é a Tarefa 19B,
+  já foi executado**, nos commits `d752b6c` e `8d0322c`, e as seções 8 e 9 de
+  `docs/auditoria.md` registram o resultado; a menção anterior a ele como ação futura
+  estava atrasada. **A renovação do manifesto depende de decisão pendente**, registrada na
+  seção 11 de `docs/auditoria.md`: o pacote R2 destravou a geração quanto aos commits que
+  só acrescentam artefatos derivados, mas o próprio commit do R2 altera
+  `experiments/benchmark_freeze.py`, que é arquivo protegido e posterior à execução do
+  piloto vigente, de modo que a geração continua recusando.
 - **Decisão resolvida em 30/08/2026, e ela precedia a regeneração da campanha:** fechar
   o F8-10 pôs as validações do caminho normativo dentro da região cronometrada da
   réplica, que não as pagava, enquanto o núcleo as paga desde o B6. Medido em
