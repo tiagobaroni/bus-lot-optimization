@@ -407,3 +407,141 @@ def test_a_chave_registrada_pelo_avaliador_hibrido_e_canonica() -> None:
     finally:
         objective.close()
     assert avaliador.incumbent_solution == esperada
+
+
+# F8-4. As três funções abaixo são locais a este arquivo, e a réplica no arquivo
+# do PSO é deliberada: a lista de arquivos deste pacote são os dois arquivos de
+# teste, e um módulo auxiliar comum ficaria fora dela.
+_INSTANCIA_REAL = 20
+_K_REAL = 5
+_SEMENTE_REAL = 10
+_ORCAMENTO_REAL = 400
+_CONFIG_REAL = AcoConfig(alpha=1.0, beta=2.0, rho=0.1, n_ants=20)
+
+
+def _cenario_real():
+    return (
+        load_artesp_instance(ROOT / "data/instances", _INSTANCIA_REAL),
+        RunConfig(k=_K_REAL, seed=_SEMENTE_REAL, budget=_ORCAMENTO_REAL),
+        _CONFIG_REAL,
+    )
+
+
+def _objetivo_com_desvio(delta: float, apenas_primeiro_lote: bool):
+    """Objetivo em lote que soma `delta` ao custo total devolvido pela placa."""
+
+    from metaheuristica_gpu.objective import GpuBatchObjective
+
+    class _ComDesvio(GpuBatchObjective):
+        lotes_injetados = 0
+
+        def __init__(self, *args, **extras) -> None:
+            super().__init__(*args, **extras)
+            self._lotes = 0
+
+        def evaluate(self, solutions, *, timing=None):
+            resultados = super().evaluate(solutions, timing=timing)
+            self._lotes += 1
+            if apenas_primeiro_lote and self._lotes != 1:
+                return resultados
+            type(self).lotes_injetados += 1
+            return tuple(
+                replace(item, total_cost=item.total_cost + delta) for item in resultados
+            )
+
+    return _ComDesvio
+
+
+def test_aco_gpu_matches_cpu_in_official_mode_on_a_real_instance() -> None:
+    """F8-4: a trajetória completa passa a ser exercitada no modo da campanha.
+
+    Os dois casos de equivalência que já existiam rodam com
+    `verify_every_batch=True`, modo em que `HybridEvaluator.evaluate_batch`
+    substitui os resultados da placa pelos normativos antes de gravá-los: as
+    asserções externas comparam CPU com CPU. Este caso roda em **modo oficial**,
+    que é o caminho que os 60 cenários executam, e a régua é a normativa de
+    `1e-12`, e **não** igualdade exata.
+
+    A instância é real, e não a `tiny_manual`, cuja trajetória é degenerada: com
+    `K=2` o custo é exatamente zero em 99 dos 100 checkpoints do ACO, de modo
+    que a igualdade passaria sem exercitar a evolução de `tau`.
+
+    As duas asserções que impedem o caso de ser vazio estão aqui dentro. A
+    igualdade **exata** de checkpoints tem de **falhar**, porque os números
+    vieram do dispositivo, e a divergência medida tem de ser **estritamente
+    positiva**: se os resultados da placa tivessem sido descartados, ela valeria
+    zero e a igualdade exata valeria. Medido em `artesp_rmsp_20`, `K=5`, semente
+    10 e orçamento 400: os cem checkpoints diferem já a partir do primeiro, com
+    `max |delta|` de `2,220e-16`, isto é 1/4503 do `abs_tol` normativo.
+    """
+
+    from metaheuristica_gpu.numerics import ABS_TOL, require_equivalent_trajectory
+
+    instance, run, config = _cenario_real()
+    gpu = run_aco_gpu(instance, run, config)
+    cpu = run_aco(instance, run, config)
+
+    assert gpu.checkpoints != cpu.checkpoints
+    diferenca = require_equivalent_trajectory(gpu, cpu)
+    assert 0.0 < diferenca <= ABS_TOL
+    assert gpu.solution.tolist() == cpu.solution.tolist()
+    assert gpu.evaluations == cpu.evaluations == _ORCAMENTO_REAL
+
+
+def test_o_modo_de_verificacao_do_aco_substitui_os_resultados_da_gpu() -> None:
+    """F8-4, a vacuidade medida diretamente e sem injeção alguma.
+
+    A mesma instância, o mesmo `K`, a mesma semente e o mesmo orçamento, e
+    apenas o modo muda. Sob `verify_every_batch=True` a igualdade de
+    checkpoints contra a CPU é **exata**, o que só é possível porque os
+    resultados da placa foram substituídos pelos normativos; em modo oficial a
+    igualdade exata **falha**, porque os números publicados são os do
+    dispositivo. É essa diferença que torna as asserções externas dos dois
+    casos de equivalência incapazes de discriminar, e é ela que o caso acima
+    corrige.
+    """
+
+    instance, run, config = _cenario_real()
+    cpu = run_aco(instance, run, config)
+    verificado = run_aco_gpu(instance, run, config, verify_every_batch=True)
+    oficial = run_aco_gpu(instance, run, config)
+
+    assert verificado.checkpoints == cpu.checkpoints
+    assert oficial.checkpoints != cpu.checkpoints
+    assert verificado.diagnostics["max_numerical_difference"] > 0.0
+    assert oficial.diagnostics["max_numerical_difference"] == 0.0
+
+
+def test_a_trajetoria_oficial_do_aco_reprova_divergencia_de_1e_11() -> None:
+    """Validação negativa obrigatória de F8-4, com o eixo medido antes de escrito.
+
+    **A injeção é confinada ao primeiro lote, e a razão é medida.** Somada a
+    todos os lotes, uma divergência de `1e-11` é apanhada pelo
+    `require_equivalent` que `run_aco_gpu` já aplica ao incumbente antes de
+    devolver, em modo oficial, e por `verify_batch` em modo de verificação: nos
+    dois casos a execução levanta, e um caso escrito sobre essa forma provaria
+    apenas que uma guarda **anterior** a este pacote tem dentes. Confinada ao
+    primeiro lote, a divergência não alcança o incumbente final, a execução
+    **completa** e nenhuma guarda do caminho de produção a vê. Só a comparação
+    de trajetória a apanha, no checkpoint 1.
+
+    As duas metades estão asseveradas aqui dentro: que a injeção de fato
+    ocorreu, e que a execução chegou ao fim, isto é que o portão que reprova é
+    o novo e não um vizinho.
+    """
+
+    from metaheuristica_gpu.numerics import NumericalDivergenceError, require_equivalent_trajectory
+
+    import metaheuristica_gpu.aco as modulo
+
+    instance, run, config = _cenario_real()
+    cpu = run_aco(instance, run, config)
+    injetado = _objetivo_com_desvio(1e-11, apenas_primeiro_lote=True)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(modulo, "GpuBatchObjective", injetado)
+        gpu = run_aco_gpu(instance, run, config)
+
+    assert injetado.lotes_injetados == 1, "denominador do caso: a injeção foi percorrida"
+    assert gpu.evaluations == _ORCAMENTO_REAL, "a execução completou, sem guarda anterior disparar"
+    with pytest.raises(NumericalDivergenceError, match="checkpoint 1: total_cost diverge"):
+        require_equivalent_trajectory(gpu, cpu)

@@ -4872,8 +4872,38 @@ checkpoint 1, com magnitude de **1 a 2 ulp**, isto é entre `2,220e-16` e
   com tolerância de `1e-12`, que é a régua normativa, e não com igualdade exata.
 - **Onda:** C, isolada. Não há defeito de código associado, porque F8-3 caiu e F8-1
   virou `M3`.
-- **Situação:** aberto.
-- **Impressão digital:** pendente.
+- **Situação:** fechado no commit do pacote C6, lote L10. **Classe prevista `M2`,
+  classe observada `M2`**, sem reclassificação. Cada um dos dois arquivos ganhou três
+  casos, e os já existentes permanecem, porque o modo exato também é válido e o
+  repositório o contém e o testa. O caso principal é
+  `test_<algoritmo>_gpu_matches_cpu_in_official_mode_on_a_real_instance`, que roda em
+  **modo oficial**, isto é `verify_every_batch=False`, sobre `artesp_rmsp_20` com
+  `K=5`, semente 10 e orçamento 400, e compara pela régua normativa de `1e-12`, e
+  **não** por igualdade exata. As duas asserções que impedem o caso de ser vazio
+  moram dentro dele: a igualdade **exata** de checkpoints tem de **falhar** e a
+  divergência medida tem de ser **estritamente positiva**, o que só é verdade se os
+  números publicados vierem do dispositivo.
+  **A vacuidade alegada foi medida diretamente, e sem injeção alguma**, pelo segundo
+  caso: com a instância, o `K`, a semente e o orçamento fixos, e só o modo mudando, a
+  igualdade de checkpoints contra a CPU é **exata** sob `verify_every_batch=True` e
+  **falha** em modo oficial. A mesma medição aparece pelo lado da mutação: removida a
+  substituição pelos valores normativos, os dois casos de equivalência que já
+  existiam **reprovam** com divergência de 1 ulp, o que prova que eles passavam por
+  causa dela.
+  **Correção de prescrição na validação negativa, e ela precisa de leitura.** A
+  estratégia prescrita mandava injetar `1e-11` no caminho da GPU e conferir que o
+  teste novo reprova. Medido: uma injeção somada a **todos** os lotes é apanhada
+  antes, pelo `require_equivalent` que `run_aco_gpu` e `run_pso_gpu` já aplicam ao
+  incumbente em modo oficial, e por `verify_batch` em modo de verificação, de modo que
+  o caso escrito nessa forma provaria apenas que uma guarda **anterior** a este pacote
+  tem dentes. A injeção foi confinada ao **primeiro lote**, e nessa forma ela não
+  alcança o incumbente final: a execução **completa**, nenhuma guarda do caminho de
+  produção a vê, e só a comparação de trajetória a apanha, no checkpoint 1. As duas
+  metades estão asseveradas dentro do caso, que a injeção ocorreu e que a execução
+  chegou ao fim.
+- **Impressão digital:** **diff zero** no conjunto completo dos 42 cenários, conforme
+  previsto: o pacote é inteiramente de teste e vive em `gpu/`. A linha de base não foi
+  tocada.
 
 #### F8-5. Diagnósticos de conformidade publicados como zero sem significado nas 60 execuções
 
@@ -6736,7 +6766,8 @@ executou também o adendo da revisão do B6, estreitando a tolerância de
 `tests/test_core_integration.py` para igualdade exata. O pacote C4 fechou F2-12, pela
 triagem, e F7-9, também com diff zero, porque `experiments/` não é percorrido pelo
 oráculo. O pacote C5 fechou F8-1, F8-5 e F8-9, os três em `gpu/`, também com diff
-zero, e executou junto o item B3 do Apêndice B. Restam dois dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
+zero, e executou junto o item B3 do Apêndice B. O pacote C6 fechou F8-4, também com
+diff zero, e é inteiramente de teste. Resta um dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
 isolados, conforme 7.1, e a Onda C passa a dezessete. Os cinco de `gpu/` (F8-1, F8-4, F8-5, F8-9, F8-12) podem ser feitos em
 paralelo com os demais, porque `gpu/` não é protegido pelo congelamento da B11-E.
 
@@ -6906,7 +6937,8 @@ caíram por premissa que não existia na fonte normativa.
   seção de cenário concreto, que "na prática a reprovação ocorre por exceção", o que
   concede que o portão tem dentes.
 - **Decisão:** nenhuma correção própria. O conteúdo válido é executado por F8-4, na
-  Onda C.
+  Onda C. **Executado no commit do pacote C6, lote L10**, com teste de trajetória
+  completa em modo oficial sobre instância real nos dois algoritmos.
 - **Onda:** registro apenas, no Apêndice A.
 - **Situação:** refutado.
 - **Impressão digital:** pendente, sem alteração esperada por não haver correção.
