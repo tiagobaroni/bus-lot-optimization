@@ -2898,9 +2898,38 @@ achado 5. O código atual está correto; o que falta é proteção.
   sem ganho relevante.
 - **Onda:** C, e somente se a Onda A já tiver disparado o ramo alterado por outra
   razão.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado **não** zero, o que é exatamente
-  a razão de a decisão ser adiar.
+- **Situação:** fechado no commit do pacote C2, na **leitura restrita**, decidida
+  pelo usuário em 30/08/2026. O laço passa a validar a solução corrente **uma vez
+  por iteração**, na enumeração de movimentos, que é a validação mais externa, e
+  deixa de pagar duas validações por candidato: a de `_apply_move`, junto das sete
+  conferências que dela dependiam, e a de dentro de `canonicalize_solution`,
+  substituída por `validated_solution_key`, publicada pelo pacote L7 e que não
+  revalida. A canonicalização por candidato **permanece**, porque eliminá-la
+  exigiria expor a chave canônica pelo contexto de otimização, isto é editar
+  `optimizer.py` ou `evaluator.py`, dois arquivos fora da lista do pacote e do
+  caminho da impressão digital; a troca de risco alto por ganho reconhecidamente
+  baixo foi recusada. Medido por instrumentação no cenário fixado do caso de teste
+  novo: **242 validações caem para 53**, uma por iteração, com 189 candidatos
+  construídos. A precondição de `validated_solution_key`, rótulos já validados, é
+  responsabilidade do chamador e está cumprida por construção, e a prova virou caso
+  coletado: todo movimento que a enumeração devolve tem origem com mais de uma
+  unidade, logo não esvazia lote, e destino em `0 <= destino < k`, e cada candidato
+  é construído a partir da solução corrente e não encadeado sobre o candidato
+  anterior, de modo que a ocupação medida uma vez vale para todos. **Passo G.**
+  Classe prevista `M1`; classe observada `M1`; a observação **bate** com a previsão.
+  Sem reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** **zero**, medido no subconjunto dos 11 cenários `tabu:*` e
+  depois no conjunto completo dos 42, sem `--only`. **Passo G, e aqui a observação
+  não bate com a previsão.** O plano previa diff **não** zero, e garantido, para os
+  11 `tabu:*`, e mandava regravar a linha de base. A previsão foi escrita contra
+  `ca5b81f`, e o pacote B6 mudou o caminho desde então: a chave canônica que o laço
+  monta e a que `FitnessEvaluator.evaluate` monta passaram a ser a **mesma função
+  determinística sobre o mesmo vetor**, `candidate_solution`, logo reaproveitar a
+  metade posterior à validação produz bits idênticos. Remover validação redundante
+  também não move bit algum, por definição. A correção é de custo, não de
+  resultado, e o oráculo dela é o caso de teste de contagem, que é o **único** que
+  a observa. **A linha de base não foi regravada**, e continua a que o pacote B21
+  gravou.
 
 #### Achado F5-5. O contador do prazo tabu é um canal de regressão silenciosa no algoritmo de referência
 
@@ -3104,8 +3133,30 @@ achado 5. O código atual está correto; o que falta é proteção.
   futura alteração que zerasse ou reduzisse o contador em reinício reintroduziria
   proibições fantasmas sem que nenhuma asserção reclamasse.
 - **Onda:** C.
-- **Situação:** aberto.
-- **Impressão digital:** pendente. Diff esperado zero.
+- **Situação:** fechado no commit do pacote C2. **Divergência entre a correção
+  prescrita e a correção necessária, registrada aqui porque foi medida:** a
+  sentinela explícita **sozinha** não produz a tabela do próprio achado. Trocar
+  `self._expirations.get(move, accepted_moves) > accepted_moves` por uma consulta
+  que devolve `None` na ausência dá a mesma função, ponto a ponto, porque a
+  resposta de ausência já saía certa por acidente e a ponta que faltava é a de
+  **baixo**: com o registro no sétimo movimento aceito e prazo quatro, a forma só
+  com sentinela continua respondendo "proibido" para `a=3`. A correção completa tem
+  três partes, todas dentro de `_TabuMemory` e portanto sem alargamento de escopo:
+  sentinela explícita, que separa "ausente" de "expirado agora"; guarda do contador
+  do registro junto da expiração, que fecha a janela em baixo e dá a tabela
+  `{7,8,9,10}`; e a asserção do invariante do contador. **Passo G.** Classe prevista
+  `M3`; classe observada `M3`; a observação **bate** com a previsão. Sem
+  reclassificação, e o Passo H não se aplica.
+- **Impressão digital:** **zero**, conforme previsto, no subconjunto `tabu:*` e no
+  conjunto completo dos 42. A janela defeituosa continua inalcançável no laço real:
+  `is_tabu` é consultada antes de qualquer `register` da mesma iteração e sempre com
+  o contador corrente, logo toda entrada viva satisfaz `registro <= contador`, e o
+  reinício limpa a memória inteira, de modo que nenhuma entrada atravessa segmento.
+  A ponta de baixo nunca decide. **Passo G.** Diff previsto zero; diff observado
+  zero; a observação **bate** com a previsão. O invariante do contador, que era o
+  apoio não escrito da leitura, passa a ser asseverado: o piso do segmento é o
+  contador do último expurgo, consultar ou registrar abaixo dele reprova, e `clear`
+  abre segmento novo.
 
 ### 3.6. Frente F6 - orquestração do benchmark e congelamento
 
@@ -6502,8 +6553,8 @@ disparar o ramo alterado, e nesse caso está contabilizado em 7.1.
 Catorze achados, nenhum com efeito em resultado, todos de legibilidade, cobertura
 isolada ou robustez de manutenção. Nenhum toca a impressão digital com diff esperado
 não zero. **Atualização de 30/08/2026:** a onda foi aberta pelo pacote C1, que fechou
-F1-08 e F2-08 com diff zero no conjunto completo dos 42 cenários; restam doze dos
-catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
+F1-08 e F2-08 com diff zero no conjunto completo dos 42 cenários, e o pacote C2 fechou
+F5-4 e F5-7, também com diff zero; restam dez dos catorze. Se a Onda A terminar vazia, A10, F2-10 e F2-09 migram para cá como `M2`
 isolados, conforme 7.1, e a Onda C passa a dezessete. Os cinco de `gpu/` (F8-1, F8-4, F8-5, F8-9, F8-12) podem ser feitos em
 paralelo com os demais, porque `gpu/` não é protegido pelo congelamento da B11-E.
 
@@ -6512,6 +6563,16 @@ repetidas por candidato na Busca Tabu, tem recomendação explícita e mantida d
 ser corrigido antes do benchmark**, porque alteraria a impressão digital sem ganho
 relevante, da ordem de dezenas de minutos numa campanha dominada pelo ACO. Ele só
 deve entrar se a Onda A já tiver disparado o ramo alterado por outra razão.
+
+**Atualização de 30/08/2026, e a precedência está cumprida e a premissa dela caiu.**
+A decisão 1 disparou o ramo 3 por outra razão, logo a condição estava satisfeita e o
+F5-4 entrou, no pacote C2. Duas coisas mudaram em relação ao texto acima e ficam
+registradas para quem ler a nota depois: o pacote foi executado na **leitura
+restrita**, que remove as validações repetidas e preserva a canonicalização por
+candidato, porque a leitura ampla exigiria editar `optimizer.py` ou `evaluator.py`,
+fora da lista; e a premissa de que a correção "alteraria a impressão digital" **não se
+confirmou**, porque o pacote B6 tornou as duas canonicalizações a mesma função sobre o
+mesmo vetor. O diff medido foi zero nos 42, e a linha de base não foi regravada.
 
 ### 7.4. Registro apenas
 

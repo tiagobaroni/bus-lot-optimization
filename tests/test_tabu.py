@@ -7,7 +7,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from metaheuristica.errors import ConfigurationError, SolutionValidationError
+from metaheuristica.canonical import validate_solution
+from metaheuristica.errors import ConfigurationError
 from metaheuristica.instances import load_artesp_instance, load_tiny_instance
 from metaheuristica.metrics import COST_TOLERANCE, RunConfig, TerminationReason
 from metaheuristica.problem import EvaluationResult
@@ -96,7 +97,7 @@ def test_balanced_solution_is_reproducible_viable_and_balanced() -> None:
 
 
 def test_move_enumeration_is_complete_ordered_and_protects_singletons() -> None:
-    moves = _enumerate_valid_moves(np.array([0, 0, 1, 2]), k=3)
+    _labels, moves = _enumerate_valid_moves(np.array([0, 0, 1, 2]), k=3)
     assert moves == (
         TabuMove(0, 0, 1),
         TabuMove(0, 0, 2),
@@ -105,19 +106,42 @@ def test_move_enumeration_is_complete_ordered_and_protects_singletons() -> None:
     )
 
 
-def test_apply_move_returns_copy_and_rejects_invalid_move() -> None:
-    original = np.array([0, 0, 1, 1])
-    moved = _apply_move(original, TabuMove(0, 0, 1), k=2)
-    assert moved.tolist() == [1, 0, 1, 1]
-    assert original.tolist() == [0, 0, 1, 1]
-    with pytest.raises(SolutionValidationError, match="origem"):
-        _apply_move(original, TabuMove(2, 0, 1), k=2)
-    with pytest.raises(SolutionValidationError, match="esvaziaria"):
-        _apply_move([0, 1, 1, 1], TabuMove(0, 0, 1), k=2)
+def test_apply_move_copia_e_todo_movimento_enumerado_produz_solucao_valida() -> None:
+    """F5-4: a precondição de `validated_solution_key`, provada por composição.
+
+    A forma anterior de `_apply_move` revalidava a solução e repetia sete
+    conferências por candidato, e este caso asseverava duas dessas recusas. As
+    conferências saíram porque são consequência da enumeração, e o que este caso
+    fixa agora é exatamente essa consequência: **todo** movimento que
+    `_enumerate_valid_moves` devolve, aplicado sobre os rótulos que ela mesma
+    validou, produz uma solução que passa por `validate_solution` sem exceção.
+
+    É essa a justificativa de chamar `validated_solution_key`, cuja precondição
+    é "rótulos já validados" e cuja violação não levanta erro algum, apenas
+    produz chave sem significado. A prova em prosa vira caso coletado aqui.
+    """
+
+    original = np.array([0, 0, 1, 2, 2, 1])
+    labels, moves = _enumerate_valid_moves(original, k=3)
+
+    moved = _apply_move(labels, TabuMove(0, 0, 1))
+    assert moved.tolist() == [1, 0, 1, 2, 2, 1]
+    assert original.tolist() == [0, 0, 1, 2, 2, 1]
+    assert labels.tolist() == [0, 0, 1, 2, 2, 1]
+
+    # Denominador do caso: a enumeração não é vazia e cobre as três origens com
+    # mais de uma unidade, logo a varredura abaixo não passa por vácuo.
+    assert len(moves) == 12
+    assert {move.source_lot for move in moves} == {0, 1, 2}
+
+    for move in moves:
+        candidate = _apply_move(labels, move)
+        validated = validate_solution(candidate, n_units=len(candidate), k=3)
+        assert validated.tolist() == candidate.tolist()
 
 
 def test_sampling_is_reproducible_without_replacement_and_bounded() -> None:
-    moves = _enumerate_valid_moves(np.array([0, 0, 1, 1]), k=2)
+    _labels, moves = _enumerate_valid_moves(np.array([0, 0, 1, 1]), k=2)
     first = _sample_moves(moves, 3, np.random.default_rng(9))
     second = _sample_moves(moves, 3, np.random.default_rng(9))
     assert first == second
@@ -126,7 +150,7 @@ def test_sampling_is_reproducible_without_replacement_and_bounded() -> None:
 
 
 def test_sampling_uses_entire_small_neighborhood_in_random_order() -> None:
-    moves = _enumerate_valid_moves(np.array([0, 0, 1, 1]), k=2)
+    _labels, moves = _enumerate_valid_moves(np.array([0, 0, 1, 1]), k=2)
     sampled = _sample_moves(moves, 20, np.random.default_rng(3))
     assert len(sampled) == len(moves)
     assert set(sampled) == set(moves)
@@ -557,3 +581,141 @@ def test_o_reinicio_que_consome_a_ultima_avaliacao_e_contabilizado() -> None:
     assert antes["iterations_completed"] == (
         antes["accepted_moves"] + antes["restarts"]
     )
+
+
+def test_a_janela_tabu_e_fechada_nas_duas_pontas() -> None:
+    """F5-7: `accepted_moves` como sentinela de ausência proibia o passado.
+
+    `is_tabu` devolvia `self._expirations.get(move, accepted_moves) > accepted_moves`,
+    isto é usava o próprio contador como valor de ausência. A resposta para
+    ausência sai certa por acidente, `a > a` é falso, mas para um movimento
+    registrado a comparação tem uma ponta só: qualquer contador estritamente
+    menor que a expiração responde "proibido", inclusive contadores anteriores
+    ao próprio registro. Com o registro da seção 14, prazo de quatro movimentos
+    aceitos a partir do sétimo, a janela correta é `{7, 8, 9, 10}` e a observada
+    era `{0, ..., 10}`.
+
+    A janela é fechada em baixo pelo movimento aceito que a criou e em cima pela
+    expiração, e este caso fixa as duas pontas de uma vez.
+    """
+
+    memory = _TabuMemory()
+    aceito = TabuMove(3, 1, 2)
+    reverso = aceito.reversed()
+    memory.register(aceito, accepted_moves=7, tenure=4)
+
+    # Denominador do caso: há exatamente uma entrada viva, e ela é a reversão.
+    assert memory.entries == ((reverso, 11),)
+
+    proibidos = tuple(
+        contador
+        for contador in range(13)
+        if memory.is_tabu(reverso, accepted_moves=contador)
+    )
+    assert proibidos == (7, 8, 9, 10)
+
+
+def test_o_contador_rebobinado_dentro_do_segmento_dispara_a_assercao() -> None:
+    """F5-7: a janela fechada em baixo depende de um invariante não escrito.
+
+    A leitura de `_TabuMemory` só é correta porque o contador de movimentos
+    aceitos é monótono não decrescente dentro do segmento entre dois reinícios,
+    e porque o reinício limpa a memória inteira. O invariante não estava escrito
+    nem asseverado em lugar algum: uma alteração futura que zerasse o contador
+    no reinício, sem limpar a memória, reintroduziria proibições fantasmas sem
+    que nada reclamasse.
+
+    O piso do segmento é o contador do último expurgo, que é o ponto em que o
+    laço anuncia o avanço da série. O caso demonstra os dois eixos: o próprio
+    piso continua aceito e qualquer valor abaixo dele reprova.
+    """
+
+    memory = _TabuMemory()
+    aceito = TabuMove(3, 1, 2)
+    reverso = aceito.reversed()
+    memory.register(aceito, accepted_moves=7, tenure=4)
+    memory.purge(accepted_moves=8)
+
+    # Eixo positivo: o piso recém-anunciado continua sendo consulta legítima.
+    assert memory.is_tabu(reverso, accepted_moves=8)
+
+    with pytest.raises(AssertionError, match="rebobinado"):
+        memory.is_tabu(reverso, accepted_moves=7)
+    with pytest.raises(AssertionError, match="rebobinado"):
+        memory.purge(accepted_moves=7)
+    with pytest.raises(AssertionError, match="rebobinado"):
+        memory.register(aceito, accepted_moves=7, tenure=4)
+
+    # O reinício abre um segmento novo, e nele a série recomeça de onde quiser.
+    memory.clear()
+    memory.register(aceito, accepted_moves=0, tenure=2)
+    assert memory.is_tabu(reverso, accepted_moves=0)
+
+
+def test_a_validacao_por_candidato_deixa_de_ser_paga(monkeypatch) -> None:
+    """F5-4: quantas validações e quantas canonicalizações o laço paga.
+
+    O laço pagava três validações por candidato: a de `_apply_move`, a de
+    `canonicalize_solution` e a de `_enumerate_valid_moves`, esta última uma vez
+    por iteração e não por candidato. As duas primeiras são redundantes, porque
+    o vetor que entra nelas é o mesmo que a enumeração acabou de validar, ou
+    dele derivado por um movimento que a própria enumeração garantiu não
+    esvaziar lote.
+
+    Este caso é o oráculo de F5-4 quando a impressão digital não move bit algum,
+    e é o único: a correção reaproveita a validação em vez de mudar resultado.
+    Ele conta as três séries por instrumentação e assevera a relação entre elas,
+    e não um número absoluto, que dependeria da configuração.
+    """
+
+    validacoes: list[int] = []
+    enumeracoes: list[int] = []
+    candidatos: list[int] = []
+    chaves: list[int] = []
+
+    original_validate = tabu_module.validate_solution
+    original_enumerate = tabu_module._enumerate_valid_moves
+    original_apply = tabu_module._apply_move
+    # `raising=False` porque a forma anterior do laço não usava esta função: sem
+    # isto o caso morreria com `AttributeError` em vez de reprovar contando.
+    original_key = getattr(tabu_module, "validated_solution_key", None)
+
+    def spy_validate(*args, **kwargs):  # type: ignore[no-untyped-def]
+        validacoes.append(1)
+        return original_validate(*args, **kwargs)
+
+    def spy_enumerate(*args, **kwargs):  # type: ignore[no-untyped-def]
+        enumeracoes.append(1)
+        return original_enumerate(*args, **kwargs)
+
+    def spy_apply(*args, **kwargs):  # type: ignore[no-untyped-def]
+        candidatos.append(1)
+        return original_apply(*args, **kwargs)
+
+    def spy_key(*args, **kwargs):  # type: ignore[no-untyped-def]
+        chaves.append(1)
+        assert original_key is not None
+        return original_key(*args, **kwargs)
+
+    monkeypatch.setattr(tabu_module, "validate_solution", spy_validate)
+    monkeypatch.setattr(tabu_module, "_enumerate_valid_moves", spy_enumerate)
+    monkeypatch.setattr(tabu_module, "_apply_move", spy_apply)
+    monkeypatch.setattr(tabu_module, "validated_solution_key", spy_key, raising=False)
+
+    run_tabu(TINY, RunConfig(k=2, seed=7, budget=200), TabuConfig(5, 4, 10))
+
+    # Denominador do caso: há mais de um candidato por iteração, logo a relação
+    # abaixo não passa por vácuo.
+    assert enumeracoes and candidatos
+    assert len(candidatos) >= 2 * len(enumeracoes)
+
+    # A validação sobrevive uma vez por iteração, na enumeração, que é a mais
+    # externa, e nenhuma vez por candidato.
+    assert len(validacoes) == len(enumeracoes)
+
+    # A chave canônica de cada candidato vem da função que não revalida, uma vez
+    # por candidato: é ela que retira a terceira validação, a de dentro de
+    # `canonicalize_solution`. A folga de uma unidade é a fronteira do
+    # orçamento: o último candidato é construído, e a avaliação dele levanta
+    # `EvaluationLimitReached` antes de a chave ser montada.
+    assert len(candidatos) - 1 <= len(chaves) <= len(candidatos)

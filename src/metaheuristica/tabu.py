@@ -8,8 +8,12 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from metaheuristica.canonical import canonicalize_solution, validate_k, validate_solution
-from metaheuristica.errors import ConfigurationError, SolutionValidationError
+from metaheuristica.canonical import (
+    validate_k,
+    validate_solution,
+    validated_solution_key,
+)
+from metaheuristica.errors import ConfigurationError
 from metaheuristica.metrics import COST_TOLERANCE, OptimizationResult, RunConfig
 from metaheuristica.optimizer import OptimizationContext, execute_optimizer
 from metaheuristica.problem import EvaluationResult, ProblemInstance
@@ -62,35 +66,92 @@ class _EvaluatedCandidate:
         return not self.was_tabu or self.aspiration
 
 
-class _TabuMemory:
-    """Expirações de reversões medidas em movimentos aceitos."""
+@dataclass(frozen=True, slots=True)
+class _TabuEntry:
+    """As duas pontas da janela de proibição de uma reversão."""
 
-    __slots__ = ("_expirations",)
+    registered_at: int
+    expiration: int
+
+
+class _TabuMemory:
+    """Janelas de proibição de reversões, medidas em movimentos aceitos.
+
+    F5-7: a forma anterior guardava só a expiração e usava o **próprio
+    contador** como valor de ausência, `self._expirations.get(move,
+    accepted_moves) > accepted_moves`. A resposta para ausência saía certa por
+    acidente, porque `a > a` é falso, mas a janela de um movimento registrado
+    ficava aberta em baixo: qualquer contador estritamente menor que a expiração
+    respondia "proibido", inclusive contadores anteriores ao próprio registro.
+    Com o registro da seção 14 no sétimo movimento aceito e prazo de quatro, a
+    janela correta é `{7, 8, 9, 10}` e a observada era `{0, ..., 10}`.
+
+    A correção tem duas partes, e a primeira sozinha não bastaria. A sentinela
+    passa a ser explícita, o `None` de `dict.get`, o que separa "ausente" de
+    "expirado agora"; e a janela passa a ser fechada nas duas pontas, pelo
+    movimento aceito que a criou e pela expiração, o que exige guardar também o
+    contador do registro. Trocar apenas a sentinela devolveria exatamente a
+    mesma função, porque a ponta de baixo é o defeito inteiro.
+
+    **O invariante do contador, que não estava escrito nem asseverado.** A
+    leitura só é correta porque o contador de movimentos aceitos é monótono não
+    decrescente dentro do segmento entre dois reinícios, e porque o reinício
+    limpa a memória inteira por `clear`. O piso do segmento é o contador do
+    último expurgo, que é o ponto em que o laço anuncia o avanço da série;
+    consultar ou registrar abaixo dele é rebobinar, e a asserção reprova. Sem
+    ela, uma alteração futura que zerasse o contador no reinício sem limpar a
+    memória reintroduziria proibições fantasmas em silêncio.
+    """
+
+    __slots__ = ("_entries", "_counter_floor")
 
     def __init__(self) -> None:
-        self._expirations: dict[TabuMove, int] = {}
+        self._entries: dict[TabuMove, _TabuEntry] = {}
+        self._counter_floor: int | None = None
+
+    def _assert_counter_advances(self, accepted_moves: int) -> None:
+        assert (
+            self._counter_floor is None or accepted_moves >= self._counter_floor
+        ), (
+            "o contador de movimentos aceitos foi rebobinado dentro do segmento: "
+            f"{accepted_moves} < {self._counter_floor}"
+        )
 
     def register(self, move: TabuMove, *, accepted_moves: int, tenure: int) -> None:
-        self._expirations[move.reversed()] = accepted_moves + tenure
+        self._assert_counter_advances(accepted_moves)
+        self._entries[move.reversed()] = _TabuEntry(
+            registered_at=accepted_moves, expiration=accepted_moves + tenure
+        )
 
     def purge(self, *, accepted_moves: int) -> None:
+        self._assert_counter_advances(accepted_moves)
+        self._counter_floor = accepted_moves
         expired = sorted(
             move
-            for move, expiration in self._expirations.items()
-            if expiration <= accepted_moves
+            for move, entry in self._entries.items()
+            if entry.expiration <= accepted_moves
         )
         for move in expired:
-            del self._expirations[move]
+            del self._entries[move]
 
     def is_tabu(self, move: TabuMove, *, accepted_moves: int) -> bool:
-        return self._expirations.get(move, accepted_moves) > accepted_moves
+        self._assert_counter_advances(accepted_moves)
+        entry = self._entries.get(move)
+        if entry is None:
+            return False
+        return entry.registered_at <= accepted_moves < entry.expiration
 
     def clear(self) -> None:
-        self._expirations.clear()
+        """Fecha o segmento: a memória e o piso do contador voltam ao início."""
+
+        self._entries.clear()
+        self._counter_floor = None
 
     @property
     def entries(self) -> tuple[tuple[TabuMove, int], ...]:
-        return tuple(sorted(self._expirations.items()))
+        return tuple(
+            (move, self._entries[move].expiration) for move in sorted(self._entries)
+        )
 
 
 def _balanced_random_solution(
@@ -103,7 +164,22 @@ def _balanced_random_solution(
     return solution
 
 
-def _enumerate_valid_moves(solution: Any, *, k: int) -> tuple[TabuMove, ...]:
+def _enumerate_valid_moves(
+    solution: Any, *, k: int
+) -> tuple[IntArray, tuple[TabuMove, ...]]:
+    """Valida a solução corrente e enumera os movimentos que a mantêm viável.
+
+    F5-4: esta é a validação **mais externa** do laço, e é a única que
+    sobrevive. Ela devolve agora também os rótulos validados, porque são eles
+    que os movimentos enumerados endereçam: quem recebe o par não precisa
+    revalidar o mesmo vetor para aplicar um movimento que saiu daqui.
+
+    Todo movimento devolvido tem origem com mais de uma unidade, logo nenhum
+    deles esvazia lote, e todo destino está em `0 <= destino < k`. É esta
+    garantia, computada uma vez por iteração, que faz de cada candidato uma
+    solução já válida.
+    """
+
     labels = validate_solution(solution, n_units=len(solution), k=k)
     lot_sizes = np.bincount(labels, minlength=k)
     moves: list[TabuMove] = []
@@ -114,7 +190,7 @@ def _enumerate_valid_moves(solution: Any, *, k: int) -> tuple[TabuMove, ...]:
         for target in range(k):
             if target != source:
                 moves.append(TabuMove(unit_index, source, target))
-    return tuple(moves)
+    return labels, tuple(moves)
 
 
 def _sample_moves(
@@ -129,22 +205,23 @@ def _sample_moves(
     return tuple(moves[int(position)] for position in positions)
 
 
-def _apply_move(solution: Any, move: TabuMove, *, k: int) -> IntArray:
-    labels = validate_solution(solution, n_units=len(solution), k=k)
-    if not isinstance(move, TabuMove):
-        raise SolutionValidationError("movimento deve ser TabuMove")
-    if move.unit_index < 0 or move.unit_index >= len(labels):
-        raise SolutionValidationError("índice da unidade fora do intervalo")
-    if move.source_lot < 0 or move.source_lot >= k:
-        raise SolutionValidationError("lote de origem fora do intervalo")
-    if move.target_lot < 0 or move.target_lot >= k:
-        raise SolutionValidationError("lote de destino fora do intervalo")
-    if move.source_lot == move.target_lot:
-        raise SolutionValidationError("origem e destino devem ser diferentes")
-    if int(labels[move.unit_index]) != move.source_lot:
-        raise SolutionValidationError("unidade não pertence ao lote de origem informado")
-    if int(np.count_nonzero(labels == move.source_lot)) <= 1:
-        raise SolutionValidationError("movimento esvaziaria o lote de origem")
+def _apply_move(labels: IntArray, move: TabuMove) -> IntArray:
+    """Aplica sobre rótulos já validados um movimento já enumerado.
+
+    F5-4: as sete conferências que ficavam aqui, mais a validação que as
+    precedia, eram redundantes por candidato. Todas elas são consequência da
+    enumeração, que roda uma vez por iteração sobre o mesmo vetor: o índice da
+    unidade vem de `enumerate` sobre os rótulos, origem e destino vêm de
+    `range(k)`, os dois são diferentes por construção, a unidade pertence ao
+    lote de origem porque foi de lá que ela saiu, e a origem tem mais de uma
+    unidade porque a enumeração descarta as demais.
+
+    A garantia vale para **todos** os candidatos da iteração porque cada um é
+    construído a partir de `current`, e não encadeado sobre o candidato
+    anterior: a ocupação medida uma vez continua sendo a ocupação de partida de
+    cada aplicação.
+    """
+
     candidate = np.array(labels, dtype=np.int64, copy=True)
     candidate[move.unit_index] = move.target_lot
     return candidate
@@ -271,7 +348,7 @@ def _tabu_search(
 
     while True:
         memory.purge(accepted_moves=diagnostics.accepted_moves)
-        moves = _enumerate_valid_moves(current, k=k)
+        labels, moves = _enumerate_valid_moves(current, k=k)
         sampled = _sample_moves(moves, config.neighborhood_size, context.rng)
         if not sampled:
             current = evaluate_restart()
@@ -280,7 +357,7 @@ def _tabu_search(
         candidates: list[_EvaluatedCandidate] = []
         iteration_improved = False
         for move in sampled:
-            candidate_solution = _apply_move(current, move, k=k)
+            candidate_solution = _apply_move(labels, move)
             was_tabu = memory.is_tabu(
                 move, accepted_moves=diagnostics.accepted_moves
             )
@@ -302,14 +379,19 @@ def _tabu_search(
                 candidate_cost=evaluation.total_cost,
                 global_best_cost=before,
             )
-            canonical = canonicalize_solution(
-                candidate_solution, n_units=n_units, k=k
-            )
+            # F5-4: `canonicalize_solution` validava este mesmo vetor uma
+            # terceira vez por candidato. `validated_solution_key`, publicada
+            # pelo pacote L7, é a metade posterior à validação e produz a mesma
+            # tupla a partir dos mesmos `int64` na mesma ordem. A precondição de
+            # rótulos já validados é do chamador e está cumprida por
+            # construção, conforme `_enumerate_valid_moves` e `_apply_move`.
             candidates.append(
                 _EvaluatedCandidate(
                     move=move,
                     solution=candidate_solution,
-                    canonical_key=tuple(int(label) for label in canonical),
+                    canonical_key=validated_solution_key(
+                        candidate_solution, n_units=n_units
+                    ),
                     evaluation=evaluation,
                     was_tabu=was_tabu,
                     aspiration=aspiration,
