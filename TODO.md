@@ -12,8 +12,7 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Fase do bloco ativo:** Fase 2, correção. **Vinte e cinco dos 29 pacotes
   fechados**: A1, B1 a B12 exceto o B13, B14 a B21, e C1 a C4. Restam 4, que
   são B13 e C5 a C7. O **B13 está diferido** para imediatamente antes da Tarefa 19B,
-  porque altera
-  o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
+  porque altera o `scenario_id` que nomeia os artefatos de campanha. A contagem é conferida por
   enumeração contra o universo A1 mais B1 a B21 mais C1 a C7, e não por soma, porque
   a redação anterior já esteve errada por um. **A Onda B está encerrada** e a **Onda C
   está aberta**, e o que resta é o B13 diferido mais C5 a C7.
