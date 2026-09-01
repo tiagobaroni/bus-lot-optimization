@@ -195,6 +195,8 @@ def _approved_sample(**changes: Any) -> dict[str, Any]:
         "max_optimizer_threads": 1,
         "active_optimizer_threads": 1,
         "max_active_threads_per_optimizer": 1,
+        "max_optimizer_cpu_ratio": 1.0,
+        "optimizer_pids": "101",
         "memory_total_bytes": 32 * 1024 ** 3,
         "memory_available_bytes": 16 * 1024 ** 3,
         "swap_total_bytes": 4 * 1024 ** 3,

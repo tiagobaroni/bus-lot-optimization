@@ -32,6 +32,8 @@ def _sample(**changes):
         "max_optimizer_threads": 1,
         "active_optimizer_threads": 1,
         "max_active_threads_per_optimizer": 1,
+        "max_optimizer_cpu_ratio": 1.0,
+        "optimizer_pids": "101",
         "memory_total_bytes": 32 * 1024 ** 3,
         "memory_available_bytes": 16 * 1024 ** 3,
         "swap_total_bytes": 4 * 1024 ** 3,
@@ -59,6 +61,7 @@ def test_resource_summary_rejects_swap_threads_memory_and_cpu() -> None:
             max_optimizer_threads=4,
             active_optimizer_threads=2,
             max_active_threads_per_optimizer=2,
+            max_optimizer_cpu_ratio=1.97,
             cpu_percent=2000.0,
             optimizer_process_count=1,
         ),
@@ -217,7 +220,7 @@ def test_reading_tolerates_the_new_columns_absent_from_an_inherited_row(
     assert rows[0]["rss_bytes"] == 1_000
     summary = summarize_samples(rows, workers=16)
     assert summary["session_id"] == "legado"
-    assert summary["schema_version"] == 2
+    assert summary["schema_version"] == 3
 
 
 def test_root_pid_is_captured_by_the_process_that_instantiates(tmp_path: Path) -> None:
@@ -415,3 +418,193 @@ def test_record_discards_a_non_positive_interval() -> None:
     monitor._last_sample_at = time.monotonic() + 60.0
     monitor._record(_fotografia(ticks_por_pid={"101": relogio}))
     assert monitor._samples[-1]["max_optimizer_cpu_ratio"] is None
+
+
+def test_summary_accepts_single_compute_thread() -> None:
+    resumo = summarize_samples(
+        [
+            _sample(),
+            _sample(
+                elapsed_seconds=1.0,
+                max_optimizer_cpu_ratio=0.99,
+                optimizer_process_count=0,
+            ),
+        ],
+        workers=16,
+    )
+    assert resumo["checks"]["one_active_thread_per_optimizer"] is True
+    assert resumo["max_optimizer_cpu_ratio"] == pytest.approx(1.0)
+    assert resumo["schema_version"] == 3
+
+
+def test_summary_rejects_two_compute_threads() -> None:
+    resumo = summarize_samples(
+        [
+            _sample(),
+            _sample(
+                elapsed_seconds=1.0,
+                max_optimizer_cpu_ratio=1.97,
+                optimizer_process_count=0,
+            ),
+        ],
+        workers=16,
+    )
+    assert resumo["passed"] is False
+    assert [nome for nome, ok in resumo["checks"].items() if not ok] == [
+        "one_active_thread_per_optimizer"
+    ]
+
+
+def test_summary_pins_the_approved_tolerance() -> None:
+    """A constante é decisão da especificação e precisa estar presa.
+
+    Sem este teste, qualquer valor entre 1,0496, o máximo de ruído já medido, e
+    1,97 passa a suíte inteira, e a tolerância aprovada fica sem contraditório.
+    """
+
+    assert MAX_OPTIMIZER_CPU_RATIO == 1.10
+
+    def decide(razao: float) -> bool:
+        return summarize_samples(
+            [
+                _sample(),
+                _sample(
+                    elapsed_seconds=1.0,
+                    max_optimizer_cpu_ratio=razao,
+                    optimizer_process_count=0,
+                ),
+            ],
+            workers=16,
+        )["checks"]["one_active_thread_per_optimizer"]
+
+    assert decide(1.10) is True
+    assert decide(1.11) is False
+
+
+def test_summary_rejects_session_without_any_ratio() -> None:
+    resumo = summarize_samples(
+        [
+            _sample(max_optimizer_cpu_ratio=None),
+            _sample(
+                elapsed_seconds=1.0,
+                max_optimizer_cpu_ratio=None,
+                optimizer_process_count=0,
+            ),
+        ],
+        workers=16,
+    )
+    assert resumo["checks"]["one_active_thread_per_optimizer"] is False
+    assert resumo["max_optimizer_cpu_ratio"] is None
+
+
+def test_summary_rejects_process_never_measured() -> None:
+    # 202 aparece numa única amostra e desaparece: nunca teve intervalo medido,
+    # e aprovar seria aprovar sobre ausência de evidência.
+    resumo = summarize_samples(
+        [
+            _sample(),
+            _sample(elapsed_seconds=1.0, optimizer_pids="101 202"),
+            _sample(elapsed_seconds=2.0, optimizer_pids="101", optimizer_process_count=0),
+        ],
+        workers=16,
+    )
+    assert resumo["checks"]["one_active_thread_per_optimizer"] is False
+
+
+def test_summary_accepts_process_measured_before_leaving() -> None:
+    """Controle positivo da cobertura, e ele não é opcional.
+
+    Sem ele, uma implementação mais estrita, que exigisse todo pid visto também
+    na última amostra, passa em todos os demais testes deste arquivo.
+    """
+
+    resumo = summarize_samples(
+        [
+            _sample(),
+            _sample(elapsed_seconds=1.0, optimizer_pids="101 202"),
+            _sample(elapsed_seconds=2.0, optimizer_pids="101 202"),
+            _sample(elapsed_seconds=3.0, optimizer_pids="101", optimizer_process_count=0),
+        ],
+        workers=16,
+    )
+    assert resumo["checks"]["one_active_thread_per_optimizer"] is True
+
+
+def test_ratio_and_coverage_are_computed_per_session() -> None:
+    """A sessão anterior não pode reprovar a atual.
+
+    A linha antiga traz razão de 1,97 e um pid visto uma única vez. Se qualquer
+    dos dois agregados olhasse a série inteira, este resumo reprovaria.
+    """
+
+    resumo = summarize_samples(
+        [
+            _sample(
+                session_id="antiga", max_optimizer_cpu_ratio=1.97, optimizer_pids="900"
+            ),
+            _sample(session_id="atual"),
+            _sample(session_id="atual", elapsed_seconds=1.0, optimizer_process_count=0),
+        ],
+        workers=16,
+    )
+    assert resumo["session_id"] == "atual"
+    assert resumo["max_optimizer_cpu_ratio"] == pytest.approx(1.0)
+    assert resumo["checks"]["one_active_thread_per_optimizer"] is True
+
+
+def test_summary_still_publishes_the_old_thread_count() -> None:
+    resumo = summarize_samples(
+        [
+            _sample(),
+            _sample(
+                elapsed_seconds=1.0,
+                max_active_threads_per_optimizer=2,
+                optimizer_process_count=0,
+            ),
+        ],
+        workers=16,
+    )
+    assert resumo["max_active_optimizer_threads"] == 2
+    assert resumo["checks"]["one_active_thread_per_optimizer"] is True
+
+
+def test_series_without_the_new_columns_is_read_and_rejected(tmp_path: Path) -> None:
+    """Série herdada, sem as colunas novas, não pode ser aprovada por vácuo."""
+
+    caminho = tmp_path / "antiga.csv"
+    campos = [
+        nome
+        for nome in _sample()
+        if nome not in ("max_optimizer_cpu_ratio", "optimizer_pids")
+    ]
+    with caminho.open("w", encoding="utf-8", newline="") as fluxo:
+        escritor = csv.DictWriter(fluxo, fieldnames=[*campos, "session_id", "sampled_at"])
+        escritor.writeheader()
+        for indice in (0, 1):
+            linha = {nome: _sample()[nome] for nome in campos}
+            linha["elapsed_seconds"] = float(indice)
+            linha["session_id"] = "antiga"
+            linha["sampled_at"] = "2026-08-31T22:12:06Z"
+            escritor.writerow(linha)
+    linhas = read_samples(caminho)
+    assert linhas[0].get("max_optimizer_cpu_ratio") is None
+    resumo = summarize_samples(linhas, workers=16)
+    assert resumo["max_optimizer_cpu_ratio"] is None
+    assert resumo["checks"]["one_active_thread_per_optimizer"] is False
+    # A observação antiga continua publicada, e é o que permite comparar as duas
+    # leituras sobre a mesma série.
+    assert resumo["max_active_optimizer_threads"] == 1
+
+
+def test_reading_preserves_multiple_pids(tmp_path: Path) -> None:
+    caminho = tmp_path / "multi.csv"
+    with caminho.open("w", encoding="utf-8", newline="") as fluxo:
+        campos = [*_sample(), "session_id", "sampled_at"]
+        escritor = csv.DictWriter(fluxo, fieldnames=campos)
+        escritor.writeheader()
+        linha = dict(_sample())
+        linha["optimizer_pids"] = "101 202"
+        linha["session_id"] = "atual"
+        linha["sampled_at"] = "2026-08-31T22:12:06Z"
+        escritor.writerow(linha)
+    assert read_samples(caminho)[0]["optimizer_pids"] == "101 202"

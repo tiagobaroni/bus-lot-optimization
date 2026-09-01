@@ -160,6 +160,26 @@ def sample_process_tree(
     }
 
 
+def _uncovered_optimizers(rows: list[dict[str, Any]]) -> set[str]:
+    """Processos otimizadores observados sem nenhum intervalo medido.
+
+    Um processo só tem razão calculada quando aparece em duas amostras
+    consecutivas. Quem aparece uma vez e some nunca foi medido, e o critério não
+    pode aprovar sobre ausência de evidência. Sair da série depois de ter sido
+    medido é legítimo, e não é contado aqui.
+    """
+
+    vistos: set[str] = set()
+    medidos: set[str] = set()
+    anterior: set[str] = set()
+    for row in rows:
+        atuais = set(str(row.get("optimizer_pids") or "").split())
+        vistos |= atuais
+        medidos |= atuais & anterior
+        anterior = atuais
+    return vistos - medidos
+
+
 def summarize_samples(samples: Iterable[dict[str, Any]], *, workers: int) -> dict[str, Any]:
     """Resume **a sessão atual**, e não a série acumulada do arquivo.
 
@@ -191,11 +211,26 @@ def summarize_samples(samples: Iterable[dict[str, Any]], *, workers: int) -> dic
         int(row["max_active_threads_per_optimizer"]) for row in current
     )
     peak_cpu = max(float(row["cpu_percent"]) for row in current)
+    razoes = [
+        float(row["max_optimizer_cpu_ratio"])
+        for row in current
+        if row.get("max_optimizer_cpu_ratio") is not None
+    ]
+    max_ratio = max(razoes) if razoes else None
+    descobertos = _uncovered_optimizers(current)
     remaining_optimizers = int(current[-1]["optimizer_process_count"])
     checks = {
         "memory_margin": minimum_available >= minimum_required,
         "swap_unchanged": swap_delta == 0,
-        "one_active_thread_per_optimizer": max_active_threads <= 1,
+        # A pergunta é quanto paralelismo o processo exerceu, e não quantas das
+        # suas threads acumularam algum tique desde que ele nasceu. As duas
+        # divergem assim que um worker sobrevive a mais de duas tarefas, porque
+        # uma thread auxiliar do pool cruza o piso de um tique e nunca mais volta.
+        "one_active_thread_per_optimizer": (
+            max_ratio is not None
+            and max_ratio <= MAX_OPTIMIZER_CPU_RATIO
+            and not descobertos
+        ),
         "cpu_within_workers": peak_cpu <= workers * 100 * 1.10,
         "no_persistent_optimizers": remaining_optimizers == 0,
     }
@@ -205,7 +240,11 @@ def summarize_samples(samples: Iterable[dict[str, Any]], *, workers: int) -> dic
         # `samples_session`. O artefato versionado do piloto ainda está na versão
         # 1, com a semântica antiga de `samples` e sem os três campos; o número
         # existe para que os dois não sejam comparados em silêncio.
-        "schema_version": 2,
+        # Versão 3: `one_active_thread_per_optimizer` deixou de contar threads
+        # com tique acumulado e passou a decidir por `max_optimizer_cpu_ratio`,
+        # a razão entre o consumo do processo e o intervalo entre amostras. A
+        # contagem antiga continua publicada, fora de `checks`.
+        "schema_version": 3,
         "workers": workers,
         "session_id": session_id,
         "samples": len(current),
@@ -223,6 +262,9 @@ def summarize_samples(samples: Iterable[dict[str, Any]], *, workers: int) -> dic
         "peak_cpu_percent": peak_cpu,
         "max_process_count": max(int(row["process_count"]) for row in current),
         "max_optimizer_threads": max_threads,
+        "max_optimizer_cpu_ratio": max_ratio,
+        # Continua publicada como observação, e deliberadamente fora de `checks`:
+        # é a série que permite comparar as duas leituras sobre os mesmos dados.
         "max_active_optimizer_threads": max_active_threads,
         "remaining_optimizers": remaining_optimizers,
         "checks": checks,
