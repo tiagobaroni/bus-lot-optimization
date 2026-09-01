@@ -7,48 +7,68 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 31/08/2026
-- **Bloco ativo:** nenhum. **A B11B está encerrada.**
-- **Fase do bloco encerrado:** Fase 2 completa, **29 de 29 pacotes**, mais três pacotes
-  de fechamento decididos durante a Tarefa 20. A contagem é conferida por enumeração
-  contra o universo A1 mais B1 a B21 mais C1 a C7.
-- **Último bloco concluído:** B11B - Auditoria técnica pré-execução
-- **Branch de trabalho:** nenhuma. O trabalho foi mesclado em `main`, que está publicada,
-  e a branch da auditoria foi apagada local e remotamente.
-- **Última decisão concluída:** a Tarefa 20 fechou o congelamento. O tuning e o piloto
-  foram refeitos sobre o código corrigido, o retuning mudou o peso social do enxame de
-  `1,5` para `2,0` e a mudança foi propagada às campanhas oficiais, o roteiro foi regerado
-  e o manifesto renovado. Três pacotes de fechamento foram necessários e não estavam
-  previstos: a guarda condicional entre o commit do piloto e o commit corrente, a saída da
-  ferramenta de conferência do escopo congelado, e a tolerância de sujeira restrita aos
-  artefatos que o próprio manifesto assina.
+- **Atualizado em:** 01/09/2026
+- **Bloco ativo:** nenhum. **A B11C está encerrada.**
+- **Último bloco concluído:** B11C - correção da medição de threads ativas
+- **Branch de trabalho:** nenhuma. O trabalho foi mesclado em `main`, que está
+  publicada, e a branch do bloco foi apagada.
+- **O que aconteceu com a primeira tentativa da B11-E.** Ela rodou em 31/08/2026 e
+  **não** foi interrompida: o lote 1 concluiu 324 de 324 cenários, com zero falhas, e a
+  **barreira reprovou** com `critério de recursos não satisfeito`. O critério contava
+  threads que houvessem acumulado ao menos um tique desde o nascimento do processo, e
+  uma thread auxiliar do pool cruza esse piso por volta da terceira tarefa de cada
+  worker. Era artefato de contagem, não paralelismo. O achado e a correção estão em
+  `docs/auditoria.md`, em **F7-11**, que é o resíduo previsto de F7-7 se realizando.
+- **O que a B11C entregou.** O critério passou a decidir por `max_optimizer_cpu_ratio`,
+  a razão entre o tempo de CPU do processo e o intervalo entre amostras, com tolerância
+  de `1,10`; `max_active_optimizer_threads` continua publicada como observação e não
+  decide mais; a série ganhou `optimizer_pids` e a exigência de que todo processo
+  observado tenha ao menos um intervalo medido. O piloto foi refeito e o congelamento
+  renovado, em cinco commits, pelo motivo registrado abaixo.
 - **Próxima ação atômica:** executar a **B11-E**, o benchmark principal, com 1.620
-  cenários em 270 subgrupos e 5 lotes. `run_benchmark readiness` devolve `ready: true`.
-  Depois dela, a **B11A-E**, a campanha da réplica em placa gráfica, **que exige fechar
-  antes o processo gráfico que ocupa a placa nesta máquina**, senão o preflight recusa.
-- **Bloqueios conhecidos:** **nenhum para a B11-E.** O manifesto de congelamento foi
-  **renovado** na Tarefa 20, sobre o piloto refeito, e `run_benchmark readiness` devolve
-  `ready: true`. O histórico da divergência, que chegou a 30 dos 52 arquivos durante as
-  ondas e era o mecanismo do pacote B1 funcionando, está registrado em `docs/auditoria.md`
-  e **deixou de existir com a renovação**.
-  **A B11A-E tem um bloqueio operacional, e ele não é de código:** há um processo gráfico
-  de navegador ocupando a placa nesta máquina, o que faz `preflight_idle` recusar. Precisa
-  estar fechado antes de iniciar a campanha da réplica.
+  cenários em 270 subgrupos e 5 lotes, em modo lote e com o roteiro de encadeamento.
+  `run_benchmark readiness` devolve `ready: true` com `existing_results: 0`. Depois
+  dela, a **B11A-E**, a campanha da réplica em placa gráfica, **que exige fechar antes
+  o processo gráfico que ocupa a placa nesta máquina**, senão o preflight recusa.
+- **Bloqueios conhecidos:** **nenhum para a B11-E.** O bloqueio que derrubou a primeira
+  tentativa era o critério de recursos, e foi corrigido. O manifesto foi renovado sobre
+  o piloto refeito e `freeze_benchmark verify` aprova.
+  **A B11A-E mantém o bloqueio operacional, que não é de código:** há um processo
+  gráfico de navegador ocupando a placa nesta máquina, e ele precisa estar fechado
+  antes de iniciar a campanha da réplica.
+- **A transação de fechamento do congelamento deixou de caber em um commit, e quem
+  retomar precisa saber disso.** Os dezoito documentos de `results/raw/pilot/` passaram
+  a ser versionados na Tarefa 20 da B11B, mas a tolerância de sujeira de
+  `generate_freeze_manifest` deriva de `PILOT_ARTIFACTS` mais o roteiro e não os inclui.
+  Refazer o piloto exige, na ordem: remover os documentos e commitar, senão a
+  reexecução seleciona zero cenários; executar e commitar os documentos, senão
+  `consolidate` recusa por árvore suja; consolidar, validar, analisar e commitar os
+  artefatos; gerar o manifesto e commitar; regerar o roteiro e gerar o manifesto de
+  novo, commitando os dois juntos, porque o roteiro é caminho protegido e commitá-lo
+  antes faria a guarda entre o commit do piloto e o HEAD recusar. **Não alargar a
+  tolerância para contornar.**
 - **Pendências de registro que não bloqueiam nada, e ficam para quem retomar:**
-  tornar **incondicional** a exigência de `inherited_thread_limits` na validação do piloto,
-  hoje possível porque **os dezoito documentos passaram a ter o campo**, conferido, mas que
-  exige tocar `experiments/pilot_validation.py`, **arquivo protegido**, e portanto refazer a
-  transação de fechamento inteira; decidir se a dependência de `results/raw/` e o defeito de
-  diretório de trabalho da suíte da réplica viram **achados novos** no registro; a asserção
-  `diferenca < 1e-15` em `gpu/tests/test_numerics.py`, mais estrita que a régua normativa;
-  três dos quatro sítios de `COST_TOLERANCE` no ACO sem caso de afrouxamento;
+  tornar **incondicional** a exigência de `inherited_thread_limits` na validação do
+  piloto, hoje possível porque **os dezoito documentos passaram a ter o campo**; decidir
+  se a dependência de `results/raw/` e o defeito de diretório de trabalho da suíte da
+  réplica viram **achados novos** no registro; a asserção `diferenca < 1e-15` em
+  `gpu/tests/test_numerics.py`, mais estrita que a régua normativa; três dos quatro
+  sítios de `COST_TOLERANCE` no ACO sem caso de afrouxamento;
   `gpu/configs/gpu_diagnostic.toml` sem cobertura de carregamento; e dois símbolos
   declarados em vez de removidos, `arbitration_cpu_seconds` e `MemoryLayoutError`.
-  **O limiar de `max_active_optimizer_threads` está resolvido:** a sessão real que o plano
-  exigia medir antes de decidir já existe, e o valor medido é **1**, dentro do que a
-  validação exige.
-- **Consequência já aceita:** a correção do PSO alterou resultados, logo o tuning
-  e o piloto oficiais serão refeitos antes da B11-E.
+  **O limiar de `max_active_optimizer_threads` deixou de existir como pendência:** ele
+  não decide mais nada, e a medição que o substituiu foi calibrada contra campanha real.
+- **Última verificação, no fecho da B11C:** suíte de CPU com **533 aprovados e zero
+  reprovados**, contra 517 na partida, e suíte da réplica com **98** aprovados sobre
+  dispositivo real, invocada com `uv run --project gpu pytest gpu/tests` a partir da
+  raiz. O piloto refeito foi aprovado com reprodução, com razão de consumo de `1,0093`,
+  e um subgrupo real do benchmark foi executado como prova, aprovado com `1,0087`. Os
+  dezoito documentos do piloto e os seis do subgrupo são idênticos aos anteriores em
+  tudo que não é temporal.
+- **Consequência já cumprida:** a correção do PSO alterou resultados, e o tuning e o
+  piloto oficiais foram refeitos antes da B11-E. O piloto foi refeito uma segunda vez
+  na B11C, agora sem alteração de resultado, apenas para alinhar o commit e regravar a
+  série de recursos no esquema novo.
 - **Última verificação:** no fim do commit do pacote **R3**, impressão digital
   idêntica no **conjunto completo dos 42 cenários**, sem restrição a subconjunto,
   suíte de CPU com **517 aprovados e zero reprovados**, contra 511 aprovados na

@@ -4759,6 +4759,88 @@ do auditor: sem as variáveis, o mesmo carregamento produz **66 threads**.
 - **Situação:** fechado sem ação de código.
 - **Impressão digital:** pendente.
 
+#### F7-11. O risco de composição previsto em F7-7 se materializou e reprovou o lote 1 da B11-E
+
+- **Frente:** F7.
+- **Classe:** `D3`.
+- **Premissa:** `docs/experiments.md` seção 29, linhas 1074-1082, "uma thread
+  computacional ativa por execução" e "Threads auxiliares ociosas do alocador ou da
+  leitura Parquet são registradas separadamente e não contam como paralelismo
+  computacional do otimizador". **Fonte: normativa.**
+- **Previsto:** um critério que reprove paralelismo interno acidental e só ele.
+- **Código:** `experiments/resource_monitor.py`, o check
+  `one_active_thread_per_optimizer` como `max_active_threads <= 1`, e
+  `experiments/pilot_validation.py`, a exigência equivalente na validação do piloto.
+- **Evidência.** A primeira tentativa da B11-E, em 31/08/2026, concluiu o lote 1 com
+  324 de 324 cenários, zero falhas e sem interrupção, e a barreira recusou com
+  `critério de recursos não satisfeito`: `max_active_optimizer_threads` valia 2.
+  A campanha parou depois de 2h15 de execução íntegra. A investigação mediu três
+  coisas. Primeira: cada worker tem sempre quatro threads e só uma calcula; num traço
+  de 27.025 amostras, `jemalloc_bg_thd` e as duas threads Python auxiliares estão
+  **sempre** em estado `S`, nunca em `R`, com CPU acumulada de 0,000 s contra ~400 s
+  da principal. Segunda: das 70 amostras que reprovaram, **todas as 70** têm um
+  término *e* um início de cenário nos 2 s anteriores; nenhuma tem só um dos dois, os
+  dezesseis inícios simultâneos da partida deram máximo 1, e os 520 s finais de
+  drenagem, só com términos, também. O gatilho é a reciclagem do worker, e não o
+  tempo de execução: a correlação aparente com o tempo era artefato da ordem de
+  prioridade, que põe os `aco/150` longos no começo e deixa os cenários curtos, de
+  alta rotatividade, para o fim. Terceira: em `provenance.observed_threads`, gravado
+  por cenário, `threads_with_ticks` vale 1 nos 32 primeiros cenários por ordem de
+  início — o primeiro e o segundo de cada um dos dezesseis workers — e 2 em 277 dos
+  292 seguintes. A contagem é acumulada no processo: uma thread auxiliar cruza o piso
+  de um tique, 0,01 s, por volta da terceira tarefa do worker, e nunca mais volta.
+- **O risco estava previsto, e a medição que o teria pego não reproduzia a condição.**
+  O dossiê de F7-7 registrou, com todas as letras, que "em campanha nova o valor `2`
+  passa a ser alcançável onde antes não era, e a consequência seria reprovar um piloto
+  por artefato de contagem, não por paralelismo real", e exigiu medir uma sessão real
+  antes de disparar a campanha. A medição foi feita e devolveu 1, mas numa sessão em
+  que nenhum worker passou de duas tarefas, que é justamente o limiar do fenômeno. O
+  defeito da medição não foi não ter medido: foi medir uma sessão cuja forma não
+  continha a condição. Este é o resíduo de F7-7 que se realizou.
+- **Correção.** O critério passou a decidir por `max_optimizer_cpu_ratio`: o tempo de
+  CPU do processo otimizador no intervalo, dividido pelo intervalo, com tolerância de
+  `1,10` em `MAX_OPTIMIZER_CPU_RATIO`. Mede paralelismo real, e não contagem de
+  threads: uma thread de cálculo dá aproximadamente 1,0 e duas dariam 2,0, enquanto o
+  ruído de quantização medido em 4.758 intervalos teve mediana 0,9962, p99 1,0286 e
+  máximo 1,0496. `max_active_optimizer_threads` continua publicada como observação e
+  saiu de `checks`, para que as duas leituras permaneçam comparáveis sobre a mesma
+  série. A série ganhou `optimizer_pids`, sem a qual a exigência de cobertura — todo
+  processo observado precisa ter ao menos um intervalo medido — não seria verificável,
+  e cuja ausência foi o que limitou o diagnóstico da própria tentativa reprovada: a
+  série registrava dezesseis processos em 7.344 amostras sem permitir saber se eram os
+  mesmos dezesseis. Processo visto pela primeira vez fica fora do cálculo, e a decisão
+  é deliberada: compará-lo contra zero é a forma do defeito que este achado corrige.
+  `pilot_validation` passou a exigir a razão. Resumo na versão 3 de esquema.
+- **Evidência da correção.** Piloto reexecutado e aprovado com razão de `1,0093` sobre
+  2.795 amostras, e subgrupo real do benchmark aprovado com `1,0087` sobre 393, os
+  dois com a contagem antiga em 1. Os dezoito documentos do piloto refeito e os seis
+  do subgrupo são idênticos aos anteriores em tudo que não é temporal, com divergência
+  apenas em `started_at`, `finished_at`, `runtime_seconds`, `content_sha256` e o
+  commit da proveniência. Suíte de CPU com 533 aprovados e zero reprovados, contra 517
+  na partida, e suíte da réplica com 98. Dezesseis casos de teste novos, entre eles um
+  que prende a tolerância aprovada, sem o qual qualquer valor entre 1,0496 e 1,97
+  passaria a suíte, e um controle positivo de cobertura, sem o qual uma implementação
+  mais estrita passaria despercebida.
+- **Segundo achado, nascido na execução da correção.** A transação de fechamento do
+  congelamento deixou de caber em um commit, e por um motivo que ninguém tinha
+  percebido: os dezoito documentos de `results/raw/pilot/` passaram a ser versionados
+  na Tarefa 20, mas a tolerância de sujeira de `generate_freeze_manifest` deriva de
+  `PILOT_ARTIFACTS` mais o roteiro e não os inclui. O último congelamento
+  bem-sucedido é anterior a essa mudança, de modo que a transação nunca havia sido
+  exercida na configuração vigente. São três consequências: sem remover os documentos
+  antes, `classify` os dá por concluídos e a reexecução seleciona zero cenários; a
+  própria gravação dos documentos suja a árvore e faz `consolidate` recusar, o que
+  quebra a cadeia `execute`, `consolidate`, `validate_pilot`; e o roteiro precisa ser
+  regerado com o manifesto já renovado, o que força um segundo `generate`. O
+  refazimento do piloto passou a exigir cinco commits, na ordem: remoção, documentos,
+  artefatos consolidados, manifesto, roteiro com o congelamento fechado. **Não alargar
+  a tolerância para resolver:** ela é derivada do que o manifesto hasheia, e tolerar
+  sujeira não hasheada é o oposto do que ela existe para garantir.
+- **Impressão digital:** zero. Nenhuma alteração em `src/metaheuristica/`, e a
+  identidade dos artefatos reexecutados é a evidência direta.
+- **Situação:** fechado com correção de código, dezesseis testes novos, piloto refeito
+  e congelamento renovado.
+
 ### 3.8. Frente F8 - infraestrutura GPU
 
 Catorze achados, e a frente que mais mudou na verificação adversarial: **três
