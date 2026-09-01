@@ -185,10 +185,16 @@ uv sync --dev
 
 Os hiperparâmetros finais foram congelados pelo tuning. A automação permite
 planejar, executar, retomar e consolidar campanhas. O núcleo e as
-metaheurísticas podem ser verificados com:
+metaheurísticas de CPU podem ser verificados com:
 
 ```bash
-uv run pytest -q
+uv run pytest -q tests
+```
+
+A réplica GPU usa ambiente isolado e deve ser verificada separadamente:
+
+```bash
+uv run --project gpu pytest -q gpu/tests
 ```
 
 O piloto diagnóstico anterior ao tuning pode ser inspecionado sem executar

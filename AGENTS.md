@@ -462,7 +462,13 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
-**Estado registrado em 31/08/2026, com a auditoria B11B concluída.**
+**Estado registrado em 01/09/2026, com a B11D concluída.**
+
+- a B11D corrigiu a retomada do lançador da B11-E: resultados oficiais existentes
+  são aceitos, lotes com barreira são revalidados e pulados, e o `finalize` pode ser
+  repetido; a implementação canônica versionada tem 14 testes isolados;
+- a B11D foi incorporada à `main` e publicada antes da execução oficial, preservando
+  a exigência de árvore limpa da campanha;
 
 - a **auditoria técnica B11B está encerrada**, com os **29 pacotes** de correção
   fechados e mais três de fechamento, e foi incorporada à `main`, que hoje está no
@@ -473,7 +479,7 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 - o **manifesto de congelamento foi renovado** sobre o piloto refeito, e
   `run_benchmark readiness` devolve `ready: true`, com 1.620 cenários, 270 subgrupos e
   5 lotes. **A B11-E está liberada**;
-- a suíte de CPU está em **517 casos**, contra 254 no estado auditado, e a da réplica
+- a suíte de CPU está em **547 casos**, contra 254 no estado auditado, e a da réplica
   em placa gráfica em **98**, contra 27;
 - os **dezoito documentos do piloto passaram a ser versionados**, para que um clone
   limpo rode a suíte integral; as demais campanhas seguem fora do Git.

@@ -8,10 +8,9 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 01/09/2026
-- **Bloco ativo:** nenhum. **A B11C está encerrada.**
-- **Último bloco concluído:** B11C - correção da medição de threads ativas
-- **Branch de trabalho:** nenhuma. O trabalho foi mesclado em `main`, que está
-  publicada, e a branch do bloco foi apagada.
+- **Bloco ativo:** nenhum. **A B11D está concluída.**
+- **Último bloco concluído:** B11D - retomada do lançador da B11-E
+- **Branch de trabalho:** nenhuma. A B11D foi incorporada à `main` e publicada.
 - **O que aconteceu com a primeira tentativa da B11-E.** Ela rodou em 31/08/2026 e
   **não** foi interrompida: o lote 1 concluiu 324 de 324 cenários, com zero falhas, e a
   **barreira reprovou** com `critério de recursos não satisfeito`. O critério contava
@@ -25,7 +24,21 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   decide mais; a série ganhou `optimizer_pids` e a exigência de que todo processo
   observado tenha ao menos um intervalo medido. O piloto foi refeito e o congelamento
   renovado, em cinco commits, pelo motivo registrado abaixo.
-- **Próxima ação atômica:** executar a **B11-E**, o benchmark principal, com 1.620
+- **Última decisão concluída:** o lançador aceitará resultados oficiais existentes,
+  revalidará e pulará lotes com barreira aprovada e repetirá `finalize` depois das
+  cinco barreiras.
+- **O que a B11D entregou:** o lançador canônico versionado está em
+  `experiments/executa_b11e.sh`; `_temp/executa_b11e.sh` preserva o comando operacional
+  como wrapper. A retomada aceita resultados oficiais, revalida e pula lotes com
+  barreira, não cria sessão vazia nem pausa em lote pulado e repete `finalize` depois
+  das cinco barreiras. Há 14 testes isolados do lançador.
+- **Última verificação:** 547 testes CPU e 98 testes GPU aprovados; `bash -n` aprovou
+  o lançador e o wrapper; um clone temporário limpo aprovou os 14 testes do lançador e
+  o `readiness` real com 1.620 cenários, 270 subgrupos, 5 lotes, 16 workers e zero
+  resultados existentes. Nenhum cenário oficial foi executado.
+- **Próxima ação atômica:** executar `readiness` na árvore real limpa e, se aprovado,
+  iniciar a B11-E pelo `nohup` autorizado pelo usuário.
+- **Objetivo posterior:** executar a **B11-E**, o benchmark principal, com 1.620
   cenários em 270 subgrupos e 5 lotes, em modo lote e com o roteiro de encadeamento.
   `run_benchmark readiness` devolve `ready: true` com `existing_results: 0`. Depois
   dela, a **B11A-E**, a campanha da réplica em placa gráfica, **que exige fechar antes
