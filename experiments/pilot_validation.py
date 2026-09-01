@@ -21,7 +21,11 @@ from metaheuristica.errors import ConfigurationError
 from experiments.config import CampaignConfig
 from experiments.consolidation import _atomic_parquet
 from experiments.execution import build_plan, execute_campaign
-from experiments.resource_monitor import read_samples, summarize_samples
+from experiments.resource_monitor import (
+    MAX_OPTIMIZER_CPU_RATIO,
+    read_samples,
+    summarize_samples,
+)
 from experiments.scenarios import (
     Scenario, canonical_json, expand_scenarios, file_sha256,
 )
@@ -114,9 +118,11 @@ def _validate_result(config: CampaignConfig, scenario: Scenario, document: dict[
     # escreve as sete variáveis e relê as mesmas chaves do mesmo `os.environ`,
     # no mesmo processo. Ela é mantida porque documenta a intenção, e quem pode
     # falhar é a verificação observada dos recursos, em `validate_pilot`:
-    # `max_active_optimizer_threads` menor ou igual a um vem do monitor por
-    # `/proc`, é medição e não declaração, e é ela que fecha a parte observável
-    # do achado F7-2 nesta validação.
+    # `max_optimizer_cpu_ratio` dentro da tolerância vem do monitor por `/proc`,
+    # é medição e não declaração, e é ela que fecha a parte observável do achado
+    # F7-2 nesta validação. Até a B11C quem cumpria esse papel era
+    # `max_active_optimizer_threads`, que contava threads auxiliares sem
+    # trabalho e reprovava campanha íntegra.
     _require(limits and set(limits.values()) == {"1"}, "limites de threads divergentes")
     # Aqui existia `set(inherited) == set(THREAD_VARIABLES)`, que não podia
     # falhar: `capture_provenance` monta o dicionário iterando exatamente essa
@@ -347,11 +353,15 @@ def validate_pilot(config: CampaignConfig, *, reproduce: bool = True) -> dict[st
     samples = read_samples(operational / "resources.csv")
     resource_summary = summarize_samples(samples, workers=16)
     _require(resource_summary["passed"] is True, "critérios de recursos falharam")
-    # A garantia de uma thread computacional por execução é esta, medida por
-    # variação de ticks na árvore de processos, e não a igualdade declarada em
-    # `thread_limits`.
+    # A garantia de uma thread computacional por execução é esta, medida como
+    # razão entre o tempo de CPU do processo e o intervalo entre amostras, e não
+    # a igualdade declarada em `thread_limits`. A leitura anterior, por contagem
+    # de threads com tique acumulado, contava threads auxiliares do alocador e do
+    # pool, que não calculam nada e cruzam o piso de um tique por volta da
+    # terceira tarefa do worker.
     _require(
-        int(resource_summary["max_active_optimizer_threads"]) <= 1,
+        resource_summary.get("max_optimizer_cpu_ratio") is not None
+        and float(resource_summary["max_optimizer_cpu_ratio"]) <= MAX_OPTIMIZER_CPU_RATIO,
         "mais de uma thread computacional ativa por otimizador",
     )
     tables = config.repository_root / config.output_root / "tables"
