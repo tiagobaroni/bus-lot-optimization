@@ -5,11 +5,18 @@ from dataclasses import MISSING, fields
 import os
 from pathlib import Path
 import sys
+import time
 import warnings
 
 import pytest
 
-from experiments.resource_monitor import ResourceMonitor, read_samples, summarize_samples
+from experiments.resource_monitor import (
+    MAX_OPTIMIZER_CPU_RATIO,
+    ResourceMonitor,
+    read_samples,
+    sample_process_tree,
+    summarize_samples,
+)
 from metaheuristica.errors import ConfigurationError
 
 
@@ -153,7 +160,11 @@ def test_a_new_thread_with_accumulated_ticks_counts_as_active(tmp_path: Path) ->
     monitor = ResourceMonitor(tmp_path / "resources.csv", workers=1)
     monitor._last_thread_ticks = {}
 
-    row = {"optimizer_thread_ticks": {"10:10": 7, "10:11": 0}, "cpu_ticks": 0}
+    row = {
+        "optimizer_thread_ticks": {"10:10": 7, "10:11": 0},
+        "optimizer_process_ticks": {"10": 7},
+        "cpu_ticks": 0,
+    }
     monitor._samples = []
     monitor._started = 0.0
     monitor._record(row)
@@ -267,3 +278,140 @@ def test_root_pid_is_declared_as_a_factory_and_not_as_a_frozen_default() -> None
     root_pid = field_by_name["root_pid"]
     assert root_pid.default is MISSING
     assert root_pid.default_factory is os.getpid
+
+
+def _arvore_sintetica(
+    base: Path, *, root_pid: int, filhos: list[tuple[int, str, int, int]]
+) -> Path:
+    """Árvore de processos no formato que `_read_process` consome.
+
+    O corte `stat[close + 2:]` remove `pid (comm) `, de modo que o estado do
+    processo é o primeiro elemento restante e `fields[k]` é `campos[k - 1]`.
+    """
+
+    raiz = base / "proc"
+    raiz.mkdir(parents=True, exist_ok=True)
+    (raiz / "meminfo").write_text(
+        "MemTotal: 33554432 kB\nMemAvailable: 16777216 kB\n"
+        "SwapTotal: 4194304 kB\nSwapFree: 4194304 kB\n",
+        encoding="utf-8",
+    )
+
+    def escreve(pid: int, ppid: int, comando: str, utime: int, stime: int) -> None:
+        diretorio = raiz / str(pid)
+        (diretorio / "task" / str(pid)).mkdir(parents=True, exist_ok=True)
+        campos = ["0"] * 22
+        campos[0] = str(ppid)     # fields[1], o quarto campo do /proc
+        campos[10] = str(utime)   # fields[11]
+        campos[11] = str(stime)   # fields[12]
+        linha = f"{pid} (python3) S " + " ".join(campos) + "\n"
+        (diretorio / "stat").write_text(linha, encoding="utf-8")
+        (diretorio / "task" / str(pid) / "stat").write_text(linha, encoding="utf-8")
+        (diretorio / "status").write_text(
+            "VmRSS:\t1024 kB\nThreads:\t4\n", encoding="utf-8"
+        )
+        (diretorio / "cmdline").write_bytes(comando.encode("utf-8"))
+
+    escreve(root_pid, 1, "orquestrador", 0, 0)
+    for pid, comando, utime, stime in filhos:
+        escreve(pid, root_pid, comando, utime, stime)
+    return raiz
+
+
+def test_sample_tree_reports_cpu_ticks_per_optimizer_process(tmp_path: Path) -> None:
+    raiz = _arvore_sintetica(
+        tmp_path,
+        root_pid=100,
+        # `utime` e `stime` distintos e não nulos: a soma fica presa, e trocar um
+        # índice pelo outro deixa de passar por acaso.
+        filhos=[
+            (101, "worker", 700, 23),
+            (102, "multiprocessing.resource_tracker", 5, 1),
+        ],
+    )
+    amostra = sample_process_tree(100, proc_root=raiz)
+    assert amostra["optimizer_process_ticks"] == {"101": 723}
+    assert amostra["optimizer_process_count"] == 1
+    assert amostra["descendant_count"] == 2
+
+
+def _fotografia(*, ticks_por_pid: dict[str, int]) -> dict:
+    """Fotografia no formato que `_record` consome, sem tocar em `/proc`."""
+
+    return {
+        "rss_bytes": 1_000,
+        "descendant_rss_bytes": 500,
+        "cpu_ticks": sum(ticks_por_pid.values()),
+        "process_count": len(ticks_por_pid) + 1,
+        "descendant_count": len(ticks_por_pid),
+        "optimizer_process_count": len(ticks_por_pid),
+        "max_optimizer_threads": 4,
+        "optimizer_thread_ticks": {
+            f"{pid}:{pid}": valor for pid, valor in ticks_por_pid.items()
+        },
+        "optimizer_process_ticks": dict(ticks_por_pid),
+        "memory_total_bytes": 32 * 1024 ** 3,
+        "memory_available_bytes": 16 * 1024 ** 3,
+        "swap_total_bytes": 4 * 1024 ** 3,
+        "swap_free_bytes": 4 * 1024 ** 3,
+    }
+
+
+def test_record_computes_cpu_ratio_between_consecutive_samples() -> None:
+    monitor = ResourceMonitor(Path("/dev/null"), workers=16)
+    monitor._started = 0.0
+    relogio = os.sysconf("SC_CLK_TCK")
+    monitor._record(_fotografia(ticks_por_pid={"101": 0}))
+    # Recuar o instante da última amostra é o que fixa o intervalo em um segundo;
+    # sem isso o divisor seria o tempo real entre as duas chamadas.
+    monitor._last_sample_at -= 1.0
+    monitor._record(_fotografia(ticks_por_pid={"101": relogio}))
+    linha = monitor._samples[-1]
+    assert linha["max_optimizer_cpu_ratio"] == pytest.approx(1.0, abs=0.05)
+    assert linha["optimizer_pids"] == "101"
+
+
+def test_record_excludes_process_seen_for_the_first_time() -> None:
+    monitor = ResourceMonitor(Path("/dev/null"), workers=16)
+    monitor._started = 0.0
+    relogio = os.sysconf("SC_CLK_TCK")
+    monitor._record(_fotografia(ticks_por_pid={"101": 0}))
+    monitor._last_sample_at -= 1.0
+    # 202 nasce agora, com cinquenta segundos de histórico. Contá-lo compararia
+    # contra zero, que é exatamente o defeito que este bloco corrige.
+    monitor._record(_fotografia(ticks_por_pid={"101": relogio, "202": 50 * relogio}))
+    linha = monitor._samples[-1]
+    assert linha["max_optimizer_cpu_ratio"] == pytest.approx(1.0, abs=0.05)
+    assert linha["optimizer_pids"] == "101 202"
+
+
+def test_record_ignores_a_process_that_disappeared() -> None:
+    monitor = ResourceMonitor(Path("/dev/null"), workers=16)
+    monitor._started = 0.0
+    relogio = os.sysconf("SC_CLK_TCK")
+    monitor._record(_fotografia(ticks_por_pid={"101": 0, "202": 0}))
+    monitor._last_sample_at -= 1.0
+    monitor._record(_fotografia(ticks_por_pid={"101": relogio}))
+    linha = monitor._samples[-1]
+    assert linha["max_optimizer_cpu_ratio"] == pytest.approx(1.0, abs=0.05)
+    assert linha["optimizer_pids"] == "101"
+
+
+def test_record_leaves_ratio_undefined_on_first_sample() -> None:
+    monitor = ResourceMonitor(Path("/dev/null"), workers=16)
+    monitor._started = 0.0
+    monitor._record(_fotografia(ticks_por_pid={"101": 0}))
+    assert monitor._samples[-1]["max_optimizer_cpu_ratio"] is None
+    assert monitor._samples[-1]["optimizer_pids"] == "101"
+
+
+def test_record_discards_a_non_positive_interval() -> None:
+    monitor = ResourceMonitor(Path("/dev/null"), workers=16)
+    monitor._started = 0.0
+    relogio = os.sysconf("SC_CLK_TCK")
+    monitor._record(_fotografia(ticks_por_pid={"101": 0}))
+    # Relógio da amostra anterior no futuro: o intervalo não é positivo e não há
+    # divisor legítimo. Grampear em 1e-9 produziria razão de dez milhões.
+    monitor._last_sample_at = time.monotonic() + 60.0
+    monitor._record(_fotografia(ticks_por_pid={"101": relogio}))
+    assert monitor._samples[-1]["max_optimizer_cpu_ratio"] is None

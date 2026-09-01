@@ -16,17 +16,26 @@ from experiments.provenance import utc_now
 
 
 GIB = 1024 ** 3
+# Razão máxima tolerada entre o tempo de CPU de um processo otimizador e o
+# intervalo entre duas amostras. Uma thread de cálculo dá aproximadamente 1,0;
+# duas dariam 2,0. A folga de 1,10 absorve a quantização do tique de 0,01 s, que
+# na campanha de 31/08/2026 mediu no máximo 1,0496 sobre 4.758 intervalos.
+MAX_OPTIMIZER_CPU_RATIO = 1.10
 # Amostra gravada antes de existir coluna de sessão. Ela nunca é confundida com
 # uma sessão real, e a série acumulada continua no arquivo apenas como histórico.
 LEGACY_SESSION = "legado"
-TEXT_FIELDS = ("session_id", "sampled_at")
+TEXT_FIELDS = ("session_id", "sampled_at", "optimizer_pids")
 # As únicas colunas numéricas que o esquema admite vazias. Elas nasceram depois
 # das demais e faltam nas linhas herdadas de sessões anteriores, que o monitor
 # regrava com `restval`. Célula vazia em qualquer outra coluna é CSV corrompido e
 # precisa ser recusada na leitura: tolerá-la em toda coluna adia o erro para
 # dentro de `summarize_samples`, como `TypeError`, ou para o Parquet, como coluna
 # de tipo objeto.
-OPTIONAL_NUMERIC_FIELDS = ("optimizer_thread_ticks_total", "optimizer_thread_count")
+OPTIONAL_NUMERIC_FIELDS = (
+    "optimizer_thread_ticks_total",
+    "optimizer_thread_count",
+    "max_optimizer_cpu_ratio",
+)
 
 
 def _session_of(row: dict[str, Any]) -> str:
@@ -136,6 +145,14 @@ def sample_process_tree(
             for process in optimizer_processes
             for key, value in _thread_ticks(proc_root, process["pid"]).items()
         },
+        # Tempo de CPU do processo inteiro. No `/proc/<pid>/stat` os campos 14 e
+        # 15 já somam todas as threads do processo, ao contrário de
+        # `/proc/<pid>/task/<tid>/stat`, que é por thread. É a base da razão de
+        # consumo, e não depende de identificar thread alguma.
+        "optimizer_process_ticks": {
+            str(process["pid"]): process["cpu_ticks"]
+            for process in optimizer_processes
+        },
         "memory_total_bytes": memory["MemTotal"],
         "memory_available_bytes": memory["MemAvailable"],
         "swap_total_bytes": memory.get("SwapTotal", 0),
@@ -239,6 +256,7 @@ class ResourceMonitor:
         self._last_ticks: int | None = None
         self._last_sample_at: float | None = None
         self._last_thread_ticks: dict[str, int] = {}
+        self._last_process_ticks: dict[str, int] = {}
 
     def _sample(self) -> None:
         self._record(sample_process_tree(self.root_pid))
@@ -253,12 +271,33 @@ class ResourceMonitor:
         now = time.monotonic()
         ticks = int(row.pop("cpu_ticks"))
         thread_ticks = row.pop("optimizer_thread_ticks")
+        process_ticks = {
+            str(pid): int(value)
+            for pid, value in row.pop("optimizer_process_ticks").items()
+        }
         cpu_percent = 0.0
         if self._last_ticks is not None and self._last_sample_at is not None:
             elapsed = max(now - self._last_sample_at, 1e-9)
             cpu_percent = (
                 (ticks - self._last_ticks) / os.sysconf("SC_CLK_TCK") / elapsed * 100
             )
+        # O intervalo é o do relógio, e precisa ser estritamente positivo: o
+        # grampo de 1e-9 que serve ao percentual de CPU aqui produziria razão de
+        # dez milhões a partir de um único tique.
+        ratio: float | None = None
+        if self._last_sample_at is not None and now > self._last_sample_at:
+            intervalo = now - self._last_sample_at
+            # Só processos presentes nas duas amostras: quem aparece agora não
+            # tem intervalo definido, e compará-lo contra zero converteria
+            # histórico acumulado em consumo aparente.
+            razoes = [
+                (value - self._last_process_ticks[pid])
+                / os.sysconf("SC_CLK_TCK")
+                / intervalo
+                for pid, value in process_ticks.items()
+                if pid in self._last_process_ticks
+            ]
+            ratio = max(razoes) if razoes else None
         self._last_ticks = ticks
         self._last_sample_at = now
         row["session_id"] = self.session_id
@@ -270,6 +309,8 @@ class ResourceMonitor:
         row["elapsed_seconds"] = now - self._started
         row["sampled_at"] = utc_now()
         row["cpu_percent"] = max(cpu_percent, 0.0)
+        row["max_optimizer_cpu_ratio"] = ratio
+        row["optimizer_pids"] = " ".join(sorted(process_ticks))
         active_by_pid: dict[str, int] = {}
         for identifier, value in thread_ticks.items():
             previous = self._last_thread_ticks.get(identifier)
@@ -290,6 +331,7 @@ class ResourceMonitor:
         row["optimizer_thread_ticks_total"] = sum(thread_ticks.values())
         row["optimizer_thread_count"] = len(thread_ticks)
         self._last_thread_ticks = thread_ticks
+        self._last_process_ticks = process_ticks
         self._samples.append(row)
 
     def _run(self) -> None:
@@ -309,6 +351,7 @@ class ResourceMonitor:
         self._last_ticks = None
         self._last_sample_at = None
         self._last_thread_ticks = {}
+        self._last_process_ticks = {}
         self._sample()
         self._thread = threading.Thread(
             target=self._run, name="resource-monitor", daemon=True
