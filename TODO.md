@@ -7,10 +7,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 01/09/2026
-- **Bloco ativo:** nenhum. **A B11D está concluída.**
-- **Último bloco concluído:** B11D - retomada do lançador da B11-E
-- **Branch de trabalho:** nenhuma. A B11D foi incorporada à `main` e publicada.
+- **Atualizado em:** 02/09/2026
+- **Bloco ativo:** B11A-R - renovação da infraestrutura GPU após a B11-E.
+- **Último bloco concluído:** B11-E - benchmark principal.
+- **Branch de trabalho:** `main`; o fechamento administrativo da B11-E será
+  incorporado antes das alterações GPU.
 - **O que aconteceu com a primeira tentativa da B11-E.** Ela rodou em 31/08/2026 e
   **não** foi interrompida: o lote 1 concluiu 324 de 324 cenários, com zero falhas, e a
   **barreira reprovou** com `critério de recursos não satisfeito`. O critério contava
@@ -32,20 +33,21 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   como wrapper. A retomada aceita resultados oficiais, revalida e pula lotes com
   barreira, não cria sessão vazia nem pausa em lote pulado e repete `finalize` depois
   das cinco barreiras. Há 14 testes isolados do lançador.
-- **Última verificação:** 547 testes CPU e 98 testes GPU aprovados; `bash -n` aprovou
-  o lançador e o wrapper; um clone temporário limpo aprovou os 14 testes do lançador e
-  o `readiness` real com 1.620 cenários, 270 subgrupos, 5 lotes, 16 workers e zero
-  resultados existentes. Nenhum cenário oficial foi executado.
-- **Próxima ação atômica:** executar `readiness` na árvore real limpa e, se aprovado,
-  iniciar a B11-E pelo `nohup` autorizado pelo usuário.
-- **Objetivo posterior:** executar a **B11-E**, o benchmark principal, com 1.620
-  cenários em 270 subgrupos e 5 lotes, em modo lote e com o roteiro de encadeamento.
-  `run_benchmark readiness` devolve `ready: true` com `existing_results: 0`. Depois
-  dela, a **B11A-E**, a campanha da réplica em placa gráfica, **que exige fechar antes
-  o processo gráfico que ocupa a placa nesta máquina**, senão o preflight recusa.
-- **Bloqueios conhecidos:** **nenhum para a B11-E.** O bloqueio que derrubou a primeira
-  tentativa era o critério de recursos, e foi corrigido. O manifesto foi renovado sobre
-  o piloto refeito e `freeze_benchmark verify` aprova.
+- **B11-E concluída:** cinco barreiras aprovadas, 1.620 execuções oficiais,
+  162.000 checkpoints, zero falhas e zero ausências. O manifesto consolidado
+  declara `complete: true` e `official: true`, com proveniência no commit de
+  execução `959e561`.
+- **Última decisão concluída:** brainstorming da B11A-R encerrado com aprovação
+  explícita. O bloco renovará a infraestrutura GPU com `social=2.0`, sem executar
+  a B11A-E, e exigirá `infrastructure_ready=true`, mas não `execution_ready=true`.
+- **Especificação da B11A-R:** `superpowers/B11A_R_spec.md`, aprovada
+  explicitamente em 02/09/2026.
+- **Próxima ação atômica:** revisar e aprovar explicitamente o plano
+  `superpowers/B11A_R_plan.md`. A implementação ainda não está autorizada.
+- **Objetivo atual:** renovar a infraestrutura da B11A-E com `social=2.0`,
+  regenerar conformidade, roteiro e manifesto e obter
+  `infrastructure_ready: true`, sem executar resultados oficiais GPU.
+- **Bloqueios conhecidos:** nenhum para o fechamento administrativo da B11-E.
   **A B11A-E mantém o bloqueio operacional, que não é de código:** há um processo
   gráfico de navegador ocupando a placa nesta máquina, e ele precisa estar fechado
   antes de iniciar a campanha da réplica.
@@ -956,7 +958,7 @@ o piloto final.
 
 ## B11 - Benchmark principal
 
-**Estado:** `B11-I CONCLUÍDA - B11-E AGUARDANDO AUTORIZAÇÃO`
+**Estado:** `B11-I CONCLUÍDA - B11-E CONCLUÍDA`
 
 **Depende de:** B10.
 
@@ -976,20 +978,20 @@ as barreiras já testadas.
 
 ### B11-E - Execução
 
-**Estado:** `INFRAESTRUTURA PRONTA - BLOQUEADA PELA B11B - DEPOIS AGUARDANDO AUTORIZAÇÃO`
+**Estado:** `CONCLUÍDA`
 
 **Depende de:** B11-I e autorização explícita do usuário em momento com carga e
 temperatura adequadas.
 
 **Tarefas:**
 
-- [ ] Concluir e validar toda a infraestrutura da B11-I.
-- [ ] Registrar o ambiente computacional no início da B11-E.
-- [ ] Executar 3 algoritmos, 3 tamanhos, 6 valores de `K` e 30 seeds.
-- [ ] Monitorar completude sem alterar configurações congeladas.
-- [ ] Reexecutar somente falhas identificadas pelo ID do cenário.
-- [ ] Validar as 1.620 linhas da tabela principal.
-- [ ] Preservar resultados brutos e hashes.
+- [x] Concluir e validar toda a infraestrutura da B11-I.
+- [x] Registrar o ambiente computacional no início da B11-E.
+- [x] Executar 3 algoritmos, 3 tamanhos, 6 valores de `K` e 30 seeds.
+- [x] Monitorar completude sem alterar configurações congeladas.
+- [x] Reexecutar somente falhas identificadas pelo ID do cenário.
+- [x] Validar as 1.620 linhas da tabela principal.
+- [x] Preservar resultados brutos e hashes.
 
 **Critério de saída:** todos os cenários válidos e auditáveis, sem duplicatas ou
 lacunas.
@@ -1074,12 +1076,18 @@ lacunas.
 - comandos definitivos documentados; a B11-E não exige criação ou revisão
   adicional e aguarda a conclusão da B11B e, depois dela, a autorização do
   usuário.
+- execução concluída em 02/09/2026 sobre o commit `959e561`, com os cinco lotes
+  aprovados nas barreiras;
+- consolidação oficial com 1.620 execuções, 162.000 checkpoints, zero falhas,
+  zero ausências e hashes verificados;
+- próxima ação: fechar administrativamente os artefatos em commit próprio e
+  renovar a infraestrutura GPU na B11A-R.
 
 ---
 
 ## B11A - Experimento adicional com GPU
 
-**Estado:** `B11A-I CONCLUÍDA - B11A-E BLOQUEADA PELA B11B, DEPOIS AGUARDA B11-E E AUTORIZAÇÃO`
+**Estado:** `B11A-I CONCLUÍDA - B11A-R ATIVA - B11A-E NÃO AUTORIZADA`
 
 **Dependências internas:** a B11A-I poderá começar depois da conclusão da
 B11-I; a B11A-E somente poderá começar depois da conclusão da B11-E e de

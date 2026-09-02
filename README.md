@@ -98,7 +98,7 @@ automaticamente e congelados são:
 - Busca Tabu: `tabu_tenure=10`, `neighborhood_size=20` e
   `stagnation_limit=100`;
 - ACO: `alpha=1.0`, `beta=2.0`, `rho=0.1` e `n_ants=40`;
-- PSO: `n_particles=40`, `inertia=0.4`, `cognitive=2.0` e `social=1.5`.
+- PSO: `n_particles=40`, `inertia=0.4`, `cognitive=2.0` e `social=2.0`.
 
 Os resultados consolidados e a seleção auditável estão em `results/tables/`.
 
@@ -108,10 +108,11 @@ reproduções exatas foram aprovados. Os artefatos preliminares estão em
 `results/tables/` e `results/figures/`, e o manifesto de congelamento bloqueia a
 execução do benchmark se algum insumo protegido divergir.
 
-A infraestrutura da B11-I está concluída e testada. Os cinco lotes, 270
-subgrupos, escalonamento, retomada, tentativa única, monitoramento, barreiras e
-consolidação estão prontos. A B11-E não foi iniciada e aguarda autorização
-explícita para uma janela com carga e temperatura controladas.
+A B11-E foi concluída no commit de execução `959e561`: os cinco lotes e 1.620
+cenários passaram pelas barreiras, sem falhas ou ausências. A consolidação
+oficial preserva 1.620 execuções e 162.000 checkpoints em
+`results/tables/benchmark_{runs,checkpoints}.parquet`, acompanhados pelo
+`benchmark_manifest.json` completo e oficial.
 
 O estado detalhado e as pendências metodológicas estão em [`AGENTS.md`](AGENTS.md), [`docs/formulation.md`](docs/formulation.md) e [`docs/experiments.md`](docs/experiments.md).
 
@@ -507,9 +508,10 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Executar o benchmark principal.
-2. Gerar tabelas, gráficos e análises estatísticas.
-3. Produzir o relatório final e o vídeo resumo.
+1. Renovar a infraestrutura GPU com os parâmetros definitivos da B11-E.
+2. Executar a campanha GPU somente depois de autorização explícita.
+3. Gerar tabelas, gráficos e análises estatísticas.
+4. Produzir o relatório final e o vídeo resumo.
 
 ## Experimento adicional com GPU
 
@@ -522,9 +524,10 @@ uv sync --project gpu --dev
 uv run --project gpu python -m metaheuristica_gpu.run readiness
 ```
 
-O `readiness` deve indicar `infrastructure_ready=true` e, até a conclusão da
-B11-E, `waiting_for_b11e=true`. Depois da B11-E e de autorização explícita,
-um único ID poderá ser executado por vez:
+Depois da renovação B11A-R, o `readiness` deverá indicar
+`infrastructure_ready=true`. A B11-E já está concluída, mas a B11A-E continua
+dependente de autorização explícita; quando autorizada, um único ID poderá ser
+executado por vez:
 
 ```bash
 uv run --project gpu python -m metaheuristica_gpu.run plan

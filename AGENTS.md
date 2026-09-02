@@ -462,7 +462,18 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
-**Estado registrado em 01/09/2026, com a B11D concluída.**
+**Estado registrado em 02/09/2026, com a B11-E concluída.**
+
+- a B11-E concluiu os 1.620 cenários oficiais no commit de execução `959e561`;
+  os cinco lotes passaram pelas barreiras, cada um com 324 execuções e 32.400
+  checkpoints, sem falhas ou ausências;
+- a consolidação oficial contém 1.620 execuções e 162.000 checkpoints, com
+  `complete: true`, `official: true` e hashes verificados;
+- os três artefatos consolidados da B11-E foram incorporados ao repositório no
+  fechamento administrativo, sem iniciar análise científica dos resultados;
+- a B11A-R foi aberta para renovar a infraestrutura GPU com `social=2.0`,
+  regenerar conformidade, roteiro e manifesto e recuperar
+  `infrastructure_ready: true`; a B11A-E permanece sem autorização;
 
 - a B11D corrigiu a retomada do lançador da B11-E: resultados oficiais existentes
   são aceitos, lotes com barreira são revalidados e pulados, e o `finalize` pode ser
@@ -556,11 +567,11 @@ Estado anterior, registrado em 18/08/2026:
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
 Os detalhes de dados, formulação, automação experimental, tuning e
-infraestrutura GPU estão consolidados. Permanecem pendentes as execuções B11-E
-e, depois dela, B11A-E.
+infraestrutura GPU estão consolidados. A B11-E foi concluída; permanecem
+pendentes a renovação B11A-R e, depois dela, a execução B11A-E.
 
 Próximo objetivo recomendado:
 
-1. iniciar a B11-E somente após autorização explícita do usuário;
-2. executar os subgrupos na ordem congelada e nas janelas térmicas disponíveis;
-3. validar cada lote antes de avançar para o seguinte.
+1. concluir a B11A-R sem executar cenários oficiais GPU;
+2. obter `infrastructure_ready: true` com `social=2.0`;
+3. iniciar a B11A-E somente após nova autorização explícita do usuário.
