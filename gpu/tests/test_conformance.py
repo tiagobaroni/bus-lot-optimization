@@ -8,6 +8,7 @@ import pytest
 
 from metaheuristica import AcoConfig, RunConfig, load_artesp_instance
 from metaheuristica_gpu.config import load_gpu_config
+from metaheuristica_gpu.environment import GpuConfigurationError
 from metaheuristica_gpu.numerics import ABS_TOL, NumericalDivergenceError
 from metaheuristica_gpu.storage import GpuStorageError
 
@@ -18,6 +19,27 @@ ROOT = Path(__file__).parents[2]
 @lru_cache(maxsize=None)
 def _campanha():
     return load_gpu_config(ROOT / "gpu/configs/gpu_benchmark.toml")
+
+
+def test_conformidade_obsoleta_nao_pode_ser_congelada(tmp_path: Path) -> None:
+    import metaheuristica_gpu.run as modulo
+
+    conformidade = tmp_path / "conformidade.json"
+    roteiro = tmp_path / "roteiro.json"
+    manifesto = tmp_path / "manifesto.json"
+    conformidade.write_text(
+        '{"passed":true,"configuration":{"config_sha256":"antigo",'
+        '"scenario_ids_sha256":"antigo"}}',
+        encoding="utf-8",
+    )
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(modulo, "CONFORMANCE", conformidade)
+        patch.setattr(modulo, "SCHEDULE", roteiro)
+        patch.setattr(modulo, "MANIFEST", manifesto)
+        with pytest.raises(GpuConfigurationError, match="configuração obsoleta"):
+            modulo.generate_manifest(_campanha())
+    assert not roteiro.exists()
+    assert not manifesto.exists()
 
 
 def test_a_conformidade_afirma_a_trajetoria_em_modo_oficial_sobre_instancia_real() -> None:

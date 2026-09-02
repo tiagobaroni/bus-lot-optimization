@@ -42,8 +42,13 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   a B11A-E, e exigirá `infrastructure_ready=true`, mas não `execution_ready=true`.
 - **Especificação da B11A-R:** `superpowers/B11A_R_spec.md`, aprovada
   explicitamente em 02/09/2026.
-- **Próxima ação atômica:** revisar e aprovar explicitamente o plano
-  `superpowers/B11A_R_plan.md`. A implementação ainda não está autorizada.
+- **Plano da B11A-R:** `superpowers/B11A_R_plan.md`, aprovado explicitamente em
+  02/09/2026; implementação e commits locais autorizados.
+- **Última tarefa concluída:** fechamento administrativo da B11-E no commit
+  local `f5f0302`; propagação de `social=2.0`, vínculo da conformidade e
+  validação dos 60 pares CPU implementados, com 35 testes focais aprovados.
+- **Próxima ação atômica:** executar verificações amplas, estabilizar o commit
+  da renovação e regenerar conformidade, roteiro e manifesto em GPU real.
 - **Objetivo atual:** renovar a infraestrutura da B11A-E com `social=2.0`,
   regenerar conformidade, roteiro e manifesto e obter
   `infrastructure_ready: true`, sem executar resultados oficiais GPU.
@@ -1206,6 +1211,25 @@ indisponibilidade de GPU não invalida nem bloqueia o baseline obrigatório.
 - B11A-I concluída; próxima ação atômica é executar B11-E somente após nova
   autorização explícita do usuário. A B11A-E permanece bloqueada até a
   conclusão da B11-E e sua própria autorização explícita.
+
+### B11A-R - Renovação após a B11-E
+
+**Estado:** `EM IMPLEMENTAÇÃO`
+
+**Escopo aprovado:** propagar `social=2.0`, invalidar os IDs GPU antigos,
+regenerar conformidade, roteiro e manifesto e obter
+`infrastructure_ready=true`, sem executar a B11A-E.
+
+**Checkpoint:**
+
+- brainstorming encerrado e aprovado em 02/09/2026;
+- especificação `superpowers/B11A_R_spec.md` aprovada;
+- plano `superpowers/B11A_R_plan.md` aprovado e implementação autorizada;
+- B11-E fechada administrativamente no commit local `f5f0302`;
+- configurações oficial e diagnóstica atualizadas para `social=2.0`;
+- prontidão passa a validar manifesto, hash e exatamente 60 pares CPU oficiais;
+- conformidade passa a carregar a identidade da configuração e dos IDs;
+- nenhuma execução oficial GPU autorizada ou produzida.
 
 ---
 

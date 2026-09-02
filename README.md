@@ -465,7 +465,7 @@ instance = load_artesp_instance("data/instances", 20)
 result = run_pso(
     instance,
     RunConfig(k=3, seed=20260817, budget=20_000),
-    PsoConfig(n_particles=40, inertia=0.4, cognitive=2.0, social=1.5),
+    PsoConfig(n_particles=40, inertia=0.4, cognitive=2.0, social=2.0),
 )
 print(result.solution, result.evaluation.total_cost, result.evaluations)
 ```

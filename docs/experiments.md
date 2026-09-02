@@ -433,21 +433,22 @@ Além do resumo por configuração, foram calculados efeitos marginais por níve
 de hiperparâmetro. Eles são exclusivamente descritivos e não são interpretados
 como efeitos causais, pois existem interações entre parâmetros.
 
-### 12.2. Resultado do tuning oficial
+### 12.2. Resultado vigente do tuning oficial
 
-A campanha oficial foi executada em 17/08/2026 no commit `dc91468`, com 16
-workers, e completou as 440 execuções sem falhas. O intervalo entre o início da
-primeira execução e o fim da última foi de aproximadamente 3 h 43 min. Foram
-consolidadas 440 linhas de execução e 44.000 checkpoints.
+A campanha foi refeita depois das correções da auditoria, no commit de campanha
+`3205687`, com 16 workers, e completou as 440 execuções sem falhas. Foram
+consolidadas 440 linhas de execução e 44.000 checkpoints. Os números abaixo são
+os resultados vigentes; os valores da execução de 17/08/2026 foram substituídos
+porque a correção do PSO alterou resultados.
 
 | Algoritmo | Parâmetros selecionados | Custo médio | Desvio-padrão amostral | Segundo colocado | Diferença de média |
 |---|---|---:|---:|---:|---:|
 | Busca Tabu | `tabu_tenure=10`, `neighborhood_size=20`, `stagnation_limit=100` | 0,126415 | 0,013287 | 0,129629 | 0,003214 |
 | ACO | `alpha=1.0`, `beta=2.0`, `rho=0.1`, `n_ants=40` | 0,146303 | 0,021000 | 0,151504 | 0,005201 |
-| PSO | `n_particles=40`, `inertia=0.4`, `cognitive=2.0`, `social=1.5` | 0,274437 | 0,033236 | 0,287264 | 0,012826 |
+| PSO | `n_particles=40`, `inertia=0.4`, `cognitive=2.0`, `social=2.0` | 0,269236 | 0,030456 | 0,280569 | 0,011333 |
 
 A análise marginal descritiva sugere, dentro das grades avaliadas, menor custo
-médio com `alpha=1.0` no ACO, `inertia=0.4` e `social=1.5` no PSO e
+médio com `alpha=1.0` no ACO, `inertia=0.4` e `social=2.0` no PSO e
 `stagnation_limit=100` na Busca Tabu. Esses contrastes não são causais e não
 isolam interações entre hiperparâmetros. Os resultados completos estão nos
 Parquet de resumo e efeitos em `results/tables/`, e os parâmetros oficiais estão
@@ -1189,9 +1190,10 @@ de profiling que demonstre ganho na avaliação paralela da vizinhança.
 
 A campanha contém 60 cenários, ACO e PSO em `N=150`, `K=5`, seeds 10 a 39 e
 150.000 avaliações. Ela é sequencial, usa namespace próprio e só pode começar
-depois da B11-E. A conformidade exige tolerâncias absoluta e relativa de
-`1e-12`, igualdade de orçamento e checkpoints, arbitragem CPU de quase empates
-e confirmação CPU da solução final.
+depois da B11-E. O PSO usa os parâmetros definitivos `n_particles=40`,
+`inertia=0.4`, `cognitive=2.0` e `social=2.0`. A conformidade exige tolerâncias
+absoluta e relativa de `1e-12`, igualdade de orçamento e checkpoints,
+arbitragem CPU de quase empates e confirmação CPU da solução final.
 
 O tempo oficial inclui transferências, sincronizações e arbitragens ocorridas
 durante a otimização. Contexto, compilação e aquecimento prévios são registrados

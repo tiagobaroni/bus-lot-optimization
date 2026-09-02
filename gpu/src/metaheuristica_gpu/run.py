@@ -155,6 +155,73 @@ def _b11_complete() -> bool:
     return path.is_file() and read_json(path).get("complete") is True and read_json(path).get("official") is True
 
 
+def _configuration_identity(config: GpuCampaignConfig) -> dict[str, str]:
+    """Identifica a configuração e o conjunto de cenários que ela expande."""
+
+    identifiers = sorted(item.scenario_id for item in expand_gpu_scenarios(config))
+    return {
+        "config_sha256": file_sha256(config.source_path),
+        "scenario_ids_sha256": sha256(canonical_json(identifiers)).hexdigest(),
+    }
+
+
+def _cpu_reference(config: GpuCampaignConfig) -> dict[str, Any]:
+    """Valida os 60 pares oficiais da B11-E usados pela campanha GPU."""
+
+    manifest_path = ROOT / "results/tables/benchmark_manifest.json"
+    runs_path = ROOT / "results/tables/benchmark_runs.parquet"
+    if not manifest_path.is_file() or not runs_path.is_file():
+        raise GpuConfigurationError("consolidação oficial da B11-E ausente")
+    manifest = read_json(manifest_path)
+    required = {
+        "complete": True, "official": True, "completed": 1620,
+        "expected": 1620, "failed_records": 0, "missing": 0,
+    }
+    if any(manifest.get(key) != value for key, value in required.items()):
+        raise GpuConfigurationError("manifesto da B11-E não está completo e oficial")
+    runs = manifest.get("runs")
+    if not isinstance(runs, dict) or runs.get("path") != "results/tables/benchmark_runs.parquet":
+        raise GpuConfigurationError("manifesto da B11-E referencia tabela CPU inválida")
+    if runs.get("sha256") != file_sha256(runs_path):
+        raise GpuConfigurationError("tabela CPU diverge do manifesto da B11-E")
+
+    frame = pd.read_parquet(runs_path)
+    keys = ["algorithm", "instance", "k", "seed"]
+    required_columns = {*keys, "official", "parameters_json"}
+    if not required_columns.issubset(frame.columns):
+        raise GpuConfigurationError("tabela CPU não contém o contrato de pareamento")
+    paired = frame[
+        frame["algorithm"].isin(config.algorithms)
+        & (frame["instance"] == config.instance)
+        & (frame["k"] == config.k)
+        & frame["seed"].isin(config.seeds)
+    ]
+    if len(paired) != 60 or paired.duplicated(keys).any():
+        raise GpuConfigurationError("pareamento CPU da B11A-E não contém 60 linhas únicas")
+    expected = {
+        (algorithm, config.instance, config.k, seed)
+        for algorithm in config.algorithms for seed in config.seeds
+    }
+    observed = set(paired[keys].itertuples(index=False, name=None))
+    if observed != expected or not paired["official"].eq(True).all():
+        raise GpuConfigurationError("pareamento CPU da B11A-E está incompleto ou não oficial")
+    expected_parameters = {
+        "aco": {name: getattr(config.aco, name) for name in config.aco.__dataclass_fields__},
+        "pso": {name: getattr(config.pso, name) for name in config.pso.__dataclass_fields__},
+    }
+    for row in paired[["algorithm", "parameters_json"]].itertuples(index=False):
+        if json.loads(row.parameters_json) != expected_parameters[row.algorithm]:
+            raise GpuConfigurationError(
+                f"parâmetros CPU de {row.algorithm} divergem da campanha GPU"
+            )
+    return {
+        "complete": True,
+        "official": True,
+        "paired_scenarios": len(paired),
+        "runs_sha256": runs["sha256"],
+    }
+
+
 def _protected_hashes(config: GpuCampaignConfig) -> dict[str, str]:
     files = [
         ROOT / "gpu/uv.lock",
@@ -249,6 +316,7 @@ def run_conformance(config: GpuCampaignConfig) -> dict[str, Any]:
     maximum = max(maximum, *(item["maximum_difference"] for item in trajectories))
     report = {
         "schema_version": 1, "passed": True, "environment": environment.to_dict(),
+        "configuration": _configuration_identity(config),
         "maximum_difference": maximum, "cases": cases,
         "trajectories": trajectories,
         "aco": aco.reproducible_data(), "pso": pso.reproducible_data(),
@@ -257,8 +325,13 @@ def run_conformance(config: GpuCampaignConfig) -> dict[str, Any]:
 
 
 def generate_manifest(config: GpuCampaignConfig) -> dict[str, Any]:
-    if not CONFORMANCE.is_file() or read_json(CONFORMANCE).get("passed") is not True:
+    if not CONFORMANCE.is_file():
         raise GpuConfigurationError("conformidade GPU ainda não aprovada")
+    conformance = read_json(CONFORMANCE)
+    if conformance.get("passed") is not True:
+        raise GpuConfigurationError("conformidade GPU ainda não aprovada")
+    if conformance.get("configuration") != _configuration_identity(config):
+        raise GpuConfigurationError("conformidade GPU pertence a configuração obsoleta")
     atomic_write_json(SCHEDULE, schedule_document(config))
     commit, dirty = _git_clean()
     manifest = {
@@ -277,12 +350,20 @@ def verify_manifest(config: GpuCampaignConfig) -> dict[str, Any]:
         raise GpuConfigurationError("código GPU diverge do manifesto")
     if manifest.get("protected_files") != _protected_hashes(config):
         raise GpuConfigurationError("arquivo GPU protegido diverge do manifesto")
+    identity = _configuration_identity(config)
+    if manifest.get("scenario_ids_sha256") != identity["scenario_ids_sha256"]:
+        raise GpuConfigurationError("IDs GPU divergem do manifesto")
+    if canonical_json(read_json(SCHEDULE)) != canonical_json(schedule_document(config)):
+        raise GpuConfigurationError("roteiro GPU diverge da configuração")
+    conformance = read_json(CONFORMANCE)
+    if conformance.get("passed") is not True or conformance.get("configuration") != identity:
+        raise GpuConfigurationError("conformidade GPU diverge da configuração")
     return manifest
 
 
 def readiness(config: GpuCampaignConfig) -> dict[str, Any]:
     environment = inspect_gpu_environment(); manifest = verify_manifest(config)
-    cpu = _cpu_readiness(); commit, dirty = _git_clean()
+    cpu = _cpu_readiness(); reference = _cpu_reference(config); commit, dirty = _git_clean()
     if dirty:
         raise GpuConfigurationError("readiness GPU exige worktree limpa")
     scenarios = expand_gpu_scenarios(config)
@@ -293,6 +374,7 @@ def readiness(config: GpuCampaignConfig) -> dict[str, Any]:
         "execution_ready": _b11_complete(), "waiting_for_b11e": not _b11_complete(),
         "scenario_count": len(scenarios), "existing_official_results": existing,
         "gpu": environment.to_dict(), "cpu_readiness": cpu["ready"],
+        "cpu_reference": reference,
         "gpu_manifest_schema": manifest["schema_version"], "git_commit": commit,
         "git_dirty": dirty,
     }

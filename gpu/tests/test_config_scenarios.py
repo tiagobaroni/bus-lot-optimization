@@ -1,9 +1,11 @@
+from dataclasses import replace
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
 
 from metaheuristica_gpu.config import GpuConfigError, load_gpu_config
-from metaheuristica_gpu.scenarios import expand_gpu_scenarios
+from metaheuristica_gpu.scenarios import canonical_json, expand_gpu_scenarios
 
 
 ROOT = Path(__file__).parents[2]
@@ -18,6 +20,56 @@ def test_official_gpu_campaign_expands_60_isolated_ids() -> None:
     assert {item.payload["seed"] for item in scenarios} == set(range(10, 40))
     assert {item.payload["k"] for item in scenarios} == {5}
     assert {item.payload["precision"] for item in scenarios} == {"float64"}
+    assert config.pso.social == 2.0
+    assert {
+        item.payload["parameters"]["social"]
+        for item in scenarios if item.payload["algorithm"] == "pso"
+    } == {2.0}
+
+
+def test_diagnostic_gpu_campaign_uses_frozen_pso_parameters() -> None:
+    config = load_gpu_config(ROOT / "gpu/configs/gpu_diagnostic.toml")
+    assert (
+        config.pso.n_particles,
+        config.pso.inertia,
+        config.pso.cognitive,
+        config.pso.social,
+    ) == (40, 0.4, 2.0, 2.0)
+
+
+def test_social_change_only_invalidates_pso_ids() -> None:
+    config = load_gpu_config(ROOT / "gpu/configs/gpu_benchmark.toml")
+    previous = replace(config, pso=replace(config.pso, social=1.5))
+    current_by_key = {
+        (item.payload["algorithm"], item.payload["seed"]): item.scenario_id
+        for item in expand_gpu_scenarios(config)
+    }
+    previous_by_key = {
+        (item.payload["algorithm"], item.payload["seed"]): item.scenario_id
+        for item in expand_gpu_scenarios(previous)
+    }
+    assert all(
+        current_by_key[("aco", seed)] == previous_by_key[("aco", seed)]
+        for seed in config.seeds
+    )
+    assert all(
+        current_by_key[("pso", seed)] != previous_by_key[("pso", seed)]
+        for seed in config.seeds
+    )
+    current_hash = sha256(canonical_json(sorted(current_by_key.values()))).hexdigest()
+    assert current_hash != "e8190cfcf0df2085c35a664d0cda241b14f2d7e0e8da72800c4ac601f7dd9031"
+
+
+def test_cpu_reference_contains_the_60_official_pairs() -> None:
+    from metaheuristica_gpu.run import _cpu_reference
+
+    config = load_gpu_config(ROOT / "gpu/configs/gpu_benchmark.toml")
+    assert _cpu_reference(config) == {
+        "complete": True,
+        "official": True,
+        "paired_scenarios": 60,
+        "runs_sha256": "362b73efe890dc115e73ee12cd1c9c8b5b4c06ae858d947bb2191ae84a7ca93f",
+    }
 
 
 def _toml_da_campanha() -> str:
