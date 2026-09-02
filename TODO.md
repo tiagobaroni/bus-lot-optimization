@@ -8,10 +8,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 02/09/2026
-- **Bloco ativo:** B11A-R - renovação da infraestrutura GPU após a B11-E.
-- **Último bloco concluído:** B11-E - benchmark principal.
-- **Branch de trabalho:** `main`; o fechamento administrativo da B11-E será
-  incorporado antes das alterações GPU.
+- **Bloco ativo:** nenhum. **A B11A-R está concluída.**
+- **Último bloco concluído:** B11A-R - renovação da infraestrutura GPU após a
+  B11-E.
+- **Branch de trabalho:** `main`; três commits locais aguardam publicação.
 - **O que aconteceu com a primeira tentativa da B11-E.** Ela rodou em 31/08/2026 e
   **não** foi interrompida: o lote 1 concluiu 324 de 324 cenários, com zero falhas, e a
   **barreira reprovou** com `critério de recursos não satisfeito`. O critério contava
@@ -44,11 +44,14 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   explicitamente em 02/09/2026.
 - **Plano da B11A-R:** `superpowers/B11A_R_plan.md`, aprovado explicitamente em
   02/09/2026; implementação e commits locais autorizados.
-- **Última tarefa concluída:** fechamento administrativo da B11-E no commit
-  local `f5f0302`; propagação de `social=2.0`, vínculo da conformidade e
-  validação dos 60 pares CPU implementados, com 35 testes focais aprovados.
-- **Próxima ação atômica:** executar verificações amplas, estabilizar o commit
-  da renovação e regenerar conformidade, roteiro e manifesto em GPU real.
+- **B11A-R concluída:** fechamento da B11-E em `f5f0302`, contratos GPU em
+  `aa0b37a` e metadados renovados em `783a3cc`; `social=2.0`, 60 novos IDs,
+  conformidade real aprovada e referência exata aos 60 pares CPU oficiais.
+- **Última verificação:** 547 testes CPU e 102 testes GPU aprovados nas duas
+  invocações suportadas; `infrastructure_ready: true`, zero resultados GPU e
+  árvore limpa no portão final.
+- **Próxima ação atômica:** publicar os commits locais e, em outra janela,
+  solicitar autorização explícita para iniciar a B11A-E.
 - **Objetivo atual:** renovar a infraestrutura da B11A-E com `social=2.0`,
   regenerar conformidade, roteiro e manifesto e obter
   `infrastructure_ready: true`, sem executar resultados oficiais GPU.
@@ -1092,7 +1095,7 @@ lacunas.
 
 ## B11A - Experimento adicional com GPU
 
-**Estado:** `B11A-I CONCLUÍDA - B11A-R ATIVA - B11A-E NÃO AUTORIZADA`
+**Estado:** `B11A-I E B11A-R CONCLUÍDAS - B11A-E NÃO AUTORIZADA`
 
 **Dependências internas:** a B11A-I poderá começar depois da conclusão da
 B11-I; a B11A-E somente poderá começar depois da conclusão da B11-E e de
@@ -1214,7 +1217,7 @@ indisponibilidade de GPU não invalida nem bloqueia o baseline obrigatório.
 
 ### B11A-R - Renovação após a B11-E
 
-**Estado:** `EM IMPLEMENTAÇÃO`
+**Estado:** `CONCLUÍDA`
 
 **Escopo aprovado:** propagar `social=2.0`, invalidar os IDs GPU antigos,
 regenerar conformidade, roteiro e manifesto e obter
@@ -1230,6 +1233,16 @@ regenerar conformidade, roteiro e manifesto e obter
 - prontidão passa a validar manifesto, hash e exatamente 60 pares CPU oficiais;
 - conformidade passa a carregar a identidade da configuração e dos IDs;
 - nenhuma execução oficial GPU autorizada ou produzida.
+- conformidade real aprovada na RTX 3060, com diferença máxima global de
+  `3,3306690738754696e-16` e trajetórias de ACO e PSO abaixo de `1e-12`;
+- roteiro e manifesto regenerados para 60 IDs únicos, com hash
+  `cc8d52559e5f16bce9718b04453166231d71a4885ea3126f443c7e33f957b61a`;
+- 547 testes CPU e 102 testes GPU aprovados, estes a partir da raiz e do
+  subprojeto;
+- `readiness` aprovado em árvore limpa com `infrastructure_ready=true`, 60
+  pares CPU oficiais e zero resultados GPU;
+- próxima ação: publicar os commits e aguardar autorização explícita da
+  B11A-E.
 
 ---
 

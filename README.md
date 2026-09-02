@@ -524,10 +524,10 @@ uv sync --project gpu --dev
 uv run --project gpu python -m metaheuristica_gpu.run readiness
 ```
 
-Depois da renovação B11A-R, o `readiness` deverá indicar
-`infrastructure_ready=true`. A B11-E já está concluída, mas a B11A-E continua
-dependente de autorização explícita; quando autorizada, um único ID poderá ser
-executado por vez:
+A renovação B11A-R foi concluída com `social=2.0`, conformidade aprovada e 60
+novos IDs. O `readiness` indica `infrastructure_ready=true` e zero resultados
+GPU. A B11-E já está concluída, mas a B11A-E continua dependente de autorização
+explícita; quando autorizada, um único ID poderá ser executado por vez:
 
 ```bash
 uv run --project gpu python -m metaheuristica_gpu.run plan

@@ -1204,6 +1204,14 @@ A execução requer exclusividade da placa, preflight ocioso de 60 segundos e
 monitoramento térmico contínuo. Interrupções de segurança preservam sessão e
 telemetria e não publicam resultado parcial.
 
+A renovação B11A-R, concluída depois da B11-E, propagou `social=2.0` às
+configurações oficial e diagnóstica. A conformidade passou a vincular seu
+resultado ao hash da configuração e ao conjunto de IDs. O roteiro vigente
+contém 60 IDs únicos, com hash
+`cc8d52559e5f16bce9718b04453166231d71a4885ea3126f443c7e33f957b61a`,
+e a prontidão valida também os 60 pares CPU oficiais antes de declarar
+`infrastructure_ready=true`.
+
 ---
 
 ## 30. Princípio de congelamento experimental

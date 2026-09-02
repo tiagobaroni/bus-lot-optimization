@@ -13,6 +13,10 @@ ROOT = Path(__file__).parents[1]
 
 
 def test_reduced_campaign_executes_monitors_resumes_and_consolidates(tmp_path: Path) -> None:
+    official_root = ROOT / "results/raw/benchmark"
+    official_before = {
+        path.name for path in official_root.glob("*.json")
+    } if official_root.exists() else set()
     data = tmp_path / "data"
     data.mkdir()
     shutil.copy(ROOT / "data/instances/tiny_manual.json", data / "tiny.json")
@@ -63,4 +67,7 @@ social = [1.5]
     manifest = consolidate_campaign(config)
     assert manifest["complete"] is True
     assert manifest["completed"] == 2
-    assert not (ROOT / "results/raw/benchmark").exists()
+    official_after = {
+        path.name for path in official_root.glob("*.json")
+    } if official_root.exists() else set()
+    assert official_after == official_before

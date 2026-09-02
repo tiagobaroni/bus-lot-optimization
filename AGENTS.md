@@ -474,6 +474,12 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 - a B11A-R foi aberta para renovar a infraestrutura GPU com `social=2.0`,
   regenerar conformidade, roteiro e manifesto e recuperar
   `infrastructure_ready: true`; a B11A-E permanece sem autorização;
+- a B11A-R foi concluída com 60 novos IDs, hash
+  `cc8d52559e5f16bce9718b04453166231d71a4885ea3126f443c7e33f957b61a`,
+  conformidade real aprovada, 60 pares CPU validados e zero resultados GPU;
+- as suítes finais aprovaram 547 testes CPU e 102 testes GPU nas duas
+  invocações suportadas, e o portão final devolveu
+  `infrastructure_ready: true` em árvore limpa;
 
 - a B11D corrigiu a retomada do lançador da B11-E: resultados oficiais existentes
   são aceitos, lotes com barreira são revalidados e pulados, e o `finalize` pode ser
@@ -572,6 +578,6 @@ pendentes a renovação B11A-R e, depois dela, a execução B11A-E.
 
 Próximo objetivo recomendado:
 
-1. concluir a B11A-R sem executar cenários oficiais GPU;
-2. obter `infrastructure_ready: true` com `social=2.0`;
-3. iniciar a B11A-E somente após nova autorização explícita do usuário.
+1. publicar os commits de fechamento da B11-E e da B11A-R;
+2. iniciar a B11A-E somente após nova autorização explícita do usuário;
+3. manter uma execução GPU por vez e as barreiras térmicas aprovadas.
