@@ -45,8 +45,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Os resultados oficiais de 02/09/2026 foram descartados**, deliberadamente. A
   correção altera `gpu_code_sha256`, e a campanha publicada precisa de hash
   único; os três documentos de `results/gpu/raw/` foram removidos e os 60
-  cenários serão reexecutados sob um único hash. Custo aceito: cerca de 1 h
-  35 min sobre cerca de 48 h. As sessões e as séries de telemetria de 02/09/2026
+  cenários serão reexecutados sob um único hash. Custo aceito: cerca de 1 h 35 min
+  sobre cerca de 24 h — a projeção anterior, de 48 h, extrapolava os ~46 min dos
+  cenários ACO para os 60, mas os 30 cenários PSO custam duas ordens de
+  magnitude menos (74 s cada na CPU, com o mesmo orçamento). As sessões e as séries de telemetria de 02/09/2026
   **foram preservadas** como evidência da interrupção, por não carregarem hash e
   não serem alcançadas pela invariante de hash único.
 - **O manifesto de prontidão foi regenerado** sobre o código corrigido, com
@@ -97,7 +99,9 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   B11A-E. A infraestrutura está apta e nada mais precisa ser preparado: a
   prontidão devolve `infrastructure_ready` e `execution_ready` verdadeiros,
   árvore limpa, zero resultados oficiais e `results_code_sha256` nulo. A
-  campanha projeta cerca de 48 h sequenciais.
+  campanha projeta cerca de 24 h sequenciais: ~23 h para os 30 cenários ACO,
+  ~46 min cada, dominados pela construção das formigas no host, e na casa de
+  1 h para os 30 PSO, ainda sem medição GPU própria.
 - **Objetivo atual:** renovar a infraestrutura da B11A-E com `social=2.0`,
   regenerar conformidade, roteiro e manifesto e obter
   `infrastructure_ready: true`, sem executar resultados oficiais GPU.
