@@ -7,11 +7,46 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 02/09/2026
-- **Bloco ativo:** nenhum. **A B11A-R está concluída.**
+- **Atualizado em:** 03/09/2026
+- **Bloco ativo:** B11F - correção do guarda térmico da campanha GPU.
 - **Último bloco concluído:** B11A-R - renovação da infraestrutura GPU após a
   B11-E.
-- **Branch de trabalho:** `main`; três commits locais aguardam publicação.
+- **Branch de trabalho:** `main`; os commits do B11F aguardam publicação.
+- **A B11A-E foi iniciada em 02/09/2026 e interrompida no cenário 4 de 60.** O
+  guarda térmico recusou a entrada do cenário com `GpuSafetyError`, e a sessão
+  ficou registrada como `interrupted`. Os cenários 1 a 3 concluíram e foram
+  validados.
+- **Causa raiz.** Havia **dois** critérios de aptidão térmica lendo o mesmo
+  limiar de 50 °C: o resfriamento, no fim de cada execução, devolvia na primeira
+  amostra dentro do limiar, enquanto o preflight, na entrada da execução
+  seguinte, exigia sessenta amostras consecutivas. A condição do preflight é uma
+  conjunção de sessenta amostras, e nenhum critério de liberação mais fraco a
+  implica. Na prática o resfriamento estacionava a placa exatamente na fronteira
+  e devolvia com margem nula, de modo que **toda transição encadeada entre
+  cenários era cara ou coroa**: a transição 2 para 3 ganhou, a 3 para 4 perdeu.
+- **O que o B11F entregou.** O resfriamento deixou de existir. Passou a haver um
+  único critério, avaliado na entrada de cada cenário: o preflight **aguarda** a
+  placa alcançar o limiar e só então exige a janela sustentada, com teto de vinte
+  minutos sobre o tempo total dentro do preflight. Concorrência de outro processo
+  na placa e utilização média acima de 5% continuam recusando de imediato, sem
+  espera. A série de amostras do preflight passou a ser persistida em
+  `results/gpu/telemetry/<id>_preflight.csv`, inclusive quando o preflight
+  reprova — antes, a trajetória térmica entre cenários não era registrada em
+  lugar nenhum e só podia ser inferida da primeira amostra pós-warmup.
+- **Proveniência de código.** O documento de resultado passou a declarar
+  `gpu_code_sha256`, e a prontidão e a consolidação passam a exigir hash único em
+  toda a campanha. A conferência **não** vive em `validate_result`: `is_complete`
+  chama aquela função e propaga `GpuStorageError`, de modo que o hash ali
+  transformaria qualquer mudança futura de código em recusa dura sobre
+  resultados íntegros.
+- **`cold_total_seconds` mudou de escopo:** deixou de incluir o resfriamento,
+  que não existe mais, e mede agora apenas a execução.
+- **Decisão registrada sobre os resultados de 02/09/2026.** A correção altera
+  `gpu_code_sha256`, e a campanha publicada precisa de hash único; por isso os
+  três resultados oficiais serão descartados e os 60 cenários reexecutados sob um
+  único hash. Custo aceito: cerca de 1 h 35 min sobre cerca de 48 h. As sessões e
+  as séries de telemetria de 02/09/2026 **são preservadas** como evidência da
+  interrupção, por não carregarem hash e não serem alcançadas pela invariante.
 - **O que aconteceu com a primeira tentativa da B11-E.** Ela rodou em 31/08/2026 e
   **não** foi interrompida: o lote 1 concluiu 324 de 324 cenários, com zero falhas, e a
   **barreira reprovou** com `critério de recursos não satisfeito`. O critério contava
@@ -50,15 +85,16 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Última verificação:** 547 testes CPU e 102 testes GPU aprovados nas duas
   invocações suportadas; `infrastructure_ready: true`, zero resultados GPU e
   árvore limpa no portão final.
-- **Próxima ação atômica:** publicar os commits locais e, em outra janela,
+- **Próxima ação atômica:** regenerar o manifesto de prontidão sobre o código
+  corrigido, descartar os resultados oficiais de 02/09/2026 e, em outra janela,
   solicitar autorização explícita para iniciar a B11A-E.
 - **Objetivo atual:** renovar a infraestrutura da B11A-E com `social=2.0`,
   regenerar conformidade, roteiro e manifesto e obter
   `infrastructure_ready: true`, sem executar resultados oficiais GPU.
-- **Bloqueios conhecidos:** nenhum para o fechamento administrativo da B11-E.
-  **A B11A-E mantém o bloqueio operacional, que não é de código:** há um processo
-  gráfico de navegador ocupando a placa nesta máquina, e ele precisa estar fechado
-  antes de iniciar a campanha da réplica.
+- **Bloqueios conhecidos:** nenhum de código. O preflight recusa de imediato
+  quando há outro processo computacional na placa, então qualquer concorrência
+  aparece como recusa explícita na entrada do cenário, e não como resultado
+  degradado. A execução da B11A-E depende de autorização explícita do usuário.
 - **A transação de fechamento do congelamento deixou de caber em um commit, e quem
   retomar precisa saber disso.** Os dezoito documentos de `results/raw/pilot/` passaram
   a ser versionados na Tarefa 20 da B11B, mas a tolerância de sujeira de

@@ -536,21 +536,28 @@ uv run --project gpu python -m metaheuristica_gpu.run validate --scenario-id ID
 uv run --project gpu python -m metaheuristica_gpu.run consolidate
 ```
 
-Cada execução exige 60 segundos de GPU ociosa, até 50 °C e utilização média
-de até 5%. A telemetria interrompe a execução diante de aquecimento sustentado,
+Cada execução exige 60 segundos consecutivos de GPU ociosa, a 50 °C ou menos e
+com utilização média de até 5%; a temperatura é **aguardada**, e não motivo de
+recusa imediata. A telemetria interrompe a execução diante de aquecimento sustentado,
 throttling, concorrência ou perda de acesso ao driver, e é coletada por um
 processo próprio, separado do processo cujo tempo é publicado. `resume`
 reaproveita o mesmo ID e ignora resultados já completos. Os 60 resultados GPU
 ficam em `results/gpu/` e não se misturam ao benchmark CPU.
 
-**Quanto esperar entre um `execute` e o próximo.** Nada. O resfriamento roda no
-fim de cada cenário e só devolve quando a placa marca **50 °C ou menos**, que é
-exatamente o mesmo limiar que o preflight do cenário seguinte aceita: os dois
-leem uma única constante, e por isso o próximo `execute` pode ser disparado
-imediatamente. A espera só é necessária quando um `execute` é disparado sem ter
-passado por um resfriamento, por exemplo depois de uma execução interrompida ou
-de qualquer outro uso da placa. Nesse caso, aguarde a temperatura cair a 50 °C
-ou menos antes de tentar de novo, conferindo com:
+**Quanto esperar entre um `execute` e o próximo.** Nada, e não é preciso
+conferir nada antes. Não existe resfriamento ao fim da execução: a espera
+térmica acontece dentro do preflight do cenário seguinte, que aguarda a placa
+chegar a **50 °C ou menos** e só então exige a janela de ociosidade sustentada.
+Há um único critério de aptidão térmica, avaliado num único ponto, na entrada de
+cada cenário.
+
+Se a placa não estabilizar em **20 minutos** de espera, o `execute` para com erro
+explícito em vez de aguardar indefinidamente. Isso indica problema ambiental, de
+ventilação ou carga externa na placa, e pede diagnóstico, não nova tentativa.
+Concorrência de outro processo computacional e utilização média acima de 5%
+continuam recusando de imediato, sem espera.
+
+A temperatura pode ser conferida a qualquer momento com:
 
 ```bash
 nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits

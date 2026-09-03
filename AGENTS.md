@@ -462,6 +462,28 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
+**Estado registrado em 03/09/2026, com o guarda térmico da campanha GPU
+corrigido.** Os registros datados abaixo permanecem como foram escritos, por
+serem o fechamento dos blocos anteriores.
+
+- a B11A-E foi iniciada em 02/09/2026 e interrompida no cenário 4 de 60 pelo
+  guarda térmico da placa, com a sessão registrada como `interrupted`;
+- a causa: havia **dois** critérios de aptidão térmica lendo o mesmo limiar de
+  50 °C, e o do fim da execução devolvia na primeira amostra dentro do limiar
+  enquanto o da entrada exigia sessenta amostras consecutivas. A saída de um não
+  implicava a entrada do outro, e toda transição encadeada partia com margem
+  nula;
+- passou a existir um **único** critério, avaliado na entrada de cada cenário: o
+  preflight aguarda a placa alcançar o limiar e então exige a janela sustentada,
+  com teto de vinte minutos sobre o tempo total dentro do preflight.
+  Concorrência na placa e utilização média continuam recusando sem espera;
+- a série de amostras do preflight passou a ser persistida, inclusive quando o
+  preflight reprova, e o documento de resultado passou a declarar
+  `gpu_code_sha256`, com a prontidão e a consolidação exigindo hash único na
+  campanha;
+- as suítes aprovaram **547 casos de CPU e 121 da réplica GPU** nas invocações
+  suportadas, sempre a partir da raiz do repositório.
+
 **Estado registrado em 02/09/2026, com a B11-E concluída.**
 
 - a B11-E concluiu os 1.620 cenários oficiais no commit de execução `959e561`;
@@ -573,11 +595,11 @@ Estado anterior, registrado em 18/08/2026:
 - o caminho físico do projeto não deve ser presumido: no Windows ele pode ser `D:\dev\metaheuristica`, enquanto no Linux será definido pelo ambiente de execução.
 
 Os detalhes de dados, formulação, automação experimental, tuning e
-infraestrutura GPU estão consolidados. A B11-E foi concluída; permanecem
-pendentes a renovação B11A-R e, depois dela, a execução B11A-E.
+infraestrutura GPU estão consolidados. A B11-E e a renovação B11A-R
+foram concluídas; permanece pendente a execução B11A-E.
 
 Próximo objetivo recomendado:
 
-1. publicar os commits de fechamento da B11-E e da B11A-R;
+1. publicar os commits locais pendentes;
 2. iniciar a B11A-E somente após nova autorização explícita do usuário;
 3. manter uma execução GPU por vez e as barreiras térmicas aprovadas.
