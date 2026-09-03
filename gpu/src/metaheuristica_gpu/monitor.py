@@ -436,15 +436,3 @@ def monitor_process(
         yield handle
     finally:
         handle.close()
-
-
-def cooldown(
-    *, provider: Callable[[], GpuSample] = query_sample,
-    sleeper: Callable[[float], None] = time.sleep,
-) -> tuple[GpuSample, ...]:
-    samples = []
-    while True:
-        sample = provider(); samples.append(sample)
-        if sample.temperature_c <= GPU_TEMPERATURE_LIMIT_C:
-            return tuple(samples)
-        sleeper(1.0)

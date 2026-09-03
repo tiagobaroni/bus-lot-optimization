@@ -15,7 +15,6 @@ from metaheuristica_gpu.monitor import (
     GpuSafetyMonitor,
     GpuSample,
     ThermalInterruption,
-    cooldown,
     preflight_idle,
 )
 
@@ -33,7 +32,7 @@ def test_preflight_accepts_idle_and_rejects_competitor() -> None:
         preflight_idle(duration_seconds=1, provider=lambda: replace(BASE, external_processes=1))
 
 
-# --- F8-6. Os dois limiares de temperatura -----------------------------------
+# --- F8-6. O limiar de temperatura -----------------------------------
 
 
 def _preflight_aceita(temperatura: int) -> bool:
@@ -49,36 +48,12 @@ def _preflight_aceita(temperatura: int) -> bool:
     return True
 
 
-def _cooldown_libera(temperatura: int) -> bool:
-    """Verdadeiro quando o resfriamento devolve já na primeira amostra."""
-    tomadas: list[int] = []
-
-    def provider() -> GpuSample:
-        tomadas.append(1)
-        return replace(BASE, temperature_c=temperatura if len(tomadas) == 1 else 0)
-
-    return len(cooldown(provider=provider, sleeper=lambda _: None)) == 1
-
-
-def test_preflight_e_resfriamento_aceitam_exatamente_o_mesmo_conjunto() -> None:
-    """Identidade de conjunto, e não desigualdade: uma asserção de limiar sobre um
-    dos dois lados passaria mesmo com a faixa de cinco graus em que o resfriamento
-    libera e o preflight recusa."""
-    faixa = range(30, 81)
-    aceitas_pelo_preflight = {t for t in faixa if _preflight_aceita(t)}
-    liberadas_pelo_resfriamento = {t for t in faixa if _cooldown_libera(t)}
-    assert aceitas_pelo_preflight == liberadas_pelo_resfriamento
-    assert aceitas_pelo_preflight, "o conjunto precisa discriminar, e não ficar vazio"
-    assert aceitas_pelo_preflight != set(faixa), "o conjunto precisa discriminar"
-
-
-def test_os_dois_limiares_vem_de_uma_unica_constante(monkeypatch) -> None:
+def test_o_limiar_vem_de_uma_unica_constante(monkeypatch) -> None:
     limite = monitor.GPU_TEMPERATURE_LIMIT_C
     assert _preflight_aceita(limite) and not _preflight_aceita(limite + 1)
-    assert _cooldown_libera(limite) and not _cooldown_libera(limite + 1)
     monkeypatch.setattr(monitor, "GPU_TEMPERATURE_LIMIT_C", limite - 7)
-    assert not _preflight_aceita(limite) and not _cooldown_libera(limite)
-    assert _preflight_aceita(limite - 7) and _cooldown_libera(limite - 7)
+    assert not _preflight_aceita(limite)
+    assert _preflight_aceita(limite - 7)
 
 
 # --- F8-7. Telemetria perdida na falha de segurança ---------------------------

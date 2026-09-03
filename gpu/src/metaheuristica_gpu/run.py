@@ -53,7 +53,7 @@ from metaheuristica_gpu.environment import (
 )
 from metaheuristica_gpu.microbenchmark import run_microbenchmark
 from metaheuristica_gpu.monitor import (
-    GpuSample, cooldown, monitor_process, preflight_idle, write_samples_csv,
+    GpuSample, monitor_process, preflight_idle, write_samples_csv,
 )
 from metaheuristica_gpu.numerics import (
     ABS_TOL, require_equivalent_trajectory, verify_batch,
@@ -456,7 +456,6 @@ def execute_scenario(config: GpuCampaignConfig, scenario: GpuScenario) -> dict[s
                 else:
                     result = run_pso_gpu(instance, run_config, config.pso, guard=safety.guard)
             safety.raise_if_unsafe()
-            cooldown()
         except Exception as error:
             atomic_write_json(session_path, {
                 "scenario_id": scenario.scenario_id,
