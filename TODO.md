@@ -11,7 +11,8 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Bloco ativo:** B11F - correção do guarda térmico da campanha GPU.
 - **Último bloco concluído:** B11A-R - renovação da infraestrutura GPU após a
   B11-E.
-- **Branch de trabalho:** `main`; os commits do B11F aguardam publicação.
+- **Branch de trabalho:** `main`; os seis commits do B11F foram publicados em
+  03/09/2026 e `origin/main` está em `56fd897`. Não há commit local pendente.
 - **A B11A-E foi iniciada em 02/09/2026 e interrompida no cenário 4 de 60.** O
   guarda térmico recusou a entrada do cenário com `GpuSafetyError`, e a sessão
   ficou registrada como `interrupted`. Os cenários 1 a 3 concluíram e foram
@@ -92,8 +93,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Última verificação:** 547 testes CPU e 102 testes GPU aprovados nas duas
   invocações suportadas; `infrastructure_ready: true`, zero resultados GPU e
   árvore limpa no portão final.
-- **Próxima ação atômica:** publicar os commits locais e, em outra janela,
-  solicitar autorização explícita para iniciar a B11A-E.
+- **Próxima ação atômica:** solicitar autorização explícita para iniciar a
+  B11A-E. A infraestrutura está apta e nada mais precisa ser preparado: a
+  prontidão devolve `infrastructure_ready` e `execution_ready` verdadeiros,
+  árvore limpa, zero resultados oficiais e `results_code_sha256` nulo. A
+  campanha projeta cerca de 48 h sequenciais.
 - **Objetivo atual:** renovar a infraestrutura da B11A-E com `social=2.0`,
   regenerar conformidade, roteiro e manifesto e obter
   `infrastructure_ready: true`, sem executar resultados oficiais GPU.
