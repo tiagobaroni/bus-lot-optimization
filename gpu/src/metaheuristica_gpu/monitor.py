@@ -24,11 +24,21 @@ class ThermalInterruption(GpuSafetyError):
     pass
 
 
-# O preflight e o resfriamento leem este mesmo limiar. Enquanto foram dois
-# valores, o resfriamento devolvia acima do que o preflight aceitava e a
-# execução seguinte reprovava de forma espúria e determinística dentro da faixa
-# entre os dois. A defesa contra a reincidência é não existir segundo valor.
+class ThermalWaitTimeout(GpuSafetyError):
+    pass
+
+
+# Havia dois sítios lendo este limiar, o preflight e um resfriamento no fim da
+# execução, e o segundo devolvia na primeira amostra dentro do limiar enquanto o
+# primeiro exigia a janela inteira: a saída de um não implicava a entrada do
+# outro, e toda transição encadeada começava com margem nula. A defesa não é
+# manter os dois em dia, é existir um único critério, num único sítio.
 GPU_TEMPERATURE_LIMIT_C = 50
+
+# Teto sobre o tempo TOTAL dentro do preflight, espera e janela sustentada
+# incluídas. Não decide se a placa está apta, apenas por quanto tempo se admite
+# aguardar, e por isso não é um segundo critério de aceitação.
+GPU_THERMAL_WAIT_TIMEOUT_S = 1200
 
 THROTTLING_ACTIVE = "active"
 THROTTLING_INACTIVE = "inactive"
@@ -129,22 +139,53 @@ def write_samples_csv(path: Path, samples: list[GpuSample]) -> None:
 def preflight_idle(
     *,
     duration_seconds: int = 60,
+    timeout_seconds: float | None = None,
     provider: Callable[[], GpuSample] = query_sample,
     sleeper: Callable[[float], None] = time.sleep,
+    monotonic: Callable[[], float] = time.monotonic,
+    sink: Callable[[GpuSample], None] | None = None,
 ) -> tuple[GpuSample, ...]:
-    samples = []
-    for index in range(duration_seconds):
-        sample = provider(); samples.append(sample)
-        if sample.temperature_c > GPU_TEMPERATURE_LIMIT_C:
-            raise GpuSafetyError(f"temperatura inicial acima de {GPU_TEMPERATURE_LIMIT_C} graus Celsius")
+    """Portão único de aptidão térmica, na entrada da execução do cenário.
+
+    A temperatura é **aguardada**: a placa quente esfria sozinha, e reprovar por
+    isso devolvia uma decisão de cara ou coroa a cada transição encadeada. A
+    concorrência na placa **não** é aguardada, porque outro processo
+    computacional não vai embora sozinho, e converter essa recusa em espera
+    trocaria uma proteção por atraso silencioso.
+
+    `timeout_seconds` resolve para a constante dentro da função, e não no
+    default: ligado em tempo de definição, nenhum caso conseguiria provar que a
+    constante é a fonte única do teto.
+    """
+    limite_espera = GPU_THERMAL_WAIT_TIMEOUT_S if timeout_seconds is None else timeout_seconds
+    inicio = monotonic()
+    coletadas: list[GpuSample] = []
+    janela: list[GpuSample] = []
+    while True:
+        sample = provider()
+        coletadas.append(sample)
+        if sink is not None:
+            sink(sample)
         if sample.external_processes:
             raise GpuSafetyError("outro processo computacional usa a GPU")
-        if index + 1 < duration_seconds:
-            sleeper(1.0)
-    average = sum(item.gpu_utilization_percent for item in samples) / len(samples)
+        if sample.temperature_c > GPU_TEMPERATURE_LIMIT_C:
+            janela.clear()
+        else:
+            janela.append(sample)
+            if len(janela) >= duration_seconds:
+                break
+        decorrido = monotonic() - inicio
+        if decorrido >= limite_espera:
+            raise ThermalWaitTimeout(
+                f"placa não estabilizou em {GPU_TEMPERATURE_LIMIT_C} graus Celsius "
+                f"ou abaixo após {int(decorrido)} s de espera; última leitura de "
+                f"{sample.temperature_c} graus Celsius"
+            )
+        sleeper(1.0)
+    average = sum(item.gpu_utilization_percent for item in janela) / len(janela)
     if average > 5.0:
         raise GpuSafetyError("utilização média inicial acima de 5%")
-    return tuple(samples)
+    return tuple(coletadas)
 
 
 class GpuSafetyMonitor:

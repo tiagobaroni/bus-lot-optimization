@@ -1,5 +1,6 @@
 import csv
 from dataclasses import fields, replace
+from itertools import cycle
 import multiprocessing.synchronize
 import os
 import signal
@@ -25,10 +26,9 @@ BASE = GpuSample(
 )
 
 
-def test_preflight_accepts_idle_and_rejects_heat_or_competitor() -> None:
-    assert len(preflight_idle(duration_seconds=3, provider=lambda: BASE, sleeper=lambda _: None)) == 3
-    with pytest.raises(GpuSafetyError, match="temperatura"):
-        preflight_idle(duration_seconds=1, provider=lambda: replace(BASE, temperature_c=51))
+def test_preflight_accepts_idle_and_rejects_competitor() -> None:
+    assert len(preflight_idle(duration_seconds=3, provider=lambda: BASE,
+                              sleeper=lambda _: None, monotonic=lambda: 0.0)) == 3
     with pytest.raises(GpuSafetyError, match="processo"):
         preflight_idle(duration_seconds=1, provider=lambda: replace(BASE, external_processes=1))
 
@@ -40,9 +40,9 @@ def _preflight_aceita(temperatura: int) -> bool:
     """Verdadeiro quando o preflight aceita uma placa nessa temperatura."""
     try:
         preflight_idle(
-            duration_seconds=1,
+            duration_seconds=1, timeout_seconds=0,
             provider=lambda: replace(BASE, temperature_c=temperatura),
-            sleeper=lambda _: None,
+            sleeper=lambda _: None, monotonic=lambda: 0.0,
         )
     except GpuSafetyError:
         return False
@@ -359,3 +359,170 @@ def test_o_canal_de_parada_nao_guarda_semaforo_entre_processos(tmp_path) -> None
         assert not guarda.stop_event.is_set()
         guarda.stop_event.set()
         assert guarda.stop_event.is_set()
+
+
+# --- B11F. Portão térmico único na entrada ------------------------------------
+
+_MAX_AMOSTRAS = 5000
+
+
+def _serie(temperaturas: list[int]):
+    """Percorre a série e depois repete o último valor.
+
+    A contagem máxima existe porque, com a espera térmica, várias mutações
+    plausíveis não reprovam: elas deixam de terminar. Sem esta guarda a suíte
+    pendura em vez de acusar.
+    """
+    restantes = list(temperaturas)
+    ultimo = temperaturas[-1]
+    tomadas = [0]
+
+    def provider() -> GpuSample:
+        tomadas[0] += 1
+        assert tomadas[0] <= _MAX_AMOSTRAS, "provider consultado além do limite: laço sem saída"
+        return replace(BASE, temperature_c=restantes.pop(0) if restantes else ultimo)
+
+    return provider
+
+
+def _oscila(temperaturas: list[int]):
+    """Oscila indefinidamente, sem degenerar em série constante."""
+    ciclo = cycle(temperaturas)
+    tomadas = [0]
+
+    def provider() -> GpuSample:
+        tomadas[0] += 1
+        assert tomadas[0] <= _MAX_AMOSTRAS, "provider consultado além do limite: laço sem saída"
+        return replace(BASE, temperature_c=next(ciclo))
+
+    return provider
+
+
+class _Relogio:
+    """Relógio determinístico: cada chamada do sleeper avança o tempo pedido."""
+
+    def __init__(self) -> None:
+        self.agora = 0.0
+
+    def monotonic(self) -> float:
+        return self.agora
+
+    def sleeper(self, segundos: float) -> None:
+        self.agora += segundos
+
+
+def test_preflight_aguarda_placa_quente_e_aprova() -> None:
+    relogio = _Relogio()
+    amostras = preflight_idle(
+        duration_seconds=5, provider=_serie([55, 54, 52, 51] + [48] * 5),
+        sleeper=relogio.sleeper, monotonic=relogio.monotonic,
+    )
+    lidas = [item.temperature_c for item in amostras]
+    # Anti-vácuo: a série cruzou o limiar de verdade, e a contagem é exata.
+    assert max(lidas) > monitor.GPU_TEMPERATURE_LIMIT_C
+    assert min(lidas) <= monitor.GPU_TEMPERATURE_LIMIT_C
+    assert len(lidas) == 9
+
+
+def test_preflight_esgota_o_teto_quando_a_placa_nunca_esfria() -> None:
+    relogio = _Relogio()
+    with pytest.raises(monitor.ThermalWaitTimeout) as capturado:
+        preflight_idle(
+            duration_seconds=5, timeout_seconds=30, provider=_serie([90, 70]),
+            sleeper=relogio.sleeper, monotonic=relogio.monotonic,
+        )
+    mensagem = str(capturado.value)
+    # Anti-vácuo: houve espera, e a mensagem reporta a ÚLTIMA leitura, não a
+    # primeira nem um literal fixo. Com provider constante isso não se veria.
+    assert relogio.agora >= 30
+    assert "70" in mensagem and "90" not in mensagem
+
+
+def test_preflight_esgota_o_teto_sob_oscilacao_em_torno_do_limiar() -> None:
+    """O teto cobre o tempo TOTAL no preflight, não apenas a descida inicial."""
+    relogio = _Relogio()
+    limite = monitor.GPU_TEMPERATURE_LIMIT_C
+    coletadas: list[GpuSample] = []
+    with pytest.raises(monitor.ThermalWaitTimeout):
+        preflight_idle(
+            duration_seconds=5, timeout_seconds=40,
+            provider=_oscila([limite, limite + 1]),
+            sleeper=relogio.sleeper, monotonic=relogio.monotonic,
+            sink=coletadas.append,
+        )
+    # Anti-vácuo dentro do caso, e não no comentário: o limite SUPERIOR mata a
+    # mutação que reinicia o cronômetro a cada progresso, e a contagem de
+    # amostras frias prova que a placa atingiu o limiar muitas vezes e mesmo
+    # assim não aprovou — que é a propriedade que o caso promete.
+    assert 40 <= relogio.agora <= 42
+    assert sum(1 for item in coletadas if item.temperature_c <= limite) > 5
+
+
+def test_preflight_nao_aguarda_quando_ha_processo_externo() -> None:
+    """A espera é exclusiva da temperatura."""
+    relogio = _Relogio()
+    coletadas: list[GpuSample] = []
+    quente_e_ocupada = replace(BASE, temperature_c=70, external_processes=1)
+    with pytest.raises(GpuSafetyError, match="processo"):
+        preflight_idle(
+            duration_seconds=5, timeout_seconds=600,
+            provider=lambda: quente_e_ocupada, sleeper=relogio.sleeper,
+            monotonic=relogio.monotonic, sink=coletadas.append,
+        )
+    # Anti-vácuo: recusou sem consumir espera, e a amostra que motivou a recusa
+    # chegou ao sink antes do levantamento.
+    assert relogio.agora == 0
+    assert len(coletadas) == 1 and coletadas[0].external_processes == 1
+
+
+def test_preflight_reinicia_a_janela_inteira_quando_a_placa_volta_a_subir() -> None:
+    """Contagem EXATA. Um `>` frouxo passa com reinício, com janela cumulativa e
+    com decaimento parcial."""
+    relogio = _Relogio()
+    limite = monitor.GPU_TEMPERATURE_LIMIT_C
+    amostras = preflight_idle(
+        duration_seconds=5,
+        provider=_serie([limite - 1, limite - 1, limite + 5] + [limite - 1] * 5),
+        sleeper=relogio.sleeper, monotonic=relogio.monotonic,
+    )
+    # Reinício integral: 2 frias descartadas + 1 quente + 5 frias = 8.
+    # Decaimento por pop() daria 7; janela cumulativa daria 6.
+    assert len(amostras) == 8
+    assert any(item.temperature_c > limite for item in amostras)
+
+
+def test_preflight_recusa_utilizacao_media_alta_sem_aguardar() -> None:
+    relogio = _Relogio()
+    ocupada = replace(BASE, temperature_c=40, gpu_utilization_percent=42.0)
+    with pytest.raises(GpuSafetyError, match="utilização"):
+        preflight_idle(
+            duration_seconds=3, provider=lambda: ocupada,
+            sleeper=relogio.sleeper, monotonic=relogio.monotonic,
+        )
+    # Anti-vácuo: a recusa veio depois da janela completa, e não de espera.
+    assert relogio.agora == 2
+
+
+def test_preflight_entrega_todas_as_amostras_ao_sink() -> None:
+    relogio = _Relogio()
+    recebidas: list[GpuSample] = []
+    preflight_idle(
+        duration_seconds=3, provider=_serie([55, 48, 48, 48]),
+        sleeper=relogio.sleeper, monotonic=relogio.monotonic,
+        sink=recebidas.append,
+    )
+    # Igualdade exata: mata a mutação "só entrega as amostras da janela".
+    assert [item.temperature_c for item in recebidas] == [55, 48, 48, 48]
+
+
+def test_o_teto_vem_de_uma_unica_constante(monkeypatch) -> None:
+    """Um literal 1200 no corpo sobreviveria a todos os casos acima, porque
+    todos passam `timeout_seconds` explícito."""
+    monkeypatch.setattr(monitor, "GPU_THERMAL_WAIT_TIMEOUT_S", 5)
+    relogio = _Relogio()
+    with pytest.raises(monitor.ThermalWaitTimeout):
+        preflight_idle(
+            duration_seconds=5, provider=_serie([70]),
+            sleeper=relogio.sleeper, monotonic=relogio.monotonic,
+        )
+    assert 5 <= relogio.agora <= 6
