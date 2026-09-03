@@ -8,7 +8,25 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 03/09/2026
-- **Bloco ativo:** B11F - correção do guarda térmico da campanha GPU.
+- **Bloco ativo:** nenhum. **A B11F está concluída e a B11A foi encerrada com
+  limitação registrada.**
+- **O estudo adicional de GPU foi encerrado em 03/09/2026, por escopo e não por
+  impedimento técnico.** A implementação está correta: conformidade aprovada com
+  diferença máxima de `3,33e-16` contra régua de `1e-12`. Os três cenários ACO
+  medidos deram speedup de `1,008`, `1,002` e `1,026`, com fração de dispositivo
+  entre `0,157 %` e `0,166 %`. A causa é estrutural: o perfilamento atribui
+  `98,7 %` do tempo à construção sequencial das formigas no host, que a GPU não
+  toca, o que pela lei de Amdahl limita o speedup do desenho híbrido a `1,013×`.
+  A carga também é pequena demais para a placa — 200 elementos por decisão —, e
+  uma sondagem mediu paridade CPU/GPU só por volta de 1.200 formigas
+  simultâneas, trinta vezes o `n_ants` congelado.
+- **Lacuna declarada: o PSO não foi medido em GPU.** No PSO a avaliação pesa
+  cerca de 46 % do custo, contra 1,2 % no ACO, então a conclusão do ACO **não se
+  estende a ele**. O lançador do recorte está em `_temp/executa_b11ae_pso.sh` e
+  executa os 30 cenários PSO do roteiro oficial, ranks 31 a 60, em cerca de uma
+  hora. A campanha fica parcial de propósito e `consolidate` recusará, o que é
+  correto. **Se o recorte for executado, atualizar `docs/experiments.md` 29.1.1,
+  o `README.md` e este registro antes de qualquer afirmação sobre PSO em GPU.**
 - **Último bloco concluído:** B11A-R - renovação da infraestrutura GPU após a
   B11-E.
 - **Branch de trabalho:** `main`; os seis commits do B11F foram publicados em
@@ -95,13 +113,9 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Última verificação:** 547 testes CPU e 102 testes GPU aprovados nas duas
   invocações suportadas; `infrastructure_ready: true`, zero resultados GPU e
   árvore limpa no portão final.
-- **Próxima ação atômica:** solicitar autorização explícita para iniciar a
-  B11A-E. A infraestrutura está apta e nada mais precisa ser preparado: a
-  prontidão devolve `infrastructure_ready` e `execution_ready` verdadeiros,
-  árvore limpa, zero resultados oficiais e `results_code_sha256` nulo. A
-  campanha projeta cerca de 24 h sequenciais: ~23 h para os 30 cenários ACO,
-  ~46 min cada, dominados pela construção das formigas no host, e na casa de
-  1 h para os 30 PSO, ainda sem medição GPU própria.
+- **Próxima ação atômica:** iniciar a B12, análise e visualização. Opcional e
+  independente: executar `_temp/executa_b11ae_pso.sh` para fechar a lacuna de
+  medição do PSO em GPU, cerca de uma hora, atualizando os registros depois.
 - **Objetivo atual:** renovar a infraestrutura da B11A-E com `social=2.0`,
   regenerar conformidade, roteiro e manifesto e obter
   `infrastructure_ready: true`, sem executar resultados oficiais GPU.
@@ -1145,7 +1159,7 @@ lacunas.
 
 ## B11A - Experimento adicional com GPU
 
-**Estado:** `B11A-I E B11A-R CONCLUÍDAS - B11A-E NÃO AUTORIZADA`
+**Estado:** `B11A ENCERRADA COM LIMITAÇÃO REGISTRADA`
 
 **Dependências internas:** a B11A-I poderá começar depois da conclusão da
 B11-I; a B11A-E somente poderá começar depois da conclusão da B11-E e de
@@ -1171,7 +1185,10 @@ sem alterar o baseline normativo em CPU.
 - [x] Documentar divergências, limitações e casos em que a GPU não compensa.
 
 **Critério de saída:** comparação CPU e GPU auditável, ou limitação explícita
-registrada caso o experimento adicional não possa ser executado. A
+registrada caso o experimento adicional não possa ser executado. **Satisfeito
+pela segunda via, em 03/09/2026**, com o desfecho registrado em
+`docs/experiments.md`, seção 29.1.1: a implementação em GPU está correta, mas
+não produz aceleração relevante no ACO, e o PSO não foi medido. A
 indisponibilidade de GPU não invalida nem bloqueia o baseline obrigatório.
 
 **Checkpoint de retomada:**

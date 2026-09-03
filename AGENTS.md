@@ -462,6 +462,24 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
+**Estado registrado em 03/09/2026, com o estudo adicional de GPU encerrado.**
+
+- o estudo adicional de GPU foi **encerrado com limitação registrada**, na forma
+  prevista pelo seu critério de saída. A implementação está correta —
+  conformidade aprovada com diferença máxima de `3,33e-16` contra régua de
+  `1e-12` — mas não produz aceleração relevante: três cenários ACO medidos deram
+  speedup de `1,008`, `1,002` e `1,026`, com menos de `0,17 %` do tempo no
+  dispositivo;
+- a causa é estrutural e está registrada em `docs/experiments.md`, seção 29.1.1:
+  `98,7 %` do tempo do ACO é construção sequencial das formigas no host, o que
+  limita o speedup do desenho híbrido a `1,013×` por Amdahl, e a granularidade
+  de 200 elementos por decisão é pequena demais para a placa;
+- **o PSO não foi medido em GPU**, e a conclusão do ACO não se estende a ele. A
+  lacuna está declarada, com lançador operacional disponível para os 30 cenários
+  do recorte;
+- a infraestrutura permanece íntegra e a campanha continua executável: o
+  encerramento é decisão de escopo, e não impedimento técnico.
+
 **Estado registrado em 03/09/2026, com o guarda térmico da campanha GPU
 corrigido.** Os registros datados abaixo permanecem como foram escritos, por
 serem o fechamento dos blocos anteriores.
@@ -596,10 +614,12 @@ Estado anterior, registrado em 18/08/2026:
 
 Os detalhes de dados, formulação, automação experimental, tuning e
 infraestrutura GPU estão consolidados. A B11-E e a renovação B11A-R
-foram concluídas; permanece pendente a execução B11A-E.
+foram concluídas, e o estudo adicional de GPU foi encerrado com limitação
+registrada.
 
 Próximo objetivo recomendado:
 
 1. publicar os commits locais pendentes;
-2. iniciar a B11A-E somente após nova autorização explícita do usuário;
-3. manter uma execução GPU por vez e as barreiras térmicas aprovadas.
+2. iniciar a B12, análise e visualização;
+3. se o recorte PSO em GPU for executado, atualizar os registros com os seus
+   resultados antes de qualquer afirmação sobre PSO em GPU.

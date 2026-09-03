@@ -1212,6 +1212,67 @@ contém 60 IDs únicos, com hash
 e a prontidão valida também os 60 pares CPU oficiais antes de declarar
 `infrastructure_ready=true`.
 
+### 29.1.1. Desfecho do estudo adicional de GPU
+
+O estudo adicional foi **encerrado com limitação registrada**, na forma que o
+critério de saída prevê. A infraestrutura ficou completa e verificada; o que não
+se obteve foi aceleração relevante, e a razão é mecânica e mensurada.
+
+**A limitação não é de corretude.** A conformidade foi aprovada com diferença
+máxima de `3,33e-16` entre os caminhos CPU e GPU, contra a régua normativa de
+`1e-12`, com igualdade de orçamento e de checkpoints e confirmação em CPU da
+solução final. A implementação em GPU está correta e reproduz o caminho
+normativo dentro da tolerância exigida.
+
+**Medição do ACO.** Três cenários oficiais foram executados e validados em
+02/09/2026, em `N=150`, `K=5` e orçamento de 150.000 avaliações, pareados com a
+execução CPU oficial de mesma semente:
+
+| seed | GPU (s) | CPU (s) | speedup | kernel (s) | transferências (s) | fração de dispositivo |
+|---|---|---|---|---|---|---|
+| 10 | 2.723,2 | 2.743,8 | 1,008 | 4,15 | 0,36 | 0,166 % |
+| 11 | 2.698,1 | 2.704,1 | 1,002 | 3,98 | 0,35 | 0,161 % |
+| 12 | 2.754,4 | 2.826,2 | 1,026 | 3,96 | 0,35 | 0,157 % |
+
+O speedup fica em torno da unidade e a fração de dispositivo abaixo de 0,17 %:
+das cerca de 45 minutos de cada execução, menos de 5 segundos ocorrem na placa.
+É exatamente a leitura que a publicação conjunta de `speedup` e fração de
+dispositivo existe para permitir.
+
+**Causa.** O desenho híbrido delega à GPU apenas a avaliação em lote. O
+perfilamento de uma geração de 40 formigas, em `N=150` e `K=5`, atribui **98,7 %
+do tempo à construção das formigas no host** (730 ms), 1,2 % à avaliação (9 ms)
+e 0,1 % à atualização de feromônio. A construção é sequencial por dependência:
+cada uma das 150 posições depende do estado parcial anterior, somando cerca de
+22 milhões de decisões por cenário. Pela lei de Amdahl, acelerar
+indefinidamente a fração avaliável limita o speedup a `1/0,987 ≈ 1,013×`. O
+valor medido, entre 1,002 e 1,026, é portanto o resultado estrutural do desenho
+híbrido, e não deficiência da implementação nem do dispositivo.
+
+**Dimensionamento da carga.** Cada decisão da construção opera sobre 40 formigas
+por no máximo 5 alternativas, isto é 200 elementos. Uma sondagem exploratória de
+viabilidade — diagnóstica, fora da campanha oficial — mediu que, mesmo
+vetorizando a construção entre formigas, o tempo por geração é de 41 ms em NumPy
+sobre CPU contra 438 ms em CuPy na mesma máquina, e que a paridade entre os dois
+só ocorre por volta de 1.200 formigas simultâneas, trinta vezes o `n_ants`
+congelado. O custo em GPU é dominado por lançamento de kernel, e não por
+aritmética. A conclusão é que a granularidade do ACO com estes parâmetros é
+pequena demais para a placa.
+
+**Limitação declarada quanto ao PSO.** Nenhum cenário PSO foi executado em GPU.
+No PSO a avaliação responde por cerca de 46 % do custo, contra 1,2 % no ACO, de
+modo que **a conclusão acima não se estende ao PSO**. O recorte de 30 cenários
+PSO é executável pela infraestrutura vigente e custaria cerca de uma hora; caso
+venha a ser executado, este registro deve ser atualizado com os seus resultados
+antes de qualquer afirmação sobre o PSO em GPU.
+
+**Estado ao encerrar.** A infraestrutura permanece íntegra e verificável:
+conformidade aprovada, roteiro de 60 identificadores, manifesto de prontidão
+regenerado sobre o código vigente e `readiness` declarando
+`infrastructure_ready` e `execution_ready` verdadeiros com zero resultados
+oficiais. O encerramento é decisão de escopo, e não impedimento técnico: a
+campanha completa continua executável a qualquer momento.
+
 ---
 
 ## 30. Princípio de congelamento experimental

@@ -524,10 +524,18 @@ uv sync --project gpu --dev
 uv run --project gpu python -m metaheuristica_gpu.run readiness
 ```
 
-A renovação B11A-R foi concluída com `social=2.0`, conformidade aprovada e 60
-novos IDs. O `readiness` indica `infrastructure_ready=true` e zero resultados
-GPU. A B11-E já está concluída, mas a B11A-E continua dependente de autorização
-explícita; quando autorizada, um único ID poderá ser executado por vez:
+**O estudo adicional foi encerrado com limitação registrada.** A implementação
+em GPU está correta — a conformidade aprovou com diferença máxima de `3,33e-16`
+contra a régua normativa de `1e-12` —, mas não produziu aceleração relevante.
+Três cenários ACO medidos deram speedup entre `1,002` e `1,026`, com menos de
+`0,17 %` do tempo ocorrendo no dispositivo: o custo do ACO é a construção
+sequencial das formigas no host, que responde por `98,7 %` do tempo e que a GPU
+não toca. **Nenhum cenário PSO foi medido em GPU**, e a conclusão não se estende
+a ele. Os números e a análise estão em `docs/experiments.md`, seção 29.1.1.
+
+A infraestrutura permanece íntegra e a campanha continua executável a qualquer
+momento: o `readiness` indica `infrastructure_ready=true`, `execution_ready=true`
+e zero resultados GPU. Um único ID por vez:
 
 ```bash
 uv run --project gpu python -m metaheuristica_gpu.run plan
