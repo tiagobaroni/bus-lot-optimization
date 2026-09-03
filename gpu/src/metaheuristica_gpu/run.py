@@ -37,7 +37,7 @@ from pathlib import Path
 import subprocess
 import sys
 from time import perf_counter
-from typing import Any
+from typing import Any, Iterable
 
 import numpy as np
 import pandas as pd
@@ -346,6 +346,39 @@ def generate_manifest(config: GpuCampaignConfig) -> dict[str, Any]:
     atomic_write_json(MANIFEST, manifest); return manifest
 
 
+def _results_code_hash(output: Path, scenarios: Iterable[GpuScenario]) -> str | None:
+    """Hash de código compartilhado pelos resultados oficiais presentes.
+
+    Devolve `None` quando não há resultado algum. A conferência vive aqui, e não
+    em `validate_result`, porque `is_complete` **propaga** `GpuStorageError`
+    (`storage.py:52-57`): pôr o hash naquele caminho transformaria qualquer
+    mudança de código em recusa dura de `readiness` e `consolidate` sobre
+    resultados íntegros.
+
+    A propagação de `GpuStorageError` vinda de `is_complete` é herdada e
+    intencional; `readiness` já faz a mesma chamada logo antes. Não envolver em
+    `try/except`, que engoliria corrupção.
+    """
+    hashes = set()
+    for item in scenarios:
+        if not is_complete(output, item):
+            continue
+        documento = read_json(result_path(output, item))
+        if "gpu_code_sha256" not in documento:
+            raise GpuConfigurationError("resultado GPU oficial sem procedência de código")
+        hashes.add(documento["gpu_code_sha256"])
+    if not hashes:
+        return None
+    if len(hashes) > 1:
+        raise GpuConfigurationError("resultados GPU oficiais têm hashes de código divergentes")
+    return hashes.pop()
+
+
+def _assert_results_match_manifest(results_hash: str | None, manifest: dict[str, Any]) -> None:
+    if results_hash is not None and results_hash != manifest["gpu_code_sha256"]:
+        raise GpuConfigurationError("resultados GPU divergem do hash de código do manifesto")
+
+
 def verify_manifest(config: GpuCampaignConfig) -> dict[str, Any]:
     manifest = read_json(MANIFEST)
     if manifest.get("gpu_code_sha256") != gpu_code_hash(ROOT):
@@ -371,10 +404,13 @@ def readiness(config: GpuCampaignConfig) -> dict[str, Any]:
     scenarios = expand_gpu_scenarios(config)
     output = ROOT / config.output_root
     existing = sum(is_complete(output, item) for item in scenarios)
+    results_hash = _results_code_hash(output, scenarios)
+    _assert_results_match_manifest(results_hash, manifest)
     return {
         "schema_version": 1, "infrastructure_ready": True,
         "execution_ready": _b11_complete(), "waiting_for_b11e": not _b11_complete(),
         "scenario_count": len(scenarios), "existing_official_results": existing,
+        "results_code_sha256": results_hash,
         "gpu": environment.to_dict(), "cpu_readiness": cpu["ready"],
         "cpu_reference": reference,
         "gpu_manifest_schema": manifest["schema_version"], "git_commit": commit,
@@ -390,6 +426,7 @@ def scenario_document(
     *,
     cold_total_seconds: float,
     telemetry: str,
+    gpu_code_sha256: str,
 ) -> dict[str, Any]:
     """Monta o documento oficial de um cenário.
 
@@ -405,6 +442,9 @@ def scenario_document(
         "environment": environment.to_dict(), "warmup": warmup,
         "cold_total_seconds": cold_total_seconds,
         "telemetry": telemetry,
+        # Proveniência de código: a campanha publicada precisa declarar sob
+        # qual versão cada resultado foi produzido.
+        "gpu_code_sha256": gpu_code_sha256,
         # F8-5: a condição viaja junto do valor, e não só no código.
         "diagnostics_schema": DIAGNOSTICS_SCHEMA,
     }
@@ -467,6 +507,7 @@ def execute_scenario(config: GpuCampaignConfig, scenario: GpuScenario) -> dict[s
         scenario, result, environment, warmup,
         cold_total_seconds=perf_counter() - cold_start,
         telemetry=str(monitor_path.relative_to(ROOT)),
+        gpu_code_sha256=gpu_code_hash(ROOT),
     )
     validate_result(document, scenario); atomic_write_json(result_path(output, scenario), document)
     atomic_write_json(session_path, {"scenario_id": scenario.scenario_id, "status": "complete"})
@@ -532,6 +573,11 @@ def consolidate(config: GpuCampaignConfig) -> dict[str, Any]:
         if not is_complete(output, scenario):
             raise GpuStorageError("campanha GPU incompleta")
         documents.append(read_json(result_path(output, scenario)))
+    # Indexação, e não `.get`: documento sem a chave tem de dar KeyError, e não
+    # virar `{None}` de tamanho 1, que passaria por "hash único".
+    hashes = {documento["gpu_code_sha256"] for documento in documents}
+    if len(hashes) != 1:
+        raise GpuStorageError("campanha GPU consolidada com hashes de código divergentes")
     rows = [consolidated_row(doc) for doc in documents]
     frame = pd.DataFrame(rows).sort_values(["algorithm", "seed"])
     cpu_path = ROOT / "results/tables/benchmark_runs.parquet"

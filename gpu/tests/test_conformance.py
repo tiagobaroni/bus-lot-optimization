@@ -223,6 +223,7 @@ def test_o_documento_do_cenario_carrega_o_schema_de_diagnostico() -> None:
     documento = scenario_document(
         cenario, _execucao_real(False), _Ambiente(), {"warmup_seconds": 0.1},
         cold_total_seconds=1.0, telemetry="results/gpu/telemetry/x.csv",
+        gpu_code_sha256="hash-de-teste",
     )
     assert documento["diagnostics_schema"] == DIAGNOSTICS_SCHEMA
     assert documento["scenario_id"] == cenario.scenario_id
