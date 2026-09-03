@@ -52,7 +52,9 @@ from metaheuristica_gpu.environment import (
     GpuConfigurationError, file_sha256, gpu_code_hash, inspect_gpu_environment,
 )
 from metaheuristica_gpu.microbenchmark import run_microbenchmark
-from metaheuristica_gpu.monitor import cooldown, monitor_process, preflight_idle
+from metaheuristica_gpu.monitor import (
+    GpuSample, cooldown, monitor_process, preflight_idle, write_samples_csv,
+)
 from metaheuristica_gpu.numerics import (
     ABS_TOL, require_equivalent_trajectory, verify_batch,
 )
@@ -408,6 +410,21 @@ def scenario_document(
     }
 
 
+def _preflight_with_evidence(output: Path, scenario: GpuScenario) -> None:
+    """Roda o portão térmico preservando a série coletada.
+
+    A série do preflight é a única evidência da trajetória térmica entre
+    cenários, e tem de sobreviver à reprovação e ao esgotamento do teto: sem
+    ela, a margem só pode ser inferida da primeira amostra pós-warmup, que foi
+    exatamente o que o diagnóstico de 03/09/2026 teve de fazer.
+    """
+    samples: list[GpuSample] = []
+    try:
+        preflight_idle(sink=samples.append)
+    finally:
+        write_samples_csv(output / "telemetry" / f"{scenario.scenario_id}_preflight.csv", samples)
+
+
 def execute_scenario(config: GpuCampaignConfig, scenario: GpuScenario) -> dict[str, Any]:
     if not _b11_complete():
         raise GpuConfigurationError("B11-E ainda não foi concluída")
@@ -422,7 +439,7 @@ def execute_scenario(config: GpuCampaignConfig, scenario: GpuScenario) -> dict[s
     with _exclusive_gpu():
         atomic_write_json(session_path, {"scenario_id": scenario.scenario_id, "status": "preflight"})
         try:
-            preflight_idle()
+            _preflight_with_evidence(output, scenario)
             environment = inspect_gpu_environment(); cold_start = perf_counter(); warmup = warmup_gpu()
             instance = _instance(config)
             run_config = RunConfig(k=config.k, seed=int(scenario.payload["seed"]), budget=config.budget)
