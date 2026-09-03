@@ -41,12 +41,19 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   resultados íntegros.
 - **`cold_total_seconds` mudou de escopo:** deixou de incluir o resfriamento,
   que não existe mais, e mede agora apenas a execução.
-- **Decisão registrada sobre os resultados de 02/09/2026.** A correção altera
-  `gpu_code_sha256`, e a campanha publicada precisa de hash único; por isso os
-  três resultados oficiais serão descartados e os 60 cenários reexecutados sob um
-  único hash. Custo aceito: cerca de 1 h 35 min sobre cerca de 48 h. As sessões e
-  as séries de telemetria de 02/09/2026 **são preservadas** como evidência da
-  interrupção, por não carregarem hash e não serem alcançadas pela invariante.
+- **Os resultados oficiais de 02/09/2026 foram descartados**, deliberadamente. A
+  correção altera `gpu_code_sha256`, e a campanha publicada precisa de hash
+  único; os três documentos de `results/gpu/raw/` foram removidos e os 60
+  cenários serão reexecutados sob um único hash. Custo aceito: cerca de 1 h
+  35 min sobre cerca de 48 h. As sessões e as séries de telemetria de 02/09/2026
+  **foram preservadas** como evidência da interrupção, por não carregarem hash e
+  não serem alcançadas pela invariante de hash único.
+- **O manifesto de prontidão foi regenerado** sobre o código corrigido, com
+  árvore limpa. O roteiro e os identificadores de cenário permanecem idênticos;
+  mudaram apenas o commit de origem e o hash do código. O manifesto novo apoia-se
+  numa conformidade gerada sob o código anterior, o que é aceito de forma
+  declarada: as mudanças são térmicas e de orquestração, não de kernel numérico,
+  e reexecutar a conformidade exigiria a placa.
 - **O que aconteceu com a primeira tentativa da B11-E.** Ela rodou em 31/08/2026 e
   **não** foi interrompida: o lote 1 concluiu 324 de 324 cenários, com zero falhas, e a
   **barreira reprovou** com `critério de recursos não satisfeito`. O critério contava
@@ -85,8 +92,7 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Última verificação:** 547 testes CPU e 102 testes GPU aprovados nas duas
   invocações suportadas; `infrastructure_ready: true`, zero resultados GPU e
   árvore limpa no portão final.
-- **Próxima ação atômica:** regenerar o manifesto de prontidão sobre o código
-  corrigido, descartar os resultados oficiais de 02/09/2026 e, em outra janela,
+- **Próxima ação atômica:** publicar os commits locais e, em outra janela,
   solicitar autorização explícita para iniciar a B11A-E.
 - **Objetivo atual:** renovar a infraestrutura da B11A-E com `social=2.0`,
   regenerar conformidade, roteiro e manifesto e obter
