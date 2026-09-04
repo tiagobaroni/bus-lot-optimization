@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from experiments.analyze_benchmark import write_summary_tables
+from experiments.analyze_benchmark import write_summary_tables, write_convergence_figures
 
 
 def _tiny_runs() -> pd.DataFrame:
@@ -63,3 +63,25 @@ def test_vs_greedy_table_computes_improvement():
     row = table.iloc[0]
     assert row["cost_difference"] == pytest.approx(0.3 - 0.5)
     assert row["improvement_percent"] == pytest.approx((0.5 - 0.3) / 0.5 * 100)
+
+
+def _tiny_checkpoints() -> pd.DataFrame:
+    rows = []
+    for algorithm in ("aco", "pso", "tabu"):
+        for seed in (10, 11):
+            for index in range(1, 6):
+                rows.append({
+                    "algorithm": algorithm, "instance": "artesp_rmsp_20", "k": 5,
+                    "seed": seed, "index": index, "evaluations": index * 20,
+                    "total_cost": 1.0 / index,
+                })
+    return pd.DataFrame(rows)
+
+
+def test_write_convergence_figures_creates_png_and_pdf_per_instance(tmp_path):
+    outputs = write_convergence_figures(_tiny_checkpoints(), tmp_path)
+    assert set(outputs) == {"artesp_rmsp_20"}
+    for path in outputs["artesp_rmsp_20"]:
+        assert path.exists()
+    suffixes = {path.suffix for path in outputs["artesp_rmsp_20"]}
+    assert suffixes == {".png", ".pdf"}

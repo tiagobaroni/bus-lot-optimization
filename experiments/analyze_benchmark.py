@@ -96,3 +96,47 @@ def write_by_k_and_greedy_tables(
     _atomic_parquet(by_k_path, by_k_table(runs))
     _atomic_parquet(vs_greedy_path, vs_greedy_table(runs, greedy_runs))
     return {"by_k": by_k_path, "vs_greedy": vs_greedy_path}
+
+
+def convergence_figure(checkpoints: pd.DataFrame, *, instance: str) -> plt.Figure:
+    subset = checkpoints[
+        (checkpoints["instance"] == instance) & (checkpoints["k"] == 5)
+    ]
+    figure, axis = plt.subplots(figsize=(7, 5))
+    for algorithm in ("tabu", "aco", "pso"):
+        data = subset[subset["algorithm"] == algorithm]
+        budget = data["evaluations"].max()
+        percent = data["evaluations"] / budget * 100
+        grouped = data.assign(percent=percent).groupby("index").agg(
+            percent=("percent", "first"),
+            median=("total_cost", "median"),
+            q1=("total_cost", lambda s: s.quantile(0.25)),
+            q3=("total_cost", lambda s: s.quantile(0.75)),
+        ).sort_values("percent")
+        axis.plot(
+            grouped["percent"], grouped["median"],
+            label=ALGORITHM_LABELS[algorithm], color=COLORS[algorithm],
+        )
+        axis.fill_between(
+            grouped["percent"], grouped["q1"], grouped["q3"],
+            color=COLORS[algorithm], alpha=0.15,
+        )
+    axis.set_xlabel("Orçamento consumido (%)")
+    axis.set_ylabel("Melhor custo (mediana e IQR)")
+    axis.set_title(f"Convergência — {instance}, K=5")
+    axis.grid(alpha=0.25)
+    axis.legend()
+    return figure
+
+
+def write_convergence_figures(
+    checkpoints: pd.DataFrame, figures_dir: Path
+) -> dict[str, list[Path]]:
+    outputs: dict[str, list[Path]] = {}
+    for instance in sorted(checkpoints["instance"].unique()):
+        size = instance.rsplit("_", 1)[1]
+        figure = convergence_figure(checkpoints, instance=instance)
+        outputs[instance] = _save_figure(
+            figure, figures_dir / f"benchmark_convergence_{size}"
+        )
+    return outputs
