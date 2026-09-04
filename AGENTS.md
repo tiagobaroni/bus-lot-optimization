@@ -462,6 +462,35 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
+**Estado registrado em 04/09/2026, com o PSO medido em GPU e a B11B fechada
+na documentação.** Os registros datados abaixo permanecem como foram
+escritos, por serem o fechamento dos blocos anteriores.
+
+- **o PSO foi medido em GPU**, fechando a lacuna declarada no registro
+  anterior: os 30 cenários do recorte (`_temp/executa_b11ae_pso.sh`, ranks 31
+  a 60, seeds 10 a 39) concluíram sem falha, com speedup médio `1,814×`
+  (mínimo `1,520×`, máximo `1,974×`) e fração de dispositivo média `10,27 %`.
+  Números e análise completa em `docs/experiments.md`, seção 29.1.2;
+- diferente do ACO, **o PSO acelera de verdade**: a média medida fica a 98 %
+  do teto de Amdahl implicado pela fração de custo já estimada para a
+  avaliação no PSO (~46 %), `1/(1-0,46) ≈ 1,852×`. A campanha GPU segue
+  parcial por desenho — 30 dos 60 resultados oficiais, só o recorte PSO —, e
+  `consolidate` recusa sobre esse estado corretamente;
+- **a transação de fechamento do congelamento CPU foi refeita**, por deriva
+  de ambiente: o kernel do host mudou de `7.0.0-30-generic` para
+  `7.0.0-31-generic` depois do congelamento de 01/09/2026, fora do controle
+  do repositório, e a checagem de proveniência recusou com "ambiente diverge
+  do congelamento". A transação de 4 passos foi refeita — piloto reexecutado
+  (18/18), consolidado e validado com reprodução, manifesto regenerado,
+  roteiro regenerado (5 lotes, 270 subgrupos, 1.620 cenários, inalterado) e
+  manifesto regenerado de novo — com resultado científico do piloto idêntico
+  ao anterior em tudo que não é temporal;
+- **a B11B está registrada como `CONCLUÍDA` em `TODO.md`**, seção "## B11B",
+  refletindo o fecho de 31/08/2026 já documentado em `docs/auditoria.md`,
+  seção 12: a seção do TODO.md tinha ficado com o cabeçalho "EM ANDAMENTO" e
+  as nove frentes não marcadas mesmo depois do fecho — dívida de
+  documentação, não trabalho pendente, agora corrigida.
+
 **Estado registrado em 03/09/2026, com o estudo adicional de GPU encerrado.**
 
 - o estudo adicional de GPU foi **encerrado com limitação registrada**, na forma

@@ -1337,7 +1337,7 @@ regenerar conformidade, roteiro e manifesto e obter
 
 ## B11B - Auditoria técnica pré-execução
 
-**Estado:** `EM ANDAMENTO`
+**Estado:** `CONCLUÍDA`
 
 **Depende de:** B11A-I.
 
@@ -1348,15 +1348,15 @@ o que estava planejado.
 
 **Tarefas:**
 
-- [ ] F1 - Mecanismo geral.
-- [ ] F2 - Testes.
-- [ ] F3 - PSO.
-- [ ] F4 - ACO.
-- [ ] F5 - Busca Tabu.
-- [ ] F6 - Benchmark.
-- [ ] F7 - CPU.
-- [ ] F8 - GPU.
-- [ ] F9 - Resultados.
+- [x] F1 - Mecanismo geral.
+- [x] F2 - Testes.
+- [x] F3 - PSO.
+- [x] F4 - ACO.
+- [x] F5 - Busca Tabu.
+- [x] F6 - Benchmark.
+- [x] F7 - CPU.
+- [x] F8 - GPU.
+- [x] F9 - Resultados.
 
 **Critério de saída:**
 
@@ -1381,10 +1381,23 @@ o que estava planejado.
 12. `AGENTS.md` seção 14 e `README.md` atualizados quanto ao estado real.
 13. Todos os commits com autoria e assinatura exclusivas do usuário.
 
+**Satisfeito em 31/08/2026**, registrado em `docs/auditoria.md`, seção 12
+("Fecho da auditoria B11B"): Fase 1 diagnosticou **89 achados**, todos
+verificados adversarialmente; Fase 2 fechou **29 pacotes** de correção mais
+**três pacotes de fechamento** não previstos, nascidos do próprio
+endurecimento das guardas de congelamento. Suíte de CPU foi de 254 para
+**517** casos; a da réplica GPU, de 27 para **98**. A linha de base da
+impressão digital foi regravada cinco vezes, sempre com a contenção enumerada
+antes da regravação. `readiness` devolveu `ready: true`, 1.620 cenários, 270
+subgrupos, 5 lotes, zero resultados e árvore limpa; a B11-E foi liberada e
+depois executada (1.620 execuções oficiais, zero falhas). Limitações que
+seguem para o relatório, sem bloquear execução, estão listadas em
+`docs/auditoria.md`, seção 12.
+
 **Checkpoint de retomada:**
 
 - commit auditado `ca5b81f`, com a B11A-I como último bloco concluído; a B11-E
-  e a B11A-E aguardam a conclusão da B11B;
+  e a B11A-E aguardavam a conclusão da B11B;
 - brainstorming encerrado com seis decisões aprovadas pelo usuário;
 - primeira decisão, alcance: todo defeito real é corrigido, aceitando desde já
   o custo de refazer o tuning e o piloto caso a correção altere resultados;
@@ -1404,7 +1417,16 @@ o que estava planejado.
 - sexta decisão, melhorias: todas são aplicadas, inclusive legibilidade e
   refatoração em arquivos protegidos pelo congelamento;
 - rótulo do bloco aprovado: B11B - Auditoria técnica pré-execução;
-- especificação e plano aprovados explicitamente pelo usuário em 19/08/2026.
+- especificação e plano aprovados explicitamente pelo usuário em 19/08/2026;
+- Fase 2 executada em dez lotes (pacotes B1 a B21 mais C1 a C7, mais A1 e os
+  três pacotes de fechamento R1 a R3), incluindo os sub-blocos operacionais
+  B11C (critério de recursos por `max_optimizer_cpu_ratio`), B11D (retomada do
+  lançador da B11-E) e B11F (guarda térmico único da campanha GPU) narrados no
+  cabeçalho "Estado de retomada" no topo deste arquivo — sem seção própria
+  aqui porque são pacotes de correção da própria B11B, não blocos
+  independentes;
+- encerrada e publicada em 31/08/2026, com `main` em `37c43a8` e a B11-E
+  liberada.
 
 ---
 
