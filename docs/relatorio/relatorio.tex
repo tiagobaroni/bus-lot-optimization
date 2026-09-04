@@ -557,6 +557,116 @@ metaheurística.
 \section{Resultados e análise}
 % Tarefas 7 e 8
 
+\subsection{Qualidade das soluções}
+\label{subsec:qualidade-solucoes}
+
+Sobre as 18 combinações instância$\times$$K$ do experimento principal (três
+instâncias -- \texttt{artesp\_rmsp\_20}, \texttt{artesp\_rmsp\_60} e
+\texttt{artesp\_rmsp\_150} -- combinadas com $K\in\{3,4,5,6,7,8\}$), a Busca
+Tabu apresenta o menor custo médio entre os três algoritmos. A média de
+\texttt{cost\_mean} sobre as 18 combinações é $0{,}156831$ para a Busca Tabu,
+contra $0{,}208578$ para o ACO e $0{,}286118$ para o PSO. Comparando
+combinação a combinação, a Busca Tabu tem o menor custo médio em 17 das 18
+combinações instância$\times$$K$.
+
+A única exceção ocorre em \texttt{artesp\_rmsp\_150}, $K=5$ -- a maior
+instância do benchmark --, onde o ACO obtém \texttt{cost\_mean}$=0{,}156884$,
+ligeiramente melhor que os $0{,}161771$ da Busca Tabu. Essa inversão de
+ranking está isolada a um único cenário entre os 18, não configurando um
+padrão sistemático de vantagem do ACO em instâncias grandes.
+
+Quanto à variabilidade entre as 30 seeds de cada combinação, a Busca Tabu
+também tem, em média, a menor dispersão: o desvio-padrão médio
+(\texttt{cost\_std}) sobre as 18 combinações é $0{,}012639$ para a Busca
+Tabu, $0{,}022381$ para o ACO e $0{,}028481$ para o PSO. A Busca Tabu tem o
+menor \texttt{cost\_std} em 11 das 18 combinações -- uma margem mais estreita
+que a observada para o custo médio, indicando que a vantagem de estabilidade
+da Busca Tabu, embora presente, é menos consistente do que sua vantagem em
+custo médio.
+
+Em algumas combinações da instância pequena (\texttt{artesp\_rmsp\_20}), o
+desvio-padrão da Busca Tabu chega a ser praticamente nulo -- da ordem de
+$10^{-17}$ a $10^{-4}$ --, sinal de que, para essa instância, a busca local
+converge de forma quase determinística ao mesmo ponto a partir de sementes
+diferentes.
+
+\subsection{Convergência}
+
+As Figuras~\ref{fig:convergencia-20}, \ref{fig:convergencia-60} e
+\ref{fig:convergencia-150} mostram as curvas de convergência dos três
+algoritmos para $K=5$ nas três classes de tamanho de instância, com o eixo
+horizontal expresso em percentual do orçamento computacional consumido.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{../../results/figures/benchmark_convergence_20.pdf}
+\caption{Curvas de convergência para \texttt{artesp\_rmsp\_20}, $K=5$.}
+\label{fig:convergencia-20}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{../../results/figures/benchmark_convergence_60.pdf}
+\caption{Curvas de convergência para \texttt{artesp\_rmsp\_60}, $K=5$.}
+\label{fig:convergencia-60}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{../../results/figures/benchmark_convergence_150.pdf}
+\caption{Curvas de convergência para \texttt{artesp\_rmsp\_150}, $K=5$.}
+\label{fig:convergencia-150}
+\end{figure}
+
+O padrão que se observa nas três figuras é o de um PSO que converge mais
+lentamente em relação ao seu próprio patamar final do que ACO e Busca Tabu.
+Tomando como referência o primeiro checkpoint em que a mediana do custo
+corrente fica a até 5\% do valor mediano final do próprio algoritmo, esse
+ponto ocorre, para o PSO, entre 35\% e 74\% do orçamento computacional
+consumido -- fração que cresce com o tamanho da instância --, enquanto para
+ACO e Busca Tabu esse mesmo ponto ocorre entre 2\% e 22\% do orçamento, em
+qualquer uma das três classes de tamanho.
+
+Convergir rapidamente em relação ao próprio patamar final não implica,
+porém, alcançar um patamar melhor: o ACO se aproxima do seu próprio custo
+final consumindo uma fração pequena do orçamento em todas as instâncias, mas
+isso não o impede de ter, na maioria das combinações, custo médio final
+superior ao da Busca Tabu (Seção~\ref{subsec:qualidade-solucoes}).
+
+\subsection{Significância estatística}
+
+O teste de Friedman, aplicado a cada uma das 18 combinações
+instância$\times$$K$ comparando simultaneamente PSO, Busca Tabu e ACO,
+rejeita a hipótese nula $H_0$ de desempenho equivalente entre os três
+algoritmos nas 18 combinações, com nível de significância $\alpha=0{,}05$.
+Todos os valores-$p$ ficam abaixo de $0{,}05$, sendo o maior deles
+aproximadamente $2{,}94\times10^{-7}$ (instância \texttt{artesp\_rmsp\_20},
+$K=3$). Há, portanto, evidência estatística de diferença de desempenho entre
+os três algoritmos em todo o benchmark.
+
+Diante da rejeição de $H_0$, aplicam-se testes de Wilcoxon pareado entre os
+três pares de algoritmos, com correção de Holm para comparações múltiplas.
+PSO$\times$Busca Tabu e PSO$\times$ACO são estatisticamente significativos
+($p_{holm}<0{,}05$) nas 18 combinações. Já Busca Tabu$\times$ACO perde
+significância em 5 das 18 combinações, todas concentradas em
+\texttt{artesp\_rmsp\_150}, para $K$ de 4 a 8; na mesma instância, $K=3$
+permanece significativo ($p_{holm}=0{,}0248$).
+
+O tamanho de efeito, medido pela correlação rank-biserial, acompanha esse
+padrão de significância. A magnitude média é $0{,}9965$ para PSO$\times$Busca
+Tabu e $0{,}9752$ para PSO$\times$ACO -- em ambos os casos, próxima do máximo
+teórico e consistente nas 18 combinações, refletindo diferenças de grande
+magnitude prática entre o PSO e os outros dois algoritmos. Já para Busca
+Tabu$\times$ACO, a magnitude média é $0{,}6782$, com dispersão bem maior: os
+cinco pares sem significância estatística coincidem exatamente com os cinco
+de menor magnitude de efeito, com $|\text{rank\_biserial}|$ entre $0{,}0108$
+e $0{,}2731$. Há, portanto, coerência entre valor-$p$ e tamanho de efeito --
+não uma contradição entre os dois --: a diferença entre Busca Tabu e ACO,
+nesses cinco cenários, é pequena tanto em significância estatística quanto
+em magnitude prática.
+
+% Tarefa 8
+
 \section{Discussão e conclusões}
 % Tarefa 9
 
