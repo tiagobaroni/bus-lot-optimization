@@ -227,7 +227,229 @@ melhores resultados, e sob quais critérios, é deixada para a seção de
 Resultados.
 
 \section{Metaheurísticas implementadas e adaptações}
-% Tarefa 5
+
+Foram implementados quatro algoritmos sobre a mesma função objetivo e as
+mesmas restrições estruturais da Seção 2: uma heurística gulosa
+determinística, usada apenas como referência descritiva, e três
+metaheurísticas -- Busca Tabu, Ant Colony Optimization (ACO) e Particle
+Swarm Optimization (PSO) -- avaliadas sob orçamento comparável de avaliações
+da função objetivo. As quatro subseções a seguir descrevem a construção de
+solução, os operadores de vizinhança ou de atualização, o tratamento de
+inviabilidade e os hiperparâmetros congelados de cada método. O PSO recebe
+tratamento mais extenso porque sua adaptação ao domínio combinatório --
+partição de unidades indivisíveis em lotes rotulados, e não um problema
+definido nativamente sobre variáveis contínuas -- exige um esquema de
+codificação, decodificação, reparo e reprojeção que não tem equivalente nos
+outros três métodos.
+
+\subsection{Heurística gulosa de referência}
+
+A heurística gulosa é uma construção determinística de solução única, sem
+componente estocástico e sem etapa de reparo, usada como referência de
+comparação para as três metaheurísticas. Por ser determinística, ela não
+admite réplicas independentes e por isso não entra nas análises estatísticas
+inferenciais da Seção de Resultados: sua função é apenas fornecer um ponto de
+referência descritivo, estável entre execuções, contra o qual o
+comportamento estocástico dos demais métodos pode ser contextualizado.
+
+A construção ordena as unidades em ordem decrescente de PU$\cdot$km, com
+empates resolvidos por \texttt{unit\_id} em ordem lexicográfica crescente.
+As primeiras $K$ unidades dessa ordem abrem os lotes $0$ a $K-1$, uma por
+lote; cada unidade seguinte é atribuída ao lote que produz o menor custo
+parcial, calculado no subproblema induzido apenas pelas unidades já
+processadas (os componentes territorial e funcional só consideram pares em
+que ambas as unidades já foram atribuídas). Como todos os $K$ lotes já estão
+abertos antes da atribuição das unidades restantes, a construção garante
+diretamente que nenhum lote fique vazio, dispensando qualquer reparo.
+
+Custos parciais cuja diferença absoluta seja de até $10^{-12}$ são tratados
+como empatados; o desempate favorece o lote com menor PU$\cdot$km acumulado
+antes da inclusão e, persistindo o empate, o menor rótulo de lote. Para uma
+instância com $N$ unidades a heurística realiza exatamente $K(N-K)$
+avaliações parciais, e a última avaliação parcial escolhida coincide com a
+função objetivo completa, sendo reaproveitada sem nova chamada.
+
+\subsection{Busca Tabu}
+
+A Busca Tabu \cite{glover1989,glover1990} parte de uma solução inicial
+aleatória e balanceada: uma permutação das unidades é distribuída
+ciclicamente entre os $K$ lotes, o que garante viabilidade imediata sem
+reparo e consome a primeira avaliação do orçamento.
+
+O único operador de vizinhança é o movimento \texttt{move(i, origem,
+destino)}, que realoca uma única unidade $i$ de um lote para outro;
+movimentos que esvaziariam o lote de origem são proibidos por construção. A
+cada iteração todos os movimentos válidos são enumerados e até
+\texttt{neighborhood\_size} deles são amostrados uniformemente, sem
+reposição, sendo cada candidato amostrado uma avaliação consumida do
+orçamento. O melhor movimento admissível da amostra é sempre aceito, mesmo
+quando piora a solução corrente -- é a memória tabu, e não um critério de
+aceitação, que evita a ciclagem. Empates de custo entre movimentos são
+resolvidos primeiro pela solução canônica resultante e depois pela tupla do
+movimento, e os rótulos de lote permanecem estáveis ao longo da trajetória
+para preservar a semântica da memória.
+
+A memória tabu é baseada em atributos do movimento: depois de aceitar
+\texttt{move(i, origem, destino)}, o movimento de retorno \texttt{move(i,
+destino, origem)} fica proibido pelas próximas \texttt{tabu\_tenure}
+iterações em que um movimento é aceito. Um critério de aspiração permite
+ignorar essa proibição, mas apenas quando o retorno melhora o melhor global
+em mais de $10^{-12}$ -- ou seja, a aspiração é estritamente baseada em
+qualidade, e não em outro atributo da trajetória.
+
+Após \texttt{stagnation\_limit} movimentos aceitos consecutivos sem melhora
+do melhor global, a busca reinicia: gera uma nova solução aleatória
+balanceada, limpa a memória tabu e preserva o incumbente encontrado até
+então. O mesmo reinício ocorre quando toda a amostra de vizinhança está
+proibida e nenhum candidato satisfaz a aspiração. O movimento \texttt{swap}
+(troca de lote entre duas unidades) não integra este baseline: sua
+vizinhança acrescentaria até $O(N^2)$ candidatos por iteração, consumindo o
+orçamento de avaliações com menos atualizações efetivas da trajetória, e só
+seria reconsiderado caso os experimentos indicassem estagnação relevante do
+operador único. Os parâmetros congelados desta implementação são
+\texttt{tabu\_tenure=10}, \texttt{neighborhood\_size=20} e
+\texttt{stagnation\_limit=100}.
+
+\subsection{Ant Colony Optimization}
+
+O ACO \cite{dorigo1996} constrói, para cada formiga, uma partição completa
+por crescimento sequencial e restrito, percorrendo as unidades na ordem
+estável da instância. A primeira unidade recebe sempre o lote $0$; cada
+unidade seguinte pode ser atribuída a um lote já aberto ou abrir o próximo
+rótulo disponível, e a abertura de um novo lote torna-se obrigatória quando
+o número de unidades restantes é exatamente igual ao número de lotes ainda
+fechados. Essa regra de construção garante que cada partição tenha uma única
+representação canônica e que toda formiga termine com uma solução viável,
+com todos os $K$ lotes ativos, sem necessidade de reparo posterior.
+
+A cada escolha permitida durante a construção, o ACO calcula o custo parcial
+da alocação candidata usando os mesmos quatro componentes de custo da
+heurística gulosa, e converte esse custo em informação heurística no
+intervalo $[1,2]$:
+
+\[
+\eta_{i,k} = 1 + \frac{C_{\max} - C_{i,k}}{C_{\max} - C_{\min}},
+\]
+
+com $\eta_{i,k}=1$ para todas as alternativas quando a amplitude
+$C_{\max}-C_{\min}$ não ultrapassa $10^{-12}$. Esses custos parciais orientam
+apenas a construção; somente a solução completa de cada formiga consome uma
+avaliação do orçamento. A matriz densa de feromônio $\tau_{i,k}$, associada
+à alocação de cada unidade $i$ ao lote $k$, é inicializada em $1{,}0$, e as
+probabilidades de escolha em cada passo da construção são proporcionais a
+$\tau_{i,k}^{\alpha}\,\eta_{i,k}^{\beta}$, calculadas em escala logarítmica
+por estabilidade numérica.
+
+Ao final de uma geração completa (todas as formigas construídas), o
+feromônio evapora por um fator $(1-\rho)$ e cada formiga deposita
+$1-\text{custo\_total}$ em todas as posições $(i,k)$ de sua alocação. Uma
+geração interrompida pelo esgotamento do orçamento preserva as avaliações já
+realizadas e o incumbente corrente, mas não executa evaporação nem depósito
+parciais, evitando atualizar o feromônio com uma amostra incompleta de
+formigas. Os parâmetros congelados são \texttt{alpha=1.0}, \texttt{beta=2.0},
+\texttt{rho=0.1} e \texttt{n\_ants=40}.
+
+\subsection{Particle Swarm Optimization com Random Keys}
+
+O PSO \cite{kennedy1995} foi originalmente formulado para otimização
+contínua, sobre um espaço de posições e velocidades em $\mathbb{R}^n$. O
+problema de formação de lotes, no entanto, é combinatório: cada solução é
+uma atribuição de $N$ unidades indivisíveis a $K$ lotes rotulados, e não um
+ponto de um espaço contínuo. A adaptação usada aqui segue a técnica de
+\emph{Random Keys} \cite{bean1994}, que separa o espaço de busca do PSO em
+duas camadas -- uma camada contínua, onde o enxame de fato evolui, e uma
+camada discreta, obtida por uma regra de decodificação determinística --,
+permitindo reaproveitar as equações clássicas de atualização de posição e
+velocidade sem modificá-las para operar sobre rótulos.
+
+\subsubsection*{Representação contínua e decodificação}
+
+Cada partícula é representada por um vetor de posição \texttt{float64} de
+dimensão $N$, com uma coordenada $x_i \in [0,1]$ por unidade. A técnica
+clássica de \emph{Random Keys} de Bean decodifica um vetor de chaves
+contínuas ordenando seus valores para produzir uma permutação, o que é
+adequado a problemas de sequenciamento. O problema de formação de lotes não
+é um problema de sequenciamento, e sim de partição em $K$ grupos rotulados,
+de modo que a decodificação foi adaptada: em vez de ordenar as chaves, cada
+coordenada é discretizada de forma independente, dividindo o intervalo
+$[0,1]$ em $K$ subintervalos iguais e mapeando cada chave ao subintervalo em
+que ela cai,
+
+\[
+x_i \;\longmapsto\; \text{lote}(x_i) = \min\bigl(\lfloor K\,x_i \rfloor,\; K-1\bigr).
+\]
+
+O truncamento por $\min(\cdot, K-1)$ trata o caso de fronteira $x_i=1{,}0$,
+que sem essa correção decodificaria para o rótulo inexistente $K$. Essa
+regra preserva o espírito da técnica original -- uma chave contínua
+independente por elemento, decodificada por uma função determinística e
+sobrejetora sobre a estrutura discreta de interesse -- trocando apenas o
+mecanismo de decodificação (ordenação $\to$ permutação) por outro adequado
+ao problema em questão (discretização em faixas $\to$ partição rotulada). A
+inicialização de cada partícula parte de uma alocação aleatória balanceada,
+análoga à usada na Busca Tabu, e sorteia a chave de cada unidade dentro do
+subintervalo correspondente ao lote sorteado para ela, garantindo que a
+posição inicial decodifique exatamente para essa alocação balanceada e que
+todos os $K$ lotes estejam ativos desde a primeira avaliação.
+
+\subsubsection*{Atualização de posição e velocidade}
+
+A atualização de velocidade segue a formulação clássica de PSO, com peso de
+inércia, componente cognitivo (atração ao melhor pessoal da partícula) e
+componente social (atração ao melhor global do enxame), cada um escalado por
+um vetor de números aleatórios independentes por dimensão, sob topologia
+global -- um único melhor global, atualizado por um único \emph{snapshot} a
+cada iteração, e não recalculado durante a varredura das partículas dessa
+mesma iteração. A velocidade resultante é limitada ao intervalo
+$[-0{,}5,\,0{,}5]$ e a posição resultante ao intervalo $[0,1]$, ambos por
+truncamento simples (\emph{clipping}), preservando a codificação de cada
+coordenada como chave válida. Esta camada contínua -- posições, velocidades
+e as próprias equações de atualização -- é inteiramente a do PSO clássico;
+a adaptação combinatória está concentrada na decodificação, no reparo e na
+reprojeção, descritos a seguir.
+
+\subsubsection*{Reparo de soluções inválidas}
+
+Como a decodificação discretiza cada coordenada de forma independente, nada
+impede que um subintervalo $[k/K, (k+1)/K)$ fique sem nenhuma chave a ele
+associada depois de um passo de atualização, produzindo um lote vazio --
+uma violação direta da hipótese de que todos os $K$ lotes devem estar ativos
+(Seção 2). Quando isso ocorre, o PSO aplica o mesmo procedimento de reparo
+usado pelos demais métodos que podem gerar inviabilidade: para cada lote
+vazio, entre as unidades pertencentes a lotes com pelo menos duas unidades,
+calcula-se o impacto de mover cada candidata para o lote vazio e executa-se
+o movimento de menor aumento estimado na função objetivo, repetindo até que
+todos os lotes estejam ativos. A escolha é determinística -- sem sorteio
+entre candidatos empatados -- para preservar estabilidade e
+reprodutibilidade, e cada avaliação provisória realizada durante o reparo é
+contabilizada no orçamento do experimento.
+
+\subsubsection*{Projeção de volta ao espaço contínuo}
+
+O reparo altera rótulos discretos diretamente, sem tocar no vetor de
+posição contínua da partícula. Se essa alteração não fosse propagada de
+volta às chaves, a posição da partícula ficaria inconsistente com a solução
+efetivamente avaliada: nas iterações seguintes, a atualização de velocidade
+e posição continuaria operando sobre chaves que decodificam para o lote
+\emph{pré-reparo}, e não para o lote realmente atribuído à unidade. A
+solução reparada é por isso projetada de volta ao espaço contínuo,
+recalculando cada chave de modo a decodificar exatamente para o rótulo
+reparado, preservando a fração interna que a chave original já carregava
+dentro do seu subintervalo -- ou seja, a posição relativa da unidade dentro
+do lote antigo é mantida como posição relativa dentro do novo lote, e apenas
+o subintervalo-base muda. Essa reprojeção é o que garante que a próxima
+iteração do PSO continue operando sobre um estado interno coerente, em que
+posição contínua e alocação discreta descrevem sempre a mesma solução:
+sem ela, a busca no espaço contínuo divergiria silenciosamente da
+trajetória de soluções discretas realmente avaliadas.
+
+Somente candidatos cuja avaliação completa (após decodificação e eventual
+reparo) seja viável chegam a atualizar a posição corrente da partícula e os
+seus melhores pessoal e global; um candidato cujo reparo não se complete
+dentro do orçamento disponível é descartado sem alterar o estado da
+partícula, que permanece no seu último estado consistente. Os parâmetros
+congelados desta implementação são \texttt{n\_particles=40},
+\texttt{inertia=0.4}, \texttt{cognitive=2.0} e \texttt{social=2.0}.
 
 \section{Metodologia experimental}
 % Tarefa 6
