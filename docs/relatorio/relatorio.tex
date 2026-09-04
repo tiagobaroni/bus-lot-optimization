@@ -76,7 +76,155 @@ execuções experimentais estão auditáveis em \texttt{docs/formulation.md} e
 sintetiza esse material.
 
 \section{Descrição do problema}
-% Tarefa 4
+
+\subsection{Unidade de decisão}
+
+A unidade elementar de decisão adotada neste trabalho não é a linha de
+ônibus completa, mas o \textbf{sentido/variante operacional} de uma linha.
+Uma mesma linha pode operar em sentidos distintos (ida e volta) e por meio
+de variantes cadastrais diferentes, cada uma com itinerário, sequência de
+paradas, demanda e produção próprios; tratar a linha como unidade
+mascararia essas diferenças e impediria que sentidos com perfis de
+demanda ou produção distintos fossem alocados a lotes diferentes quando
+isso for vantajoso para o equilíbrio buscado. Cada unidade é indivisível:
+pertence integralmente a exatamente um lote, e o modelo não a redesenha,
+corta ou distribui entre lotes distintos.
+
+Formalmente, seja \(\mathcal{L}=\{1,2,\ldots,N\}\) o conjunto de unidades.
+Cada unidade \(i\in\mathcal{L}\) recebe uma variável de decisão inteira
+\(x_i\in\{1,\ldots,K\}\), indicando o lote ao qual é atribuída, e a
+solução completa é representada pelo vetor
+\(\mathbf{x}=(x_1,x_2,\ldots,x_N)\).
+
+\subsection{Dados mínimos por unidade}
+
+Cada unidade \(i\) é caracterizada, sempre que os dados disponíveis
+permitem, pelos atributos efetivamente consumidos pela função objetivo:
+
+\begin{itemize}
+  \item demanda diária \(D_i\), medida em passageiros/dia, usada no
+    componente de equilíbrio de demanda;
+  \item produção operacional \(P_i\), medida em
+    PU$\cdot$km (capacidade ofertada multiplicada pela distância
+    produzida), usada no componente de equilíbrio de produção;
+  \item geometria espacial do itinerário, a partir da qual se constrói um
+    buffer de 200 m ao redor da unidade, usado no cálculo da sobreposição
+    territorial entre pares de unidades;
+  \item terminais atendidos e sequência ordenada de pontos de parada,
+    usados na identificação de terminal compartilhado e de oportunidades
+    espaciais de transferência entre unidades;
+  \item informações necessárias para estimar os mercados
+    origem-destino potencialmente atendidos por cada unidade, usadas no
+    cálculo de similaridade de mercados.
+\end{itemize}
+
+A quantidade de assentos ofertados por dia é mantida apenas como
+indicador auxiliar: é registrada nos dados, mas não integra nenhum dos
+quatro componentes da função objetivo do baseline.
+
+\subsection{Restrições estruturais}
+
+O problema é resolvido para um valor fixo de \(K\) de cada vez, sujeito a
+duas restrições estruturais:
+
+\begin{enumerate}
+  \item cada unidade deve pertencer a exatamente um lote;
+  \item todos os \(K\) lotes devem conter ao menos uma unidade.
+\end{enumerate}
+
+Formalmente,
+
+\[
+x_i\in\{1,\ldots,K\},\quad \forall i\in\mathcal{L},
+\qquad\text{e}\qquad
+|\{i:x_i=k\}|\geq 1,\quad \forall k\in\{1,\ldots,K\}.
+\]
+
+O baseline não impõe limites rígidos de passageiros, PU$\cdot$km, número
+de linhas, frota ou extensão por lote: o equilíbrio entre lotes é
+induzido inteiramente pela função objetivo, e não por restrições de
+porte. Soluções em que algum lote fique vazio são reparadas antes da
+avaliação, de modo que toda solução avaliada satisfaz as duas restrições
+acima.
+
+\subsection{Função objetivo}
+
+A função objetivo combina quatro critérios normalizados, com pesos
+iguais de 0,25 cada:
+
+\begin{equation}
+C(\mathbf{x}) = \frac{1}{4}C_D + \frac{1}{4}C_P + \frac{1}{4}C_T + \frac{1}{4}C_A,
+\qquad
+\min_{\mathbf{x}} C(\mathbf{x}),
+\label{eq:custo-total}
+\end{equation}
+
+onde \(C_D\) mede o desequilíbrio de demanda entre lotes, \(C_P\) mede o
+desequilíbrio de produção em PU$\cdot$km entre lotes, \(C_T\) penaliza a
+separação, entre lotes distintos, de linhas territorialmente próximas ou
+sobrepostas, e \(C_A\) penaliza a separação de linhas funcionalmente
+afins. Os pesos iguais representam uma hipótese inicial de neutralidade
+entre os quatro pilares, deixando para trabalhos futuros a análise de
+sensibilidade a outras ponderações.
+
+Os dois componentes de equilíbrio partem do coeficiente de variação dos
+totais por lote. Para demanda, com \(D_k=\sum_{i:x_i=k}D_i\),
+
+\[
+CV_D=\frac{\sigma(D_1,\ldots,D_K)}{\mu(D_1,\ldots,D_K)},
+\qquad
+C_D=\frac{CV_D}{1+CV_D};
+\]
+
+para produção, com \(P_k=\sum_{i:x_i=k}P_i\), de forma análoga,
+
+\[
+CV_P=\frac{\sigma(P_1,\ldots,P_K)}{\mu(P_1,\ldots,P_K)},
+\qquad
+C_P=\frac{CV_P}{1+CV_P}.
+\]
+
+Em ambos os casos o desvio padrão \(\sigma\) é populacional (divisor
+\(K\), \texttt{ddof=0}), pois os \(K\) lotes constituem a totalidade da
+partição avaliada, e não uma amostra sujeita a inferência estatística. A
+transformação \(CV/(1+CV)\) limita cada componente ao intervalo
+\([0,1)\); valores menores indicam maior equilíbrio.
+
+Os dois componentes restantes seguem a mesma lógica de penalidade por
+separação de pares relevantes. A coerência territorial \(C_T\) é
+calculada a partir de uma matriz \(S_{ij}\in[0,1]\), definida pelo
+coeficiente de sobreposição entre os buffers de 200 m dos itinerários de
+\(i\) e \(j\) (área da interseção sobre a menor das duas áreas), e
+
+\[
+C_T=\frac{\sum_{i<j}S_{ij}\,\mathbf{1}(x_i\neq x_j)}{\sum_{i<j}S_{ij}}.
+\]
+
+A afinidade funcional \(C_A\) segue a mesma forma, a partir de uma
+matriz \(W_{ij}\in[0,1]\) que combina, com pesos iguais de \(1/3\),
+terminal compartilhado, oportunidade espacial de transferência (parada
+ou terminal compartilhado, ou par de paradas a até 400 m) e similaridade
+de Jaccard ponderada entre os mercados origem-destino potencialmente
+atendidos por cada unidade:
+
+\[
+C_A=\frac{\sum_{i<j}W_{ij}\,\mathbf{1}(x_i\neq x_j)}{\sum_{i<j}W_{ij}}.
+\]
+
+Em \(C_T\) e em \(C_A\), valores próximos de zero indicam que poucas
+relações espaciais ou funcionais relevantes foram cortadas pela
+partição; se o denominador de qualquer um dos dois for zero, o
+componente correspondente é definido como zero, pois não há relação
+positiva que possa ser cortada.
+
+\subsection{Variação do número de lotes}
+
+O número de lotes \(K\) não é otimizado endogenamente pelas
+metaheurísticas: o problema é resolvido separadamente para cada
+\(K\in\{3,4,5,6,7,8\}\), sem penalidade explícita associada à
+quantidade de lotes. A análise de qual valor de \(K\) produz os
+melhores resultados, e sob quais critérios, é deixada para a seção de
+Resultados.
 
 \section{Metaheurísticas implementadas e adaptações}
 % Tarefa 5
