@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from experiments.analyze_benchmark import write_summary_tables, write_convergence_figures
+from experiments.analyze_benchmark import write_summary_tables, write_convergence_figures, write_scalability_figures
 
 
 def _tiny_runs() -> pd.DataFrame:
@@ -85,3 +85,21 @@ def test_write_convergence_figures_creates_png_and_pdf_per_instance(tmp_path):
         assert path.exists()
     suffixes = {path.suffix for path in outputs["artesp_rmsp_20"]}
     assert suffixes == {".png", ".pdf"}
+
+
+def _runs_three_sizes() -> pd.DataFrame:
+    rows = []
+    for size in (20, 60, 150):
+        for algorithm in ("aco", "pso", "tabu"):
+            rows.append({
+                "algorithm": algorithm, "instance": f"artesp_rmsp_{size}", "k": 5,
+                "total_cost": 0.3, "runtime_seconds": float(size),
+            })
+    return pd.DataFrame(rows)
+
+
+def test_write_scalability_figures_creates_time_and_quality(tmp_path):
+    outputs = write_scalability_figures(_runs_three_sizes(), tmp_path)
+    assert set(outputs) == {"time", "quality"}
+    for paths in outputs.values():
+        assert {p.suffix for p in paths} == {".png", ".pdf"}

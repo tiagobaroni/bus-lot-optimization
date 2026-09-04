@@ -140,3 +140,38 @@ def write_convergence_figures(
             figure, figures_dir / f"benchmark_convergence_{size}"
         )
     return outputs
+
+
+def _instance_size(value: str) -> int:
+    return int(value.rsplit("_", 1)[1])
+
+
+def scalability_figures(runs: pd.DataFrame) -> dict[str, plt.Figure]:
+    subset = runs[runs["k"] == 5].assign(size=lambda d: d["instance"].map(_instance_size))
+    figures = {}
+    for key, column, ylabel in (
+        ("time", "runtime_seconds", "Tempo médio de otimização (s)"),
+        ("quality", "total_cost", "Custo final médio"),
+    ):
+        figure, axis = plt.subplots(figsize=(7, 5))
+        for algorithm in ("tabu", "aco", "pso"):
+            data = subset[subset["algorithm"] == algorithm].groupby("size", as_index=False)[column].mean()
+            data = data.sort_values("size")
+            axis.plot(
+                data["size"], data[column],
+                marker="o", label=ALGORITHM_LABELS[algorithm], color=COLORS[algorithm],
+            )
+        axis.set_xlabel("Tamanho da instância (N)")
+        axis.set_ylabel(ylabel)
+        axis.set_title(f"Escalabilidade — {ylabel}, K=5")
+        axis.grid(alpha=0.25)
+        axis.legend()
+        figures[key] = figure
+    return figures
+
+
+def write_scalability_figures(runs: pd.DataFrame, figures_dir: Path) -> dict[str, list[Path]]:
+    outputs = {}
+    for key, figure in scalability_figures(runs).items():
+        outputs[key] = _save_figure(figure, figures_dir / f"benchmark_scalability_{key}")
+    return outputs
