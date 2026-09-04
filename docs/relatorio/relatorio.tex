@@ -31,24 +31,15 @@
 \maketitle
 
 \begin{abstract}
-Este trabalho trata da formação de lotes operacionais de linhas de ônibus:
-particionar sentidos/variantes operacionais, unidades indivisíveis, em um
-número fixo de lotes que sejam ao mesmo tempo equilibrados e coerentes,
-segundo uma função objetivo com quatro componentes de peso igual --
-equilíbrio de demanda, equilíbrio de produção quilométrica, coerência
-territorial e afinidade funcional. Três metaheurísticas são implementadas e
-comparadas sobre essa mesma formulação -- Busca Tabu, Ant Colony
-Optimization (ACO) e Particle Swarm Optimization (PSO) com adaptação por
-Random Keys --, além de uma heurística gulosa determinística usada como
-referência. O protocolo experimental executa cada combinação de três
-tamanhos de instância e seis valores do número de lotes $K$ 30 vezes de
-forma independente, com seeds compartilhadas entre algoritmos e testes
-estatísticos não paramétricos pareados. A Busca Tabu obtém o melhor
-desempenho combinado de qualidade e tempo na maioria das combinações
-testadas, com o ACO competitivo apenas na maior instância e a um custo de
-tempo muito superior. Um estudo adicional de aceleração por GPU mostra que
-o PSO se beneficia de fato dessa aceleração, enquanto o ACO não, por razão
-estrutural ligada à natureza sequencial de sua construção.
+Este trabalho trata da formação de lotes operacionais de linhas de ônibus,
+particionando unidades indivisíveis em um número fixo de lotes equilibrados
+e coerentes, segundo uma função objetivo de quatro componentes de peso
+igual. Três metaheurísticas -- Busca Tabu, Ant Colony Optimization (ACO) e
+Particle Swarm Optimization (PSO) com adaptação por Random Keys -- são
+comparadas sob um protocolo com três tamanhos de instância, seis valores de
+$K$ e 30 execuções independentes por combinação. A Busca Tabu vence na
+maioria das combinações testadas; o PSO se beneficia de aceleração por GPU,
+o ACO não.
 \end{abstract}
 
 \tableofcontents
@@ -950,12 +941,14 @@ compromissos entre os componentes do custo, deixando a escolha de $K$ para
 critérios institucionais.
 
 O estudo adicional de aceleração por GPU (Seção 5.9) tem cobertura parcial
-por desenho: o recorte medido cobre 30 dos 60 cenários originalmente
-planejados, concentrados no PSO, enquanto a medição do ACO ficou restrita a
-apenas três cenários oficiais dentro desse mesmo recorte -- cobertura bem
-mais limitada, que não permite generalizar a ausência de aceleração do ACO
-além do que foi efetivamente medido nesses três cenários. A Busca Tabu, por
-sua vez, não foi objeto desse estudo adicional. Um teste específico da
+por desenho, e de forma desigual entre os dois algoritmos que dele
+participaram: dos 60 cenários oficiais planejados para a campanha -- 30 por
+algoritmo --, o PSO teve sua metade executada por completo, os 30 dos 60
+citados na Seção 5.9, enquanto o ACO teve apenas três cenários oficiais
+executados de sua própria metade de 30 -- uma amostra distinta e bem mais
+parcial, que não permite generalizar a ausência de aceleração do ACO além
+do que foi efetivamente medido nesses três cenários. A Busca Tabu, por sua
+vez, não foi objeto desse estudo adicional. Um teste específico da
 suíte de conformidade GPU adota, além disso, uma régua de tolerância
 numérica mais estrita que a régua normativa do projeto -- uma divergência de
 critério já registrada como limitação de escopo do teste, sem impacto sobre
