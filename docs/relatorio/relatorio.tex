@@ -31,7 +31,24 @@
 \maketitle
 
 \begin{abstract}
-% Passo 3, Tarefa 9: preencher depois que a Discussão estiver escrita.
+Este trabalho trata da formação de lotes operacionais de linhas de ônibus:
+particionar sentidos/variantes operacionais, unidades indivisíveis, em um
+número fixo de lotes que sejam ao mesmo tempo equilibrados e coerentes,
+segundo uma função objetivo com quatro componentes de peso igual --
+equilíbrio de demanda, equilíbrio de produção quilométrica, coerência
+territorial e afinidade funcional. Três metaheurísticas são implementadas e
+comparadas sobre essa mesma formulação -- Busca Tabu, Ant Colony
+Optimization (ACO) e Particle Swarm Optimization (PSO) com adaptação por
+Random Keys --, além de uma heurística gulosa determinística usada como
+referência. O protocolo experimental executa cada combinação de três
+tamanhos de instância e seis valores do número de lotes $K$ 30 vezes de
+forma independente, com seeds compartilhadas entre algoritmos e testes
+estatísticos não paramétricos pareados. A Busca Tabu obtém o melhor
+desempenho combinado de qualidade e tempo na maioria das combinações
+testadas, com o ACO competitivo apenas na maior instância e a um custo de
+tempo muito superior. Um estudo adicional de aceleração por GPU mostra que
+o PSO se beneficia de fato dessa aceleração, enquanto o ACO não, por razão
+estrutural ligada à natureza sequencial de sua construção.
 \end{abstract}
 
 \tableofcontents
@@ -853,7 +870,113 @@ cada posição -- domina $98{,}7\%$ do tempo de execução de uma geração. A
 Busca Tabu não foi objeto deste estudo adicional de GPU.
 
 \section{Discussão e conclusões}
-% Tarefa 9
+
+\subsection{Qual algoritmo é mais adequado}
+
+Considerando conjuntamente qualidade da solução e tempo computacional, a
+Busca Tabu é a metaheurística mais adequada ao problema de formação de lotes
+tal como formulado neste trabalho. Sobre as 18 combinações
+instância$\times$$K$, ela tem o menor \texttt{cost\_mean} em 17 das 18
+combinações, com médias de custo de $0{,}156831$ para a Busca Tabu contra
+$0{,}208578$ para o ACO e $0{,}286118$ para o PSO
+(Seção~\ref{subsec:qualidade-solucoes}), e é também o algoritmo mais rápido
+em 16 das 18 combinações, com \texttt{runtime\_mean} médio de $20{,}05$~s
+contra $30{,}89$~s do PSO e $1.095{,}93$~s do ACO (Seção 5.4).
+
+A única exceção de qualidade ocorre em \texttt{artesp\_rmsp\_150}, $K=5$ --
+a maior instância do benchmark --, onde o ACO obtém
+\texttt{cost\_mean}$=0{,}156884$, ligeiramente melhor que os $0{,}161771$ da
+Busca Tabu (Seção~\ref{subsec:qualidade-solucoes}). É uma inversão isolada a
+um único cenário entre os 18, e mesmo nele o tempo de execução do ACO
+permanece ordens de grandeza maior que o da Busca Tabu -- $2.765{,}72$~s
+contra $48{,}73$~s (Seção 5.4). Concentrada exatamente na maior instância, a
+exceção sugere que a vantagem da Busca Tabu se concentra em instâncias
+pequenas e médias, e que o espaço de busca maior da instância grande favorece
+a exploração mais ampla da construção estocástica do ACO -- ao custo de um
+tempo de execução muito superior, entre ×20 e ×61 o da Busca Tabu conforme a
+combinação, e um fator de crescimento com o tamanho da instância (×55,55 de
+$N=20$ para $N=150$) bem acima dos ×22,37 da Busca Tabu e ×24,36 do PSO
+(Seção 5.5).
+
+O PSO fica atrás dos outros dois em qualidade na quase totalidade das
+combinações -- só supera a Busca Tabu em tempo, e por margem mínima, em duas
+combinações de \texttt{artesp\_rmsp\_20} ($K=7$ e $K=8$, diferenças de
+$0{,}007$~s e $0{,}186$~s, Seção 5.4) --, mas é o único dos três que se
+beneficia de fato de aceleração por GPU: speedup médio de $1{,}814\times$
+sobre CPU, entre $1{,}520\times$ e $1{,}974\times$ nos cenários medidos,
+cerca de $98\%$ do teto de $1{,}852\times$ implicado pela lei de Amdahl para
+sua fração de custo em avaliação (aproximadamente $46\%$, Seção 5.9). Sob o
+mesmo desenho híbrido, o ACO não obtém aceleração relevante -- speedup entre
+$1{,}002\times$ e $1{,}026\times$ nos três cenários oficiais medidos (Seção
+5.9).
+
+Houve dificuldade de adaptação real de um dos três algoritmos ao domínio do
+problema: o PSO. Sua representação nativa é contínua -- um vetor de posições
+em $\mathbb{R}^N$ --, enquanto o problema é uma partição discreta de
+unidades indivisíveis em lotes rotulados (Seção 3.4). A adaptação por Random
+Keys resolve essa incompatibilidade decodificando, de forma independente,
+cada coordenada contínua da partícula no rótulo de lote correspondente, mas
+essa decodificação pode deixar um lote sem nenhuma chave associada,
+exigindo uma etapa de reparo determinístico a cada iteração em que isso
+ocorre; e como o reparo altera rótulos discretos sem tocar na posição
+contínua da partícula, é necessária ainda uma reprojeção de volta ao espaço
+de chaves, para manter coerentes a camada contínua em que o enxame evolui e
+a solução discreta de fato avaliada. Esse reparo e essa reprojeção são um
+custo estrutural extra, pago a cada iteração, que os outros dois algoritmos,
+discretos por construção, não têm.
+
+O ACO tem a segunda maior dificuldade estrutural de adaptação, de natureza
+distinta: sua construção é sequencial por dependência -- cada posição da
+partição depende do estado parcial já construído pelas atribuições
+anteriores da mesma formiga (Seção 3.3) --, o que limita severamente o
+ganho de paralelizar apenas a avaliação em lote da função objetivo, único
+componente delegável à GPU no desenho híbrido adotado. É essa a causa
+estrutural, medida e não hipotética, da ausência de aceleração relevante do
+ACO: a construção sequencial das formigas domina $98{,}7\%$ do tempo de
+execução de uma geração (Seção 5.9).
+
+\subsection{Limitações e extensões futuras}
+
+Algumas leituras deste relatório são descritivas e não sustentam inferência
+causal. A análise de sensibilidade a hiperparâmetros (Seção 5.8) compara
+médias marginais por nível de parâmetro dentro da grade de tuning testada,
+sem isolar o efeito de um parâmetro mantendo os demais fixos; e a melhora de
+custo do ACO com o aumento do tamanho da instância, observada na análise de
+escalabilidade (Seção 5.5), não tem explicação causal identificada nestes
+dados -- a leitura usa apenas $K=5$ e não foi verificada nos demais valores
+de $K$. Por decisão metodológica, este relatório também não declara um
+valor de $K$ ótimo (Seção 5.7): relata apenas ganhos marginais e possíveis
+compromissos entre os componentes do custo, deixando a escolha de $K$ para
+critérios institucionais.
+
+O estudo adicional de aceleração por GPU (Seção 5.9) tem cobertura parcial
+por desenho: o recorte medido cobre 30 dos 60 cenários originalmente
+planejados, concentrados no PSO, enquanto a medição do ACO ficou restrita a
+apenas três cenários oficiais dentro desse mesmo recorte -- cobertura bem
+mais limitada, que não permite generalizar a ausência de aceleração do ACO
+além do que foi efetivamente medido nesses três cenários. A Busca Tabu, por
+sua vez, não foi objeto desse estudo adicional. Um teste específico da
+suíte de conformidade GPU adota, além disso, uma régua de tolerância
+numérica mais estrita que a régua normativa do projeto -- uma divergência de
+critério já registrada como limitação de escopo do teste, sem impacto sobre
+a conclusão de correção da implementação em GPU.
+
+Além dessas limitações operacionais, a formulação do problema também
+carrega hipóteses metodológicas fixadas a priori que abrem espaço para
+extensões futuras (\texttt{docs/formulation.md}, seções 17 e 19). Os quatro
+componentes da função objetivo recebem peso igual; um estudo de
+sensibilidade com pesos não uniformes permitiria avaliar se essa escolha
+domina alguma das conclusões de ranking entre algoritmos. O raio de acesso
+de 400~m entre paradas e pontos de origem/destino, usado tanto na
+integração funcional quanto na similaridade de mercados O-D, é outro
+parâmetro fixado por hipótese cuja sensibilidade não foi testada. Também não
+foi avaliado o efeito de remover o componente O-D da afinidade funcional, o
+que isolaria a contribuição desse componente frente a terminal compartilhado
+e integração funcional. Por fim, o número de lotes $K$ é tratado neste
+trabalho como parâmetro externo, resolvido separadamente para cada valor
+entre 3 e 8 (Seção 5.7); uma extensão natural é a seleção endógena de $K$,
+incorporando seu custo institucional diretamente à otimização, em vez de
+deixá-lo para comparação a posteriori.
 
 \bibliographystyle{plain}
 \bibliography{referencias}
