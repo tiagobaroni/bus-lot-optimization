@@ -26,3 +26,6 @@ def test_build_documents_are_deterministic_and_hashed():
     for document in first:
         assert document["official"] is True
         assert isinstance(document["content_sha256"], str) and len(document["content_sha256"]) == 64
+        assert set(document["instance_data_sha256"]) == {
+            "artesp_rmsp_150_units.parquet", "artesp_rmsp_150_pair_metrics.parquet",
+        }
