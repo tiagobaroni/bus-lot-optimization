@@ -62,10 +62,20 @@ O trabalho exige, entre outros itens:
 
 ## Estado atual
 
-**Em 31/08/2026 a auditoria técnica pré-execução foi concluída**, com 29 pacotes de
-correção fechados, e o tuning e o piloto foram refeitos sobre o código corrigido. O
-congelamento experimental foi renovado e a execução do benchmark principal está
-liberada, com 1.620 cenários distribuídos em 270 subgrupos e 5 lotes.
+**A B11-E (execução do benchmark principal) foi concluída**, com 1.620 execuções
+oficiais e zero falhas. **A B11A (experimento adicional com GPU) foi encerrada
+com uma limitação registrada**: o PSO foi medido em GPU, com o speedup relatado
+em `docs/experiments.md` §29.1.1-29.1.2, e o ACO não mostrou ganho relevante
+nesse ambiente — ver a mesma referência para os detalhes. **A B11B (auditoria
+técnica pré-execução) está fechada**, com 89 achados diagnosticados e 29
+pacotes de correção implementados. **A B12 (análise e visualização) está
+concluída**: a campanha gulosa oficial foi executada e a análise estatística
+completa — testes de Friedman, Wilcoxon pareado com correção de Holm,
+tamanho de efeito rank-biserial, escalabilidade e convergência — respondeu às
+doze perguntas da Seção 31 de `docs/experiments.md`; os detalhes estão em
+`docs/experiments.md` §33-44. O relatório técnico final, em
+`docs/relatorio/relatorio.tex` (compilável via `docs/relatorio/build.sh`),
+sintetiza toda essa análise no formato exigido pelo enunciado do trabalho.
 
 O projeto concluiu a preparação dos dados, o núcleo comum do problema, o
 contrato comum dos otimizadores, a Busca Tabu, o ACO, o PSO e o tuning oficial. As
@@ -108,11 +118,9 @@ reproduções exatas foram aprovados. Os artefatos preliminares estão em
 `results/tables/` e `results/figures/`, e o manifesto de congelamento bloqueia a
 execução do benchmark se algum insumo protegido divergir.
 
-A B11-E foi concluída no commit de execução `959e561`: os cinco lotes e 1.620
-cenários passaram pelas barreiras, sem falhas ou ausências. A consolidação
-oficial preserva 1.620 execuções e 162.000 checkpoints em
-`results/tables/benchmark_{runs,checkpoints}.parquet`, acompanhados pelo
-`benchmark_manifest.json` completo e oficial.
+A consolidação oficial da B11-E está em
+`results/tables/benchmark_{runs,checkpoints}.parquet`, acompanhada pelo
+`benchmark_manifest.json` completo e oficial (commit de execução `959e561`).
 
 O estado detalhado e as pendências metodológicas estão em [`AGENTS.md`](AGENTS.md), [`docs/formulation.md`](docs/formulation.md) e [`docs/experiments.md`](docs/experiments.md).
 
