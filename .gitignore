@@ -45,3 +45,14 @@ results/tables/benchmark_batches/
 .env
 .env.*
 !.env.example
+
+# Artefatos de build do relatório (fonte .tex/.bib é versionado, build não)
+docs/relatorio/*.pdf
+docs/relatorio/*.aux
+docs/relatorio/*.log
+docs/relatorio/*.out
+docs/relatorio/*.bbl
+docs/relatorio/*.blg
+docs/relatorio/*.toc
+docs/relatorio/*.fdb_latexmk
+docs/relatorio/*.fls
