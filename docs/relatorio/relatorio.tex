@@ -38,7 +38,42 @@
 \newpage
 
 \section{Introdução}
-% Tarefa 3
+
+Este trabalho trata do problema de formação de lotes operacionais de linhas
+de ônibus: dado um conjunto de sentidos/variantes operacionais de linhas,
+caracterizados por atributos territoriais, operacionais e funcionais, busca-se
+particioná-los em um número fixo de lotes que sejam, ao mesmo tempo,
+coerentes e equilibrados entre si. Cada sentido/variante é uma unidade
+indivisível e deve pertencer a exatamente um lote.
+
+A formulação adota critérios progressivos, na seguinte ordem de introdução:
+equilíbrio de demanda entre lotes, equilíbrio de produção quilométrica entre
+lotes, coerência territorial dos agrupamentos e afinidade funcional entre as
+linhas alocadas a um mesmo lote. Esses quatro critérios compõem a função
+objetivo com pesos iguais, e a primeira versão do problema é resolvida para
+um número fixo de lotes \(K\), com diferentes valores de \(K\) comparados a
+posteriori.
+
+Três metaheurísticas são implementadas e comparadas sobre o mesmo problema e
+a mesma função objetivo: Particle Swarm Optimization (PSO), com adaptação ao
+domínio combinatório por Random Keys; Busca Tabu (TS), com movimentos de
+realocação de linhas entre lotes; e Ant Colony Optimization (ACO), com
+construção sequencial da partição e feromônio associado à alocação
+linha-lote. Uma heurística gulosa determinística adicional serve de
+referência para julgar se as metaheurísticas de fato agregam qualidade sobre
+uma construção simples e não estocástica.
+
+A pergunta de pesquisa central é: qual das três metaheurísticas produz
+melhores soluções, com menor variabilidade entre execuções e menor custo
+computacional, e como esse comportamento se altera em função do tamanho da
+instância e do número de lotes \(K\)? A resposta é buscada por meio de
+execuções repetidas sobre instâncias de tamanhos distintos, com medição
+conjunta de qualidade da solução e tempo de CPU.
+
+A formulação matemática completa do problema e os resultados brutos das
+execuções experimentais estão auditáveis em \texttt{docs/formulation.md} e
+\texttt{docs/experiments.md}, no repositório do projeto. Este relatório
+sintetiza esse material.
 
 \section{Descrição do problema}
 % Tarefa 4
