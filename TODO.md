@@ -7,7 +7,7 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 03/09/2026
+- **Atualizado em:** 04/09/2026
 - **Bloco ativo:** nenhum. **A B11F está concluída e a B11A foi encerrada com
   limitação registrada.**
 - **O estudo adicional de GPU foi encerrado em 03/09/2026, por escopo e não por
@@ -20,17 +20,36 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   A carga também é pequena demais para a placa — 200 elementos por decisão —, e
   uma sondagem mediu paridade CPU/GPU só por volta de 1.200 formigas
   simultâneas, trinta vezes o `n_ants` congelado.
-- **Lacuna declarada: o PSO não foi medido em GPU.** No PSO a avaliação pesa
-  cerca de 46 % do custo, contra 1,2 % no ACO, então a conclusão do ACO **não se
-  estende a ele**. O lançador do recorte está em `_temp/executa_b11ae_pso.sh` e
-  executa os 30 cenários PSO do roteiro oficial, ranks 31 a 60, em cerca de uma
-  hora. A campanha fica parcial de propósito e `consolidate` recusará, o que é
-  correto. **Se o recorte for executado, atualizar `docs/experiments.md` 29.1.1,
-  o `README.md` e este registro antes de qualquer afirmação sobre PSO em GPU.**
+- **A lacuna do PSO em GPU foi fechada em 04/09/2026.** O recorte de
+  `_temp/executa_b11ae_pso.sh` (30 cenários, ranks 31 a 60, seeds 10 a 39) rodou
+  completo em 55 min, 0 falhas. Ao contrário do ACO, **o PSO mostrou aceleração
+  real**: speedup médio `1,814×` (desvio-padrão `0,078`, mínimo `1,520×`, máximo
+  `1,974×`), fração de dispositivo média `10,27 %`. O valor é consistente com a
+  fração de custo já estimada para a avaliação no PSO (~46 %): o teto de Amdahl
+  correspondente é `1/(1-0,46) ≈ 1,852×`, e a média medida fica a 98 % dele.
+  Números e análise completa em `docs/experiments.md`, seção 29.1.2. A campanha
+  GPU tem hoje 30 dos 60 resultados oficiais (só o recorte PSO); os 30 ACO não
+  foram reexecutados nesta leva. `consolidate` recusa sobre esse estado
+  corretamente, por exigir os 60 e o pareamento 1:1.
+- **A transação de fechamento do congelamento CPU foi refeita em 04/09/2026,
+  por deriva de ambiente.** O kernel do host mudou de `7.0.0-30-generic` para
+  `7.0.0-31-generic` depois do congelamento de 01/09/2026 (fora do controle do
+  repositório), e a checagem de proveniência de ambiente recusou com "ambiente
+  diverge do congelamento" ao tentar rodar o recorte PSO. Regenerar o manifesto
+  caiu na mesma guarda já registrada abaixo — `campaign_commit` do piloto
+  divergindo do HEAD em caminho protegido —, então a transação de 4 passos foi
+  refeita: piloto reexecutado (18/18, ~49 min), consolidado e validado
+  (`passed: true`, `reproduction_passed: true`), manifesto regenerado, roteiro
+  regenerado (5 lotes, 270 subgrupos, 1.620 cenários, inalterado) e manifesto
+  regenerado de novo. Resultado científico do piloto idêntico ao anterior em
+  tudo que não é temporal ou de proveniência.
 - **Último bloco concluído:** B11A-R - renovação da infraestrutura GPU após a
   B11-E.
-- **Branch de trabalho:** `main`; os seis commits do B11F foram publicados em
-  03/09/2026 e `origin/main` está em `56fd897`. Não há commit local pendente.
+- **Branch de trabalho:** `main`, árvore limpa. HEAD em `ee6c837` (fecho da
+  transação de congelamento); o recorte PSO não gera commit
+  (`results/gpu/raw/` é ignorado). **Os cinco commits da transação de
+  congelamento estão só locais** — `main` está 5 à frente de `origin/main` —,
+  e o push é decisão do usuário.
 - **A B11A-E foi iniciada em 02/09/2026 e interrompida no cenário 4 de 60.** O
   guarda térmico recusou a entrada do cenário com `GpuSafetyError`, e a sessão
   ficou registrada como `interrupted`. Os cenários 1 a 3 concluíram e foram
@@ -113,9 +132,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Última verificação:** 547 testes CPU e 102 testes GPU aprovados nas duas
   invocações suportadas; `infrastructure_ready: true`, zero resultados GPU e
   árvore limpa no portão final.
-- **Próxima ação atômica:** iniciar a B12, análise e visualização. Opcional e
-  independente: executar `_temp/executa_b11ae_pso.sh` para fechar a lacuna de
-  medição do PSO em GPU, cerca de uma hora, atualizando os registros depois.
+- **Próxima ação atômica:** verificar o que falta para fechar a família B11
+  antes de iniciar a B12, análise e visualização. O recorte PSO em GPU já foi
+  executado e registrado; decidir se os cinco commits locais da transação de
+  congelamento são publicados.
 - **Objetivo atual:** renovar a infraestrutura da B11A-E com `social=2.0`,
   regenerar conformidade, roteiro e manifesto e obter
   `infrastructure_ready: true`, sem executar resultados oficiais GPU.
@@ -1188,8 +1208,10 @@ sem alterar o baseline normativo em CPU.
 registrada caso o experimento adicional não possa ser executado. **Satisfeito
 pela segunda via, em 03/09/2026**, com o desfecho registrado em
 `docs/experiments.md`, seção 29.1.1: a implementação em GPU está correta, mas
-não produz aceleração relevante no ACO, e o PSO não foi medido. A
-indisponibilidade de GPU não invalida nem bloqueia o baseline obrigatório.
+não produz aceleração relevante no ACO. **A lacuna do PSO foi fechada em
+04/09/2026** (seção 29.1.2): speedup médio `1,814×`, consistente com a fração
+de custo da avaliação no PSO. A indisponibilidade de GPU não invalida nem
+bloqueia o baseline obrigatório.
 
 **Checkpoint de retomada:**
 

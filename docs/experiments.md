@@ -1259,19 +1259,54 @@ congelado. O custo em GPU é dominado por lançamento de kernel, e não por
 aritmética. A conclusão é que a granularidade do ACO com estes parâmetros é
 pequena demais para a placa.
 
-**Limitação declarada quanto ao PSO.** Nenhum cenário PSO foi executado em GPU.
-No PSO a avaliação responde por cerca de 46 % do custo, contra 1,2 % no ACO, de
-modo que **a conclusão acima não se estende ao PSO**. O recorte de 30 cenários
-PSO é executável pela infraestrutura vigente e custaria cerca de uma hora; caso
-venha a ser executado, este registro deve ser atualizado com os seus resultados
-antes de qualquer afirmação sobre o PSO em GPU.
+**A conclusão acima não se estende ao PSO.** No PSO a avaliação responde por
+cerca de 46 % do custo, contra 1,2 % no ACO — e a medição do recorte, na seção
+29.1.2, confirma que a diferença de desenho produz resultado oposto ao do ACO.
+
+### 29.1.2. Medição do PSO em GPU
+
+O recorte de 30 cenários PSO do roteiro oficial (ranks 31 a 60, seeds 10 a 39)
+foi executado e validado em 04/09/2026, em `N=150`, `K=5` e orçamento de
+150.000 avaliações, pareado com a execução CPU oficial de mesma semente. Os 30
+cenários concluíram sem falha em 55 minutos de execução sequencial.
+
+| | GPU (s) | CPU (s) | speedup | fração de dispositivo |
+|---|---|---|---|---|
+| média | 40,92 | 73,98 | 1,814 | 10,27 % |
+| desvio-padrão amostral | — | — | 0,078 | 0,90 p.p. |
+| mínimo | 33,15 | 65,45 | 1,520 | 7,68 % |
+| máximo | 53,00 | 81,12 | 1,974 | 12,54 % |
+
+**Ao contrário do ACO, o PSO produz aceleração real e mensurável.** O speedup
+médio de `1,814×` é consistente com a fração de custo já estimada para a
+avaliação no PSO: se ela responde por 46 % do tempo total, o teto de Amdahl
+para o desenho híbrido, com o tempo de avaliação tendendo a zero, é
+`1/(1-0,46) ≈ 1,852×`. A média medida fica a `98 %` desse teto, e a distância
+restante é explicada pela própria fração de dispositivo observada, `10,27 %`:
+o caminho GPU ainda gasta parte não desprezível do seu tempo em lançamento de
+kernel (`3,825 s` em média) e transferências (`0,345 s` em média), então o
+tempo de avaliação não tende a zero na prática. A diferença com o ACO não é de
+implementação, é de forma: o PSO delega à GPU uma fatia do custo grande o
+bastante para que a aceleração dessa fatia apareça no tempo total, enquanto no
+ACO a fatia delegável é `1,2 %`, pequena demais para qualquer ganho na
+avaliação se propagar ao tempo da execução.
+
+Os 30 documentos individuais ficam em `results/gpu/raw/`, fora do Git; o
+cálculo por cenário compara `runtime_seconds` de cada um com a linha CPU de
+mesmo algoritmo, instância, `K` e seed em `results/tables/benchmark_runs.parquet`,
+e a fração de dispositivo vem de `diagnostics.gpu_timing` em cada documento.
 
 **Estado ao encerrar.** A infraestrutura permanece íntegra e verificável:
 conformidade aprovada, roteiro de 60 identificadores, manifesto de prontidão
 regenerado sobre o código vigente e `readiness` declarando
-`infrastructure_ready` e `execution_ready` verdadeiros com zero resultados
-oficiais. O encerramento é decisão de escopo, e não impedimento técnico: a
-campanha completa continua executável a qualquer momento.
+`infrastructure_ready` e `execution_ready` verdadeiros. A campanha GPU segue
+**parcial por desenho**: 30 dos 60 resultados oficiais, apenas o recorte PSO.
+Os 30 cenários ACO não foram reexecutados nesta leva — fazê-lo reconfirmaria,
+ao custo de ~23 h, um resultado já medido e explicado na seção 29.1.1.
+`consolidate` recusa sobre esse estado, corretamente, por exigir os 60 e o
+pareamento 1:1. O encerramento
+continua sendo decisão de escopo, e não impedimento técnico: a campanha
+completa continua executável a qualquer momento.
 
 ---
 

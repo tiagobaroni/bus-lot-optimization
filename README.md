@@ -526,16 +526,20 @@ uv run --project gpu python -m metaheuristica_gpu.run readiness
 
 **O estudo adicional foi encerrado com limitação registrada.** A implementação
 em GPU está correta — a conformidade aprovou com diferença máxima de `3,33e-16`
-contra a régua normativa de `1e-12` —, mas não produziu aceleração relevante.
+contra a régua normativa de `1e-12` —, mas a aceleração depende do algoritmo.
 Três cenários ACO medidos deram speedup entre `1,002` e `1,026`, com menos de
 `0,17 %` do tempo ocorrendo no dispositivo: o custo do ACO é a construção
 sequencial das formigas no host, que responde por `98,7 %` do tempo e que a GPU
-não toca. **Nenhum cenário PSO foi medido em GPU**, e a conclusão não se estende
-a ele. Os números e a análise estão em `docs/experiments.md`, seção 29.1.1.
+não toca. **O PSO, medido à parte em 30 cenários, é diferente**: speedup médio
+de `1,814×` (mínimo `1,520×`, máximo `1,974×`), porque a avaliação responde por
+cerca de 46 % do custo do PSO contra 1,2 % no ACO. Os números e a análise estão
+em `docs/experiments.md`, seções 29.1.1 e 29.1.2.
 
-A infraestrutura permanece íntegra e a campanha continua executável a qualquer
-momento: o `readiness` indica `infrastructure_ready=true`, `execution_ready=true`
-e zero resultados GPU. Um único ID por vez:
+A infraestrutura permanece íntegra e a campanha completa continua executável a
+qualquer momento: o `readiness` indica `infrastructure_ready=true` e
+`execution_ready=true`. A campanha GPU tem hoje 30 dos 60 resultados oficiais,
+só o recorte PSO — parcial por desenho, e `consolidate` recusa sobre esse
+estado corretamente. Um único ID por vez:
 
 ```bash
 uv run --project gpu python -m metaheuristica_gpu.run plan
