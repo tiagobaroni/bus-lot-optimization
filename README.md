@@ -578,6 +578,42 @@ nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits
 A temperatura ociosa medida desta placa é de 38 °C, bem abaixo do limiar, de
 modo que a espera, quando existir, é a de uma placa voltando à ociosidade.
 
+## Análise e visualização
+
+```bash
+uv run python -m experiments.run_greedy
+uv run python -m experiments.analyze_benchmark
+```
+
+Resumo de uma frase por pergunta da Seção 31 de `docs/experiments.md`
+(detalhe completo e qualificado nas seções 33-44):
+
+1. A Busca Tabu tem o menor custo médio em 17 das 18 combinações instância×K.
+2. A Busca Tabu tem, em média, a menor variabilidade entre seeds.
+3. ACO e Busca Tabu convergem a seu próprio patamar consumindo no máximo 22%
+   do orçamento; o PSO só se estabiliza entre 35% e 74%.
+4. A Busca Tabu tem o menor tempo computacional em 16 das 18 combinações; o
+   ACO é o mais lento, entre ×20 e ×61 mais que a Busca Tabu.
+5. De N=20 a N=150 o tempo cresce mais no ACO (×55,55) que no PSO (×24,36) e
+   na Busca Tabu (×22,37); o custo melhora com N só no ACO.
+6. O teste de Friedman rejeitou H0 em 18 das 18 combinações instância×K
+   (todos p<0,05, o maior ≈2,94e-07).
+7. PSO difere de ACO e Busca Tabu com magnitude prática grande e consistente;
+   Busca Tabu×ACO tem magnitude pequena justamente onde a seção 38 não achou
+   significância (`artesp_rmsp_150`, `k=4` a `k=8`).
+8. A Busca Tabu melhora sobre a heurística gulosa nas instâncias pequena e
+   média, mas nenhum dos três algoritmos supera a gulosa em nenhum `K` da
+   instância grande.
+9. Todos os cinco componentes medidos pioram, para os três algoritmos, ao
+   passar de `K=3` para `K=8`.
+10. Não há, na faixa `K∈{3,...,8}` testada, um `K` que melhore equilíbrio e
+    coerência territorial/funcional ao mesmo tempo — ambos pioram juntos.
+11. A aceleração por GPU não é uniforme: o PSO obteve speedup médio real de
+    `1,814×`, mas o ACO não obteve aceleração relevante (`1,002×`-`1,026×`).
+12. Não há um método uniformemente superior: a Busca Tabu é a escolha mais
+    consistente na faixa testada, com a ressalva registrada na instância
+    grande.
+
 ## Licença
 
 Este projeto é distribuído sob a licença MIT. Consulte o arquivo [`LICENSE`](LICENSE).

@@ -8,8 +8,8 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 04/09/2026
-- **Bloco ativo:** nenhum. **A B11F está concluída e a B11A foi encerrada com
-  limitação registrada.**
+- **Bloco ativo:** nenhum. **A B12 está concluída; a próxima ação atômica é
+  iniciar a B13.**
 - **O estudo adicional de GPU foi encerrado em 03/09/2026, por escopo e não por
   impedimento técnico.** A implementação está correta: conformidade aprovada com
   diferença máxima de `3,33e-16` contra régua de `1e-12`. Os três cenários ACO
@@ -1432,7 +1432,7 @@ seguem para o relatório, sem bloquear execução, estão listadas em
 
 ## B12 - Análise e visualização
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDA`
 
 **Depende de:** B11. Incorpora B11A somente se o experimento adicional for
 executado.
@@ -1441,18 +1441,37 @@ executado.
 
 **Tarefas:**
 
-- [ ] Calcular média, dispersão e intervalos por cenário.
-- [ ] Comparar qualidade, componentes do custo e tempo de CPU.
-- [ ] Analisar sensibilidade aos parâmetros.
-- [ ] Analisar escalabilidade de 20 a 150 unidades.
-- [ ] Comparar resultados para diferentes valores de `K`.
-- [ ] Gerar curvas de convergência nos checkpoints comuns.
-- [ ] Executar sensibilidade sem o componente O-D, se houver tempo.
-- [ ] Gerar tabelas e figuras reproduzíveis.
-- [ ] Separar claramente observação, inferência e limitação.
+- [x] Calcular média, dispersão e intervalos por cenário.
+- [x] Comparar qualidade, componentes do custo e tempo de CPU.
+- [x] Analisar sensibilidade aos parâmetros.
+- [x] Analisar escalabilidade de 20 a 150 unidades.
+- [x] Comparar resultados para diferentes valores de `K`.
+- [x] Gerar curvas de convergência nos checkpoints comuns.
+- [x] Executar sensibilidade sem o componente O-D, se houver tempo (item
+      opcional — não executado; o critério de saída abaixo foi satisfeito sem
+      ele).
+- [x] Gerar tabelas e figuras reproduzíveis.
+- [x] Separar claramente observação, inferência e limitação.
 
 **Critério de saída:** todas as perguntas da Seção 31 de `docs/experiments.md`
 possuem evidência tabular ou gráfica correspondente.
+
+**Checkpoint de retomada (04/09/2026).** A B12 está concluída. Campanha
+gulosa oficial (18/18 combinações): `results/tables/greedy_runs.parquet` e
+`greedy_manifest.json`. Análise sobre os 1.620 resultados oficiais:
+`benchmark_summary.parquet`, `benchmark_statistical_tests.parquet`,
+`benchmark_by_k.parquet`, `benchmark_vs_greedy.parquet`, e as figuras
+`benchmark_convergence_{20,60,150}.{png,pdf}` e
+`benchmark_scalability_{time,quality}.{png,pdf}`. As 12 perguntas da Seção 31
+foram respondidas nas seções 33-44 de `docs/experiments.md`: **18 de 18
+combinações instância×K rejeitaram H0 no teste de Friedman** (todos os
+p-valores < 0,05, o maior ≈2,94e-07). A Busca Tabu venceu em custo e tempo na
+maioria das combinações; a exceção notável é `artesp_rmsp_150` (instância
+grande), onde nenhum dos três algoritmos supera a heurística gulosa e a
+vantagem da Busca Tabu sobre o ACO deixa de ser estatisticamente
+significativa. Reprodução: `uv run python -m experiments.run_greedy` e
+`uv run python -m experiments.analyze_benchmark`. **Próxima ação atômica:
+iniciar a B13** (relatório, README e empacotamento).
 
 ---
 
