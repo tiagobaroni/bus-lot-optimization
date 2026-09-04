@@ -452,7 +452,107 @@ congelados desta implementação são \texttt{n\_particles=40},
 \texttt{inertia=0.4}, \texttt{cognitive=2.0} e \texttt{social=2.0}.
 
 \section{Metodologia experimental}
-% Tarefa 6
+
+\subsection{Instâncias e cobertura}
+
+O experimento principal é organizado em torno de três classes de tamanho da
+instância -- 20, 60 e 150 unidades --, todas resolvidas para
+$K\in\{3,4,5,6,7,8\}$ lotes. Cada combinação de instância e $K$ é executada
+30 vezes de forma independente por algoritmo, usando as seeds 10 a 39. Esse
+mesmo conjunto de 30 seeds é compartilhado entre Busca Tabu, ACO e PSO, o que
+permite tratar as comparações como pareadas: para uma dada seed, os três
+algoritmos partem de condições de aleatoriedade controladas e comparáveis,
+ainda que a inicialização propriamente dita possa diferir conforme a
+natureza de cada método.
+
+O orçamento de avaliações da função objetivo é proporcional ao tamanho da
+instância, e não o número de iterações, já que uma iteração tem custo e
+significado distintos em cada metaheurística. Cada execução também registra
+100 checkpoints de convergência igualmente espaçados ao longo do orçamento
+consumido, permitindo comparar a trajetória de melhoria do custo entre
+algoritmos e tamanhos de instância em escala normalizada.
+
+\subsection{Tuning de hiperparâmetros}
+
+Antes do experimento principal, os hiperparâmetros de cada metaheurística
+foram calibrados por uma busca em grade curta e controlada, restrita à
+instância de tamanho médio ($N=60$, $K=5$). Para cada configuração da grade
+foram realizadas 10 execuções independentes, usando as seeds $\{0,\dots,9\}$
+-- um conjunto disjunto das seeds 10--39 usadas no benchmark principal, para
+que a seleção dos parâmetros não vaze informação para a avaliação final.
+
+A configuração vencedora, por algoritmo, foi selecionada por ordem de
+critérios: (1) menor custo médio final; (2) em caso de empate, menor
+desvio-padrão amostral; (3) persistindo o empate, menor tempo médio de
+execução. Os parâmetros assim selecionados foram então congelados e
+reutilizados em todas as instâncias e valores de $K$ do experimento
+principal, evitando ajuste específico por cenário e reduzindo o risco de
+sobreajuste experimental. A Tabela~\ref{tab:tuning} reproduz o resultado
+vigente do tuning oficial.
+
+\begin{table}[H]
+\centering
+\caption{Parâmetros selecionados pelo tuning oficial.}
+\label{tab:tuning}
+\begin{tabular}{lp{6cm}rr}
+\toprule
+Algoritmo & Parâmetros & Custo médio & Desvio-padrão \\
+\midrule
+Busca Tabu & tabu\_tenure=10, neighborhood\_size=20, stagnation\_limit=100 & 0,126415 & 0,013287 \\
+ACO & alpha=1,0, beta=2,0, rho=0,1, n\_ants=40 & 0,146303 & 0,021000 \\
+PSO & n\_particles=40, inertia=0,4, cognitive=2,0, social=2,0 & 0,269236 & 0,030456 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Ambiente computacional}
+
+Os benchmarks foram executados em Linux nativo, em uma máquina equipada com
+processador AMD Ryzen 9 5900XT (16 núcleos físicos, 32 threads lógicas) e
+64~GB de memória RAM. Uma GPU NVIDIA RTX 3060 foi utilizada exclusivamente no
+experimento adicional de aceleração, fora da comparação principal entre
+metaheurísticas, que permanece baseada em CPU.
+
+Cada execução individual é restrita a uma única thread de CPU. O paralelismo
+é explorado apenas entre execuções distintas, por meio de múltiplos
+processos independentes (16 workers, um por núcleo físico), e nunca dentro
+de uma mesma execução. Essa escolha evita que diferenças de paralelismo
+interno entre PSO, TS e ACO introduzam uma vantagem artificial de um método
+sobre os demais.
+
+\subsection{Medição de tempo}
+
+O tempo reportado corresponde exclusivamente ao tempo de otimização,
+medido com \texttt{time.perf\_counter()}, uma função monotônica de alta
+resolução. Ficam excluídos da medição a leitura de arquivos, a construção
+das matrizes de entrada, o processamento geoespacial e a geração de
+gráficos, de modo que o tempo registrado reflita apenas o custo
+computacional do algoritmo de busca propriamente dito.
+
+\subsection{Protocolo estatístico}
+
+A comparação entre as três metaheurísticas segue um protocolo não
+paramétrico, sem suposição de normalidade sobre a distribuição dos
+resultados. Para cada combinação de instância e $K$, aplica-se o teste de
+Friedman \cite{friedman1937} como teste global, comparando PSO, Busca Tabu e
+ACO simultaneamente sob a hipótese nula $H_0$ de desempenho equivalente
+entre os três algoritmos, com nível de significância $\alpha=0{,}05$.
+
+Quando $H_0$ é rejeitada, são aplicados testes de Wilcoxon pareado
+\cite{wilcoxon1945} entre os três pares de algoritmos (PSO $\times$ TS, PSO
+$\times$ ACO, TS $\times$ ACO), com base nas seeds controladas
+compartilhadas entre os métodos. Como essas comparações múltiplas inflam a
+taxa de falsos positivos, os valores-$p$ resultantes são ajustados pela
+correção de Holm \cite{holm1979}. Para cada par, além da significância
+estatística, é reportado o tamanho de efeito via rank-biserial correlation
+\cite{kerby2014}, permitindo distinguir diferenças estatisticamente
+detectáveis de diferenças com magnitude prática relevante.
+
+A comparação com a heurística gulosa é tratada de forma descritiva, sem
+teste inferencial: por se tratar de um método determinístico, a gulosa
+serve apenas como referência fixa para reportar diferença absoluta de custo,
+melhoria percentual e diferença de tempo de execução em relação a cada
+metaheurística.
 
 \section{Resultados e análise}
 % Tarefas 7 e 8
