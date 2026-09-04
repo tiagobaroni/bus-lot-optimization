@@ -622,10 +622,12 @@ O padrão que se observa nas três figuras é o de um PSO que converge mais
 lentamente em relação ao seu próprio patamar final do que ACO e Busca Tabu.
 Tomando como referência o primeiro checkpoint em que a mediana do custo
 corrente fica a até 5\% do valor mediano final do próprio algoritmo, esse
-ponto ocorre, para o PSO, entre 35\% e 74\% do orçamento computacional
-consumido -- fração que cresce com o tamanho da instância --, enquanto para
-ACO e Busca Tabu esse mesmo ponto ocorre entre 2\% e 22\% do orçamento, em
-qualquer uma das três classes de tamanho.
+ponto ocorre, para o PSO, entre 74\% do orçamento computacional consumido na
+instância pequena (\texttt{artesp\_rmsp\_20}) e 35\% na instância grande
+(\texttt{artesp\_rmsp\_150}), passando por 49\% na instância intermediária
+(\texttt{artesp\_rmsp\_60}) -- fração que diminui com o tamanho da instância
+--, enquanto para ACO e Busca Tabu esse mesmo ponto ocorre entre 2\% e 22\%
+do orçamento, em qualquer uma das três classes de tamanho.
 
 Convergir rapidamente em relação ao próprio patamar final não implica,
 porém, alcançar um patamar melhor: o ACO se aproxima do seu próprio custo
