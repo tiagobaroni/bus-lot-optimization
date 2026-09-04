@@ -1398,3 +1398,381 @@ O relatório deverá conseguir responder, no mínimo:
 - análise de escalabilidade;
 - comparação com gulosa;
 - estudo adicional CPU × GPU.
+
+---
+
+## 33. Melhor média de custo
+
+**Observação.** Em `benchmark_summary.parquet`, a média de `cost_mean` sobre as
+18 combinações instância×K é `0,156831` para a Busca Tabu, `0,208578` para o
+ACO e `0,286118` para o PSO. Comparando diretamente `cost_mean` combinação a
+combinação, a Busca Tabu apresenta o menor valor em 17 das 18 combinações. A
+única exceção é `artesp_rmsp_150, k=5`, em que o ACO tem `cost_mean=0,156884`
+contra `0,161771` da Busca Tabu — uma diferença absoluta de `0,004887`, cerca
+de 3% do valor de custo da Busca Tabu nessa combinação.
+
+**Inferência.** Considerando a média amostral sobre as 30 seeds de cada
+combinação, a Busca Tabu produz, de forma consistente, as soluções de menor
+custo médio entre os três algoritmos, com uma única inversão marginal em favor
+do ACO, restrita a uma combinação específica de tamanho grande e `K=5`.
+
+**Limitação.** A comparação acima é de médias amostrais; não estabelece, por si
+só, significância estatística — essa questão é tratada separadamente nas seções
+38 e 39. A contagem "17 de 18" trata todas as combinações instância×K como
+igualmente relevantes, o que não reflete necessariamente sua importância
+prática relativa. Tampouco considera o custo computacional associado (seção
+36) nem o desempenho contra a heurística gulosa (seção 40).
+
+---
+
+## 34. Menor variabilidade
+
+**Observação.** Em `benchmark_summary.parquet`, a média de `cost_std` sobre as
+18 combinações é `0,012639` para a Busca Tabu, `0,022381` para o ACO e
+`0,028481` para o PSO. A Busca Tabu tem o menor `cost_std` em 11 das 18
+combinações, o ACO em 4 e o PSO em 3. Em três combinações de `artesp_rmsp_20`
+(`k=6`, `k=7`, `k=8`), o `cost_std` da Busca Tabu é, respectivamente,
+`7,67e-05`, `0,0` e `2,82e-17` — praticamente nulo, sinal de convergência
+determinística das 30 seeds ao mesmo ponto.
+
+**Inferência.** Em média, a Busca Tabu apresenta a menor dispersão de custo
+entre seeds, embora sem vencer em todas as combinações. A dispersão
+praticamente nula observada na instância pequena é compatível com um espaço de
+busca suficientemente reduzido para que a busca local convirja de forma quase
+determinística ao mesmo ótimo local a partir de sementes diferentes.
+
+**Limitação.** Baixa variabilidade não é mérito isolado: precisa ser lida em
+conjunto com o nível médio de custo (seção 33), pois convergir de forma quase
+determinística a um ótimo local ruim também produziria `cost_std` baixo. Não
+foi aplicado teste formal de igualdade de variâncias entre algoritmos; a
+comparação acima é descritiva.
+
+---
+
+## 35. Convergência em função do orçamento
+
+**Observação.** As curvas de convergência para `K=5` nas três classes de
+tamanho estão em `results/figures/benchmark_convergence_20.{png,pdf}`,
+`benchmark_convergence_60.{png,pdf}` e `benchmark_convergence_150.{png,pdf}`,
+com a mediana do melhor custo e a faixa interquartil sobre os 100 checkpoints
+(seção 20). A partir dos dados subjacentes em `benchmark_checkpoints.parquet`,
+o primeiro checkpoint em que a mediana do custo corrente fica a até 5% do
+valor mediano final do próprio algoritmo ocorre, em percentual do orçamento
+consumido:
+
+| instância | ACO | Busca Tabu | PSO |
+|---|---:|---:|---:|
+| `artesp_rmsp_20` | 2% | 9% | 74% |
+| `artesp_rmsp_60` | 8% | 22% | 49% |
+| `artesp_rmsp_150` | 4% | 7% | 35% |
+
+**Inferência.** Nas três classes de tamanho, ACO e Busca Tabu se aproximam de
+seu próprio patamar final de custo consumindo uma fração pequena do orçamento
+(no máximo 22%), enquanto o PSO continua melhorando por uma fração muito maior
+do orçamento, entre 35% e 74%.
+
+**Limitação.** "Convergir rápido" aqui é relativo ao patamar final do próprio
+algoritmo, não a um ótimo comum entre os três. Um algoritmo pode convergir
+rapidamente para um patamar pior, como o ACO faz na maioria das combinações
+(seção 33); convergência rápida não implica solução final melhor. O critério
+de "5% do valor final" é arbitrário e não testado quanto à sensibilidade a
+outros limiares.
+
+---
+
+## 36. Tempo computacional
+
+**Observação.** Em `benchmark_summary.parquet`, a média de `runtime_mean`
+sobre as 18 combinações é `20,05 s` para a Busca Tabu, `30,89 s` para o PSO e
+`1.095,93 s` para o ACO. A Busca Tabu tem o menor `runtime_mean` em 16 das 18
+combinações; o PSO vence nas duas restantes
+(`artesp_rmsp_20, k=7`: `2,1838 s` contra `2,1909 s`, margem de `0,007 s`;
+`artesp_rmsp_20, k=8`: `2,0066 s` contra `2,1923 s`, margem de `0,186 s`). Em
+`artesp_rmsp_150, k=5`, por exemplo, `runtime_mean` é `2.765,72 s` no ACO
+contra `73,98 s` no PSO e `48,73 s` na Busca Tabu.
+
+**Inferência.** A Busca Tabu tem, na quase totalidade das combinações, o menor
+tempo computacional entre os três algoritmos; o PSO só a supera por margem
+mínima em duas combinações de instância pequena. O ACO é sistematicamente o
+mais lento, entre cerca de ×20 e ×61 mais lento que a Busca Tabu conforme a
+combinação (razão `runtime_mean` ACO/Busca Tabu), o que é consistente com o
+perfilamento da seção 29.1.1, em que a construção sequencial das formigas
+domina o tempo de execução.
+
+**Limitação.** O tempo medido é de parede, com 1 thread por execução, sob o
+protocolo das seções 23-25; não é uma medida de complexidade assintótica nem
+inclui o custo do tuning (seção 16). A comparação não pondera tempo contra
+qualidade de solução de forma conjunta — essa leitura combinada aparece apenas
+qualitativamente na seção 44.
+
+---
+
+## 37. Escalabilidade de N=20 a N=150
+
+**Observação.** Para `K=5`, caso representativo da análise de escalabilidade
+(seção 21), as figuras `results/figures/benchmark_scalability_time.{png,pdf}`
+e `benchmark_scalability_quality.{png,pdf}` mostram, a partir de
+`benchmark_summary.parquet`:
+
+| algoritmo | tempo N=20 (s) | tempo N=150 (s) | fator | custo N=20 | custo N=60 | custo N=150 | variação N=20→150 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ACO | 49,79 | 2.765,72 | ×55,55 | 0,2219 | 0,1582 | 0,1569 | −29,31% |
+| PSO | 3,04 | 73,98 | ×24,36 | 0,1882 | 0,2685 | 0,3357 | +78,37% |
+| Busca Tabu | 2,18 | 48,73 | ×22,37 | 0,1420 | 0,1281 | 0,1618 | +13,93% |
+
+**Inferência.** O tempo cresce em todos os algoritmos de N=20 para N=150, mas
+de forma muito mais acentuada no ACO (fator ×55,55) do que no PSO (×24,36) e na
+Busca Tabu (×22,37). O custo médio final, olhando apenas os dois extremos
+(N=20 e N=150), não cresce da mesma forma para os três algoritmos: o ACO
+melhora (custo menor em N=150 que em N=20) e o faz de forma monótona, com
+N=60 entre os dois (`0,1582`); o PSO piora de forma também monótona, com
+N=60 igualmente entre os extremos (`0,2685`); já a Busca Tabu piora do
+extremo inicial ao final (+13,93%), mas não o faz de forma monótona — o custo
+cai em N=60 (`0,1281`, abaixo tanto de N=20 quanto de N=150) antes de subir
+para N=150.
+
+**Limitação.** Essa leitura usa apenas `K=5`, por ser o corte de referência da
+seção 21; não foi verificado se o mesmo padrão se repete nos demais valores de
+`K`. A redução de custo do ACO em instâncias maiores não implica que o ACO seja
+preferível em N=150 de forma geral: essa combinação específica
+(`artesp_rmsp_150, k=5`) é justamente a única, entre as 18 combinações do
+benchmark, em que o ACO (`0,156884`) tem custo médio menor que a Busca Tabu
+(`0,161771`) — exceção já registrada na seção 33 — e mesmo assim o tempo de
+execução do ACO ali é ordens de grandeza maior que o da Busca Tabu (seção 36).
+Não há, nestes dados, explicação causal para o porquê de o custo do ACO cair
+com o tamanho da instância.
+
+---
+
+## 38. Significância estatística
+
+**Observação.** Em `benchmark_statistical_tests.parquet`, o teste de Friedman
+rejeitou `H0` (`α=0,05`) em 18 das 18 combinações instância×K (`rejects_h0`
+verdadeiro em todas as linhas). A estatística de Friedman varia de `30,076` a
+`60,0`, e o valor-p varia de `9,358e-14` a `2,945e-07` — o maior valor-p ocorre
+em `artesp_rmsp_20, k=3`. Nas comparações par a par de Wilcoxon com correção de
+Holm, PSO×Busca Tabu e PSO×ACO são significativas (`p_holm<0,05`) em 18 das 18
+combinações (maior `p_holm`: `4,218e-05` e `2,630e-05`, respectivamente). Já a
+comparação Busca Tabu×ACO não é significativa (`p_holm≥0,05`) em 5 das 18
+combinações, todas em `artesp_rmsp_150`: `k=4` (`p_holm=0,7766`), `k=5`
+(`0,5425`), `k=6` (`0,9677`), `k=7` (`0,5291`) e `k=8` (`0,1981`). Na mesma
+instância, `k=3` permanece significativa (`p_holm=0,0248`).
+
+**Inferência.** Existe diferença global detectável entre os três algoritmos em
+todas as 18 combinações testadas. Entretanto, a diferença específica entre
+Busca Tabu e ACO não é individualmente significativa em cinco das seis
+combinações de `K` na instância grande — ou seja, a rejeição global de `H0` não
+implica que todo par de algoritmos difira em todo cenário.
+
+**Limitação.** A rejeição de `H0` no teste de Friedman não quantifica magnitude
+(ver seção 39). O padrão de não significância concentrado em
+`artesp_rmsp_150` entre Busca Tabu e ACO justamente na instância em que a
+seção 33 registrou a única inversão de ranking não deve ser interpretado além
+do que os dados mostram: ele indica que a diferença de custo entre os dois
+métodos, nessa instância, é pequena o suficiente para não ser detectada com 30
+seeds, mas não permite concluir equivalência.
+
+---
+
+## 39. Magnitude das diferenças
+
+**Observação.** Em `benchmark_statistical_tests.parquet`, considerando as 18
+combinações instância×K que rejeitaram `H0` no teste de Friedman (seção 38), a
+`rank_biserial correlation` das comparações par a par tem magnitude absoluta
+entre `0,9365` e `1,0` (média `0,9965`) para PSO×Busca Tabu, e entre `0,8323`
+e `1,0` (média `0,9752`) para PSO×ACO — em ambos os casos, efeito de
+magnitude próxima da máxima teórica em todas as 18 combinações. Já para Busca
+Tabu×ACO, a magnitude absoluta varia entre `0,0108` e `1,0` (média `0,6782`),
+com dispersão muito maior. As cinco combinações sem significância pareada
+(`p_holm≥0,05`, seção 38) coincidem exatamente com as de menor magnitude:
+`artesp_rmsp_150, k=6` tem `rank_biserial=-0,0108` (`p_holm=0,9677`), `k=4` tem
+`-0,0624`, `k=7` tem `-0,1355`, `k=5` tem `0,1312` e `k=8` tem `-0,2731`.
+
+**Inferência.** A diferença entre PSO e os outros dois algoritmos é de
+magnitude prática grande e consistente em todo o benchmark. Já a diferença
+entre Busca Tabu e ACO tem magnitude que varia por combinação, sendo grande na
+maior parte das 18 combinações, mas pequena justamente nas cinco combinações
+de `artesp_rmsp_150` (`k=4` a `k=8`) em que a seção 38 não encontrou
+significância individual — um caso de coerência entre valor-p e tamanho de
+efeito, e não uma contradição entre os dois.
+
+**Limitação.** O resultado global do teste de Friedman (seção 38) não deve ser
+superextrapolado para "todo par de algoritmos difere em todo cenário": para
+Busca Tabu×ACO, especificamente em `artesp_rmsp_150` com `k` de 4 a 8, a
+diferença de custo é pequena tanto em termos de significância quanto de
+magnitude de efeito. Isso não significa que os dois algoritmos sejam
+equivalentes nessas combinações, apenas que a diferença, se existir, é pequena
+demais para ser separada da variação amostral com o desenho de 30 seeds usado
+aqui.
+
+---
+
+## 40. Melhoria sobre a heurística gulosa
+
+**Observação.** Em `benchmark_vs_greedy.parquet`, a média de
+`improvement_percent` sobre as 18 combinações instância×K é `+18,75%`
+(desvio-padrão `25,59` p.p.) para a Busca Tabu, `-2,17%` (`23,82` p.p.) para o
+ACO e `-55,65%` (`70,60` p.p.) para o PSO. A Busca Tabu melhora sobre a gulosa
+em 12 das 18 combinações, o ACO em 6 e o PSO em 5. O padrão depende
+fortemente do tamanho da instância: em `artesp_rmsp_150`,
+`improvement_percent` é negativo nas 6 combinações de `K` de cada um dos três
+algoritmos, ou seja, em 18 combinações algoritmo×K (3 algoritmos × 6 valores
+de `K`) — **nenhum dos três algoritmos supera a heurística gulosa em nenhum
+valor de `K` na instância grande** (pior caso: PSO em `k=3`, `-238,96%`). Já
+em `artesp_rmsp_20` e `artesp_rmsp_60`, a Busca Tabu melhora sobre a gulosa
+nas 12 combinações de instância×K correspondentes (6 valores de `K` em cada
+uma das duas instâncias), entre `+13,20%` e `+52,27%`. O custo em tempo dessa
+comparação é alto: a média de `time_ratio_vs_greedy` é `×291,28` para a Busca
+Tabu, `×443,64` para o PSO e `×12.293,76` para o ACO — a heurística gulosa
+roda em frações de segundo em todas as combinações.
+
+**Inferência.** A melhoria das metaheurísticas sobre a heurística gulosa não é
+uniforme: existe nas instâncias pequena e média, de forma consistente para a
+Busca Tabu, mas desaparece por completo na instância grande, onde a gulosa
+supera as três metaheurísticas em todos os valores de `K` testados, ao custo
+de centenas a milhares de vezes mais tempo de execução para as
+metaheurísticas.
+
+**Limitação.** Os dados não permitem explicar causalmente por que a vantagem
+se inverte em `artesp_rmsp_150`. Hipóteses possíveis — orçamento de avaliações
+insuficiente relativamente ao tamanho do espaço de busca, ou a heurística
+gulosa sendo particularmente bem adequada à estrutura dessa instância — não
+foram testadas aqui e não devem ser apresentadas como conclusão. O achado deve
+ser lido como um resultado robusto (é unânime nas 18 combinações da instância
+grande) mas não explicado pelos artefatos disponíveis nesta tarefa.
+
+---
+
+## 41. K=3 vs K=8
+
+**Observação.** Em `benchmark_by_k.parquet`, comparando as médias sobre as
+três instâncias entre `K=3` e `K=8`:
+
+| algoritmo | `total_cost` (k=3→k=8) | `cv_demand` (k=3→k=8) | `cv_production` (k=3→k=8) | `c_territorial` (k=3→k=8) | `c_affinity` (k=3→k=8) |
+|---|---|---|---|---|---|
+| ACO | 0,0712→0,3413 | 0,0413→0,7418 | 0,0899→0,7271 | 0,0653→0,2341 | 0,1008→0,3175 |
+| PSO | 0,1490→0,4174 | 0,0588→0,3088 | 0,0417→0,2665 | 0,2272→0,5860 | 0,2785→0,6933 |
+| Busca Tabu | 0,0628→0,2404 | 0,0447→0,3178 | 0,0556→0,2513 | 0,0643→0,2510 | 0,0951→0,3474 |
+
+Todos os cinco componentes crescem, para os três algoritmos, ao passar de
+`K=3` para `K=8`.
+
+**Inferência.** Aumentar o número de lotes de 3 para 8 piora, em média, todos
+os componentes medidos — custo total, desequilíbrio de demanda e de PU·km, e
+incoerência territorial e funcional — para os três algoritmos. O ACO é o mais
+sensível ao aumento de `K` em `cv_demand` e `cv_production` (razão k=8/k=3 de
+cerca de dezoito e oito vezes, respectivamente), enquanto a Busca Tabu tem o
+menor crescimento absoluto de `total_cost` entre os três (`+0,1776`, contra
+`+0,2701` no ACO e `+0,2683` no PSO); em termos de razão k=8/k=3, porém, é o
+PSO que cresce menos (×2,80, contra ×3,83 na Busca Tabu e ×4,79 no ACO) — as
+duas leituras (absoluta e relativa) não apontam para o mesmo algoritmo.
+
+**Limitação.** A tabela agrega as três instâncias; o comportamento por
+instância individual não é detalhado aqui. O crescimento de todos os
+componentes com `K` é um resultado observacional sobre a formulação usada, não
+uma afirmação de que `K` pequeno é preferível em termos de decisão
+institucional — a seção 3 já registra que o estudo não busca identificar um
+`K` ótimo único, e a comparação de compromissos é aprofundada na seção 42.
+
+---
+
+## 42. Trade-off equilíbrio×coerência
+
+**Síntese textual sobre `benchmark_by_k.parquet`, sem novo artefato.**
+Estendendo a seção 41 para os seis valores de `K`, o crescimento de
+`total_cost`, `cv_demand`, `cv_production`, `c_territorial` e `c_affinity` com
+`K` é monótono, ou quase monótono, para os três algoritmos: a única exceção
+identificada é a Busca Tabu em `cv_production`, que cai de `0,0556` em `k=3`
+para `0,0306` em `k=4`, antes de voltar a crescer a partir de `k=5`
+(`0,0854`, `0,1609`, `0,2157`, `0,2513`).
+
+Não há, nestes dados, nenhum valor de `K` que reduza simultaneamente todos os
+cinco componentes em relação a `K` menores — aumentar o número de lotes é,
+para os três algoritmos, consistentemente pior tanto no equilíbrio de demanda
+e de PU·km (`cv_demand`, `cv_production`) quanto na coerência territorial e
+funcional (`c_territorial`, `c_affinity`), e também no custo total agregado.
+Isso é compatível com a formulação da seção 3, que declaradamente não penaliza
+o número de lotes: dividir o problema em mais lotes menores tende a aumentar a
+variabilidade relativa entre lotes e a fragmentar territórios e afinidades
+funcionais que, com menos lotes, ficam mais concentrados.
+
+Não há, portanto, evidência nestes dados de um "ponto de equilíbrio" em que
+mais lotes melhorem coerência territorial/funcional às custas de equilíbrio, ou
+vice-versa — na faixa `K∈{3,...,8}` testada, as duas famílias de métrica
+pioram juntas. Isso não permite concluir que essa relação se mantenha fora da
+faixa testada, nem que um valor de `K` maior que 8 ou menor que 3 produziria
+comportamento diferente; a seção 22 já registra que o relatório não deve
+declarar automaticamente um `K` como ótimo, e os dados aqui reforçam essa
+cautela, sem contradizê-la.
+
+---
+
+## 43. Sensibilidade a hiperparâmetros
+
+**Observação.** Em `results/tables/tuning_parameter_effects.parquet` (artefato
+já existente, reaproveitado sem reexecução), todas as 23 linhas trazem
+`interpretation="descriptive_noncausal"`. A diferença entre níveis de
+`mean_of_mean_cost` por parâmetro é: no ACO, `alpha` (`0,169483` em nível 1,0
+contra `0,303648` em nível 2,0, diferença `0,1342`) é muito mais influente que
+`beta` (`0,0434`), `n_ants` (`0,0237`) e `rho` (`0,0170`). No PSO, todos os
+quatro parâmetros têm diferença pequena e semelhante entre si (`0,0087` a
+`0,0158`: `n_particles`, `cognitive`, `social`, `inertia`, nessa ordem
+crescente). Na Busca Tabu, as diferenças são ainda menores (`0,0027` a
+`0,0153`), e `tabu_tenure`, com três níveis (5, 10, 20), tem seu menor
+`mean_of_mean_cost` no nível intermediário (`0,137703` em 10, contra
+`0,140539` em 5 e `0,138944` em 20) — um padrão não monótono.
+
+**Inferência.** Dentro da grade de tuning testada (seções 12 a 15), o parâmetro
+`alpha` do ACO tem, isoladamente, o maior efeito descritivo sobre o custo
+médio entre todos os parâmetros de todos os três algoritmos — sua diferença
+entre níveis (`0,1342`) é cerca de três vezes a do segundo parâmetro mais
+influente (`beta` do ACO, `0,0434`) e entre cerca de nove e cinquenta vezes a
+diferença de cada parâmetro individual de PSO e Busca Tabu (que variam entre
+`0,0027` e `0,0158`). PSO e Busca Tabu aparentam ser comparativamente menos
+sensíveis, dentro da grade testada, aos parâmetros variados.
+
+**Limitação.** O próprio artefato rotula a interpretação como
+"descriptive_noncausal": os valores comparam médias marginais por nível dentro
+da grade de tuning (seção 12), não isolam o efeito de um parâmetro mantendo os
+demais fixos em um desenho fatorial completo, e não sustentam inferência
+causal sobre qual parâmetro "causa" mais variação de custo. A grade de tuning
+foi definida antes do congelamento experimental (seção 30) e não foi
+re-executada para esta tarefa.
+
+---
+
+## 44. Método mais adequado e aceleração por GPU
+
+**Síntese textual, referenciando as seções 29.1.1/29.1.2 (GPU) sem
+recalcular.** Reunindo as seções 33-42: a Busca Tabu tem, na maior parte das
+combinações testadas, o menor custo médio (seção 33), a menor variabilidade
+(seção 34), o menor tempo computacional (seção 36) e a maior melhoria sobre a
+heurística gulosa (seção 40) entre os três algoritmos. Essa vantagem, porém,
+não é universal: na instância grande, a diferença Busca Tabu×ACO deixa de ser
+estatisticamente significativa em cinco dos seis valores de `K` (seções 38 e
+39), e nenhum dos três algoritmos supera a heurística gulosa em nenhuma
+combinação de `artesp_rmsp_150` (seção 40). Não há, portanto, um único método
+uniformemente superior em todo o desenho experimental: a Busca Tabu é a
+escolha mais consistente dentro da faixa de instâncias e `K` testada, com a
+ressalva de que, na instância grande, sua vantagem sobre o ACO some
+estatisticamente e sua vantagem sobre a heurística gulosa se inverte.
+
+Quanto à aceleração por GPU (pergunta 12), o resultado já registrado nas
+seções 29.1.1 e 29.1.2 não é uniforme entre algoritmos: o PSO obteve speedup
+médio real de `1,814×` sobre CPU, compatível com a fração de seu custo
+delegável à GPU (seção 29.1.2); o ACO não obteve aceleração relevante
+(speedup entre `1,002×` e `1,026×`), porque a construção sequencial das
+formigas, não paralelizável no desenho testado, domina 98,7% do tempo de
+execução (seção 29.1.1). A Busca Tabu não foi objeto do estudo adicional de
+GPU.
+
+**Limitação.** A síntese acima integra resultados de tarefas e escopos
+diferentes — o benchmark principal em CPU (seções 33-42) e o estudo adicional
+de GPU, parcial por desenho e restrito a 30 dos 60 cenários planejados,
+cobrindo apenas o recorte PSO (seção 29.1.2). Não há medição de GPU para a
+Busca Tabu nestes dados, o que impede qualquer afirmação sobre sua
+aceleração por GPU. A recomendação de "método mais adequado" acima é uma
+leitura qualitativa das seções 33-42 deste mesmo documento, não um critério
+estatístico único e formal de escolha de algoritmo; ela não incorpora custo de
+implementação, maturidade de cada método fora deste experimento, nem
+requisitos operacionais específicos de uma futura adoção prática.
