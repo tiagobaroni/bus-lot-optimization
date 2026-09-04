@@ -175,3 +175,36 @@ def write_scalability_figures(runs: pd.DataFrame, figures_dir: Path) -> dict[str
     for key, figure in scalability_figures(runs).items():
         outputs[key] = _save_figure(figure, figures_dir / f"benchmark_scalability_{key}")
     return outputs
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Análise e visualização do benchmark (B12)")
+    parser.add_argument("--tables-dir", type=Path, default=Path("results/tables"))
+    parser.add_argument("--figures-dir", type=Path, default=Path("results/figures"))
+    arguments = parser.parse_args(argv)
+
+    runs = pd.read_parquet(arguments.tables_dir / "benchmark_runs.parquet")
+    checkpoints = pd.read_parquet(arguments.tables_dir / "benchmark_checkpoints.parquet")
+    greedy_runs = pd.read_parquet(arguments.tables_dir / "greedy_runs.parquet")
+
+    summary_paths = write_summary_tables(runs, arguments.tables_dir)
+    by_k_paths = write_by_k_and_greedy_tables(runs, greedy_runs, arguments.tables_dir)
+    convergence_paths = write_convergence_figures(checkpoints, arguments.figures_dir)
+    scalability_paths = write_scalability_figures(runs, arguments.figures_dir)
+
+    report = {
+        "tables": {
+            **{key: str(path) for key, path in summary_paths.items()},
+            **{key: str(path) for key, path in by_k_paths.items()},
+        },
+        "figures": {
+            "convergence": {k: [str(p) for p in v] for k, v in convergence_paths.items()},
+            "scalability": {k: [str(p) for p in v] for k, v in scalability_paths.items()},
+        },
+    }
+    print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

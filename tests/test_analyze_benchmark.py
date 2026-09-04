@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from experiments.analyze_benchmark import write_summary_tables, write_convergence_figures, write_scalability_figures
+from experiments.analyze_benchmark import main
 
 
 def _tiny_runs() -> pd.DataFrame:
@@ -103,3 +104,48 @@ def test_write_scalability_figures_creates_time_and_quality(tmp_path):
     assert set(outputs) == {"time", "quality"}
     for paths in outputs.values():
         assert {p.suffix for p in paths} == {".png", ".pdf"}
+
+
+def _runs_three_sizes_multi_seed() -> pd.DataFrame:
+    # `friedman_and_pairs` pivota por seed: um único seed é um bloco degenerado
+    # que o scipy pode recusar ou devolver NaN, então o teste de integração usa
+    # vários seeds, com custo levemente diferente por seed para não zerar a
+    # variância dentro do bloco.
+    rows = []
+    for size in (20, 60, 150):
+        for algorithm_index, algorithm in enumerate(("aco", "pso", "tabu")):
+            for seed in range(10, 15):
+                rows.append({
+                    "algorithm": algorithm, "instance": f"artesp_rmsp_{size}", "k": 5,
+                    "seed": seed,
+                    "total_cost": 0.3 + 0.01 * algorithm_index + 0.001 * (seed - 10),
+                    "runtime_seconds": float(size),
+                    "cv_demand": 0.1, "cv_production": 0.1,
+                    "c_territorial": 0.1, "c_affinity": 0.1,
+                })
+    return pd.DataFrame(rows)
+
+
+def test_main_reports_all_artifacts(tmp_path, monkeypatch, capsys):
+    tables = tmp_path / "results" / "tables"
+    figures = tmp_path / "results" / "figures"
+    tables.mkdir(parents=True)
+    runs = _runs_three_sizes_multi_seed()
+    runs.to_parquet(tables / "benchmark_runs.parquet", index=False)
+    checkpoints = _tiny_checkpoints()
+    checkpoints.to_parquet(tables / "benchmark_checkpoints.parquet", index=False)
+    greedy_runs = pd.DataFrame([
+        {"instance": f"artesp_rmsp_{size}", "k": 5, "total_cost": 0.4, "runtime_seconds": 0.01}
+        for size in (20, 60, 150)
+    ])
+    greedy_runs.to_parquet(tables / "greedy_runs.parquet", index=False)
+
+    exit_code = main([
+        "--tables-dir", str(tables), "--figures-dir", str(figures),
+    ])
+    assert exit_code == 0
+    assert (tables / "benchmark_summary.parquet").exists()
+    assert (tables / "benchmark_statistical_tests.parquet").exists()
+    assert (tables / "benchmark_by_k.parquet").exists()
+    assert (tables / "benchmark_vs_greedy.parquet").exists()
+    assert (figures / "benchmark_scalability_time.png").exists()
