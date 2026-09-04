@@ -1447,7 +1447,7 @@ executado.
 - [x] Analisar escalabilidade de 20 a 150 unidades.
 - [x] Comparar resultados para diferentes valores de `K`.
 - [x] Gerar curvas de convergência nos checkpoints comuns.
-- [x] Executar sensibilidade sem o componente O-D, se houver tempo (item
+- [ ] Executar sensibilidade sem o componente O-D, se houver tempo (item
       opcional — não executado; o critério de saída abaixo foi satisfeito sem
       ele).
 - [x] Gerar tabelas e figuras reproduzíveis.
@@ -1456,11 +1456,12 @@ executado.
 **Critério de saída:** todas as perguntas da Seção 31 de `docs/experiments.md`
 possuem evidência tabular ou gráfica correspondente.
 
-**Checkpoint de retomada (04/09/2026).** A B12 está concluída. Campanha
-gulosa oficial (18/18 combinações): `results/tables/greedy_runs.parquet` e
-`greedy_manifest.json`. Análise sobre os 1.620 resultados oficiais:
-`benchmark_summary.parquet`, `benchmark_statistical_tests.parquet`,
-`benchmark_by_k.parquet`, `benchmark_vs_greedy.parquet`, e as figuras
+**Checkpoint de retomada (04/09/2026).** A B12 está concluída. Suíte de testes
+com `563 passed` (`uv run pytest tests/ -q`). Campanha gulosa oficial (18/18
+combinações): `results/tables/greedy_runs.parquet` e `greedy_manifest.json`.
+Análise sobre os 1.620 resultados oficiais: `benchmark_summary.parquet`,
+`benchmark_statistical_tests.parquet`, `benchmark_by_k.parquet`,
+`benchmark_vs_greedy.parquet`, e as figuras
 `benchmark_convergence_{20,60,150}.{png,pdf}` e
 `benchmark_scalability_{time,quality}.{png,pdf}`. As 12 perguntas da Seção 31
 foram respondidas nas seções 33-44 de `docs/experiments.md`: **18 de 18
@@ -1469,7 +1470,8 @@ p-valores < 0,05, o maior ≈2,94e-07). A Busca Tabu venceu em custo e tempo na
 maioria das combinações; a exceção notável é `artesp_rmsp_150` (instância
 grande), onde nenhum dos três algoritmos supera a heurística gulosa e a
 vantagem da Busca Tabu sobre o ACO deixa de ser estatisticamente
-significativa. Reprodução: `uv run python -m experiments.run_greedy` e
+significativa em `k=4` a `k=8` (`k=3` continua significativo,
+`p_holm=0,0248`). Reprodução: `uv run python -m experiments.run_greedy` e
 `uv run python -m experiments.analyze_benchmark`. **Próxima ação atômica:
 iniciar a B13** (relatório, README e empacotamento).
 
