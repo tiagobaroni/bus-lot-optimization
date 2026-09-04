@@ -667,7 +667,188 @@ não uma contradição entre os dois --: a diferença entre Busca Tabu e ACO,
 nesses cinco cenários, é pequena tanto em significância estatística quanto
 em magnitude prática.
 
-% Tarefa 8
+\subsection{Tempo computacional}
+
+Sobre as 18 combinações instância$\times$$K$, a Busca Tabu tem o menor tempo
+médio de execução (\texttt{runtime\_mean}) entre os três algoritmos em 16
+delas. A média de \texttt{runtime\_mean} sobre as 18 combinações é
+$20{,}05$~s para a Busca Tabu, contra $30{,}89$~s para o PSO e
+$1.095{,}93$~s para o ACO. O PSO só supera a Busca Tabu por margem mínima em
+duas combinações de instância pequena (\texttt{artesp\_rmsp\_20}, $K=7$ e
+$K=8$), com diferenças de $0{,}007$~s e $0{,}186$~s, respectivamente.
+
+O ACO é sistematicamente o mais lento dos três, entre cerca de ×20 e ×61
+mais lento que a Busca Tabu conforme a combinação, com a construção
+sequencial das formigas -- e não a avaliação da função objetivo -- dominando
+esse custo. Em \texttt{artesp\_rmsp\_150}, $K=5$, por exemplo,
+\texttt{runtime\_mean} é $2.765{,}72$~s no ACO contra $73{,}98$~s no PSO e
+$48{,}73$~s na Busca Tabu. O tempo reportado é de parede, medido sob 1
+thread por execução; não é uma medida de complexidade assintótica nem inclui
+o custo do tuning de hiperparâmetros.
+
+\subsection{Escalabilidade}
+
+Para $K=5$, caso representativo adotado na análise de escalabilidade, o
+tempo de execução cresce com o tamanho da instância nos três algoritmos ao
+passar de $N=20$ para $N=150$, mas de forma bastante distinta entre eles: o
+fator de crescimento é ×22,37 para a Busca Tabu, ×24,36 para o PSO e ×55,55
+para o ACO -- ou seja, o ACO escala substancialmente pior que os outros dois
+algoritmos com o aumento do tamanho da instância. Esse fator de escala
+$N=20\to N=150$ não deve ser confundido com o intervalo de ×20 a ×61 citado
+na Seção anterior, que é a razão de tempo ACO/Busca Tabu combinação a
+combinação, e não um fator de crescimento em função de $N$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{../../results/figures/benchmark_scalability_time.pdf}
+\caption{Tempo de execução em função do tamanho da instância, $K=5$.}
+\label{fig:escalabilidade-tempo}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{../../results/figures/benchmark_scalability_quality.pdf}
+\caption{Custo médio final em função do tamanho da instância, $K=5$.}
+\label{fig:escalabilidade-qualidade}
+\end{figure}
+
+O custo médio final não acompanha o mesmo padrão de crescimento monótono com
+o tamanho da instância que se observa para o tempo. Comparando apenas os
+extremos $N=20$ e $N=150$, o ACO melhora com o aumento de $N$
+($-29{,}31\%$), de forma monótona -- o custo em $N=60$ fica entre os dois
+extremos --, enquanto PSO ($+78{,}37\%$) e Busca Tabu ($+13{,}93\%$) pioram.
+No PSO essa piora também é monótona; já na Busca Tabu não é: o custo cai em
+$N=60$ (abaixo tanto de $N=20$ quanto de $N=150$) antes de voltar a subir em
+$N=150$. Em termos de posição relativa entre algoritmos, a qualidade se
+degrada com o tamanho da instância sem inversão de ranking geral, com a
+exceção já registrada de \texttt{artesp\_rmsp\_150}, $K=5$, em que o ACO
+supera ligeiramente a Busca Tabu (Seção~\ref{subsec:qualidade-solucoes}) --
+mesmo assim, ali o tempo de execução do ACO permanece ordens de grandeza
+maior que o da Busca Tabu. Não há, nestes dados, explicação causal para a
+melhora de custo do ACO com o aumento de $N$; a leitura desta seção usa
+apenas $K=5$ e não foi verificada nos demais valores de $K$.
+
+\subsection{Comparação com a heurística gulosa}
+
+A comparação com a heurística gulosa é descritiva, sem teste inferencial,
+por se tratar de um método determinístico sem réplicas (Seção 4.5). Sobre as
+18 combinações instância$\times$$K$, a Busca Tabu melhora sobre a gulosa em
+12 delas, com melhoria percentual média de $+18{,}75\%$; o ACO piora em
+média ($-2{,}17\%$, melhorando em apenas 6 combinações) e o PSO piora de
+forma mais acentuada e consistente ($-55{,}65\%$ em média, melhorando em
+apenas 5 combinações).
+
+Esse padrão depende fortemente do tamanho da instância. Em
+\texttt{artesp\_rmsp\_150}, nenhum dos três algoritmos supera a heurística
+gulosa em nenhum dos seis valores de $K$ testados -- um resultado unânime
+nas 18 combinações algoritmo$\times$$K$ dessa instância, sendo o pior caso o
+do PSO em $K=3$ ($-238{,}96\%$). Já em \texttt{artesp\_rmsp\_20} e
+\texttt{artesp\_rmsp\_60}, a Busca Tabu melhora sobre a gulosa nas 12
+combinações correspondentes, entre $+13{,}20\%$ e $+52{,}27\%$.
+
+Esse ganho de qualidade nas instâncias pequena e média tem um custo elevado
+em tempo: a gulosa roda em frações de segundo em todas as combinações
+(máximo $0{,}242$~s), enquanto o tempo das metaheurísticas chega, em média,
+a centenas ou milhares de vezes o da gulosa. Os dados não permitem explicar
+causalmente por que a vantagem das metaheurísticas se inverte na instância
+grande; hipóteses como orçamento insuficiente relativamente ao tamanho do
+espaço de busca não foram testadas e não devem ser lidas como conclusão.
+
+\subsection{Análise por \texorpdfstring{$K$}{K}}
+
+A Tabela~\ref{tab:k3-k8} reproduz, para $K=3$ e $K=8$, as médias sobre as
+três instâncias do custo total e de seus quatro componentes
+($CV_D$, $CV_P$, $C_T$, $C_A$), por algoritmo. Os cinco componentes crescem,
+para os três algoritmos, ao passar de $K=3$ para $K=8$.
+
+\begin{table}[H]
+\centering
+\caption{Custo total e componentes por algoritmo, $K=3$ e $K=8$ (médias sobre as três instâncias).}
+\label{tab:k3-k8}
+\begin{tabular}{lrrrrr}
+\toprule
+Algoritmo & Custo total & $CV_D$ & $CV_P$ & $C_T$ & $C_A$ \\
+\midrule
+\multicolumn{6}{l}{\textit{$K=3$}} \\
+ACO & 0,0712 & 0,0413 & 0,0899 & 0,0653 & 0,1008 \\
+PSO & 0,1490 & 0,0588 & 0,0417 & 0,2272 & 0,2785 \\
+Busca Tabu & 0,0628 & 0,0447 & 0,0556 & 0,0643 & 0,0951 \\
+\midrule
+\multicolumn{6}{l}{\textit{$K=8$}} \\
+ACO & 0,3413 & 0,7418 & 0,7271 & 0,2341 & 0,3175 \\
+PSO & 0,4174 & 0,3088 & 0,2665 & 0,5860 & 0,6933 \\
+Busca Tabu & 0,2404 & 0,3178 & 0,2513 & 0,2510 & 0,3474 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Aumentar o número de lotes de 3 para 8 piora, em média, todos os componentes
+medidos para os três algoritmos -- não há, nestes dados, nenhum valor de $K$
+que reduza simultaneamente todos os cinco componentes em relação a valores
+de $K$ menores. O ACO é o mais sensível ao aumento de $K$ em $CV_D$ e
+$CV_P$ (razão $K{=}8/K{=}3$ de cerca de dezoito e oito vezes,
+respectivamente). Em termos de crescimento absoluto de custo total, a Busca
+Tabu tem o menor aumento entre os três ($+0{,}1776$, contra $+0{,}2701$ no
+ACO e $+0{,}2683$ no PSO); em termos de razão $K{=}8/K{=}3$, porém, é o PSO
+que cresce menos (×2,80, contra ×3,83 na Busca Tabu e ×4,79 no ACO) -- as
+duas leituras, absoluta e relativa, não apontam para o mesmo algoritmo.
+
+Estendendo essa leitura aos seis valores de $K$, o crescimento é monótono ou
+quase monótono para os três algoritmos, com uma única exceção identificada:
+a Busca Tabu em $CV_P$, que cai de $K=3$ para $K=4$ antes de voltar a
+crescer a partir de $K=5$. Como já estabelecido no protocolo experimental
+(Seção 2.5), este relatório não declara um valor de $K$ ótimo: os dados não
+mostram, na faixa $K\in\{3,\ldots,8\}$ testada, um ponto em que mais lotes
+melhorem coerência territorial ou funcional às custas de equilíbrio, ou
+vice-versa -- as duas famílias de métrica pioram juntas, o que caracteriza
+um compromisso a ser resolvido por critérios institucionais e não por um
+ótimo automático desta formulação.
+
+\subsection{Sensibilidade a hiperparâmetros}
+
+A análise de sensibilidade, reaproveitada do artefato de tuning sem
+reexecução, é descritiva e não sustenta inferência causal sobre qual
+parâmetro determina a variação de custo: os valores comparam médias
+marginais por nível de parâmetro dentro da grade de tuning testada, sem
+isolar o efeito de um parâmetro mantendo os demais fixos.
+
+Dentro dessa ressalva, o parâmetro mais sensível do ACO é \texttt{alpha}: a
+diferença de custo médio entre seus dois níveis testados
+($0{,}1342$) é cerca de três vezes a do segundo parâmetro mais influente do
+próprio ACO (\texttt{beta}, $0{,}0434$) e entre nove e cinquenta vezes maior
+que a de qualquer parâmetro individual de PSO ou Busca Tabu. No PSO, os
+quatro parâmetros têm efeito comparativamente pequeno e semelhante entre si,
+em ordem crescente de sensibilidade: \texttt{n\_particles}, \texttt{cognitive},
+\texttt{social} e \texttt{inertia}. Na Busca Tabu, as diferenças entre
+níveis são as menores das três metaheurísticas, e o parâmetro mais sensível
+é \texttt{tabu\_tenure}, cujo efeito não é monótono: o menor custo médio
+ocorre no nível intermediário (tenure$=10$), não nos extremos testados
+(tenure$=5$ ou tenure$=20$).
+
+\subsection{Aceleração por GPU}
+
+Um estudo adicional, restrito por desenho ao recorte PSO (30 dos 60
+cenários planejados, $N=150$, $K=5$), mediu a aceleração obtida ao delegar a
+avaliação da função objetivo a uma GPU NVIDIA RTX 3060, mantendo o restante
+do algoritmo no host. O PSO obtém aceleração real e mensurável: speedup
+médio de $1{,}814\times$ sobre CPU, com valores individuais entre
+$1{,}520\times$ e $1{,}974\times$ nos 30 cenários medidos. Esse resultado é
+consistente com a fração de custo do PSO que a avaliação representa
+(aproximadamente $46\%$): pela lei de Amdahl, o teto de aceleração implicado
+por essa fração, com o tempo de avaliação tendendo a zero, é
+$1/(1-0{,}46)\approx 1{,}852\times$ -- o speedup médio medido fica a cerca
+de $98\%$ desse teto, com a distância residual explicada pelo tempo ainda
+gasto em lançamento de kernel e transferências de dados entre host e
+dispositivo.
+
+O ACO, por outro lado, não obtém aceleração relevante: o speedup medido em
+três cenários oficiais fica próximo de $1{,}0\times$ (entre $1{,}002\times$
+e $1{,}026\times$). A causa é estrutural, e não uma deficiência de
+implementação: no desenho híbrido adotado, apenas a avaliação em lote é
+delegável à GPU, e a construção sequencial das formigas -- não
+paralelizável nesse desenho, por depender do estado parcial já construído a
+cada posição -- domina $98{,}7\%$ do tempo de execução de uma geração. A
+Busca Tabu não foi objeto deste estudo adicional de GPU.
 
 \section{Discussão e conclusões}
 % Tarefa 9
