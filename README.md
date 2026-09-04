@@ -200,6 +200,18 @@ metaheurísticas de CPU podem ser verificados com:
 uv run pytest -q tests
 ```
 
+A suíte usa o pacote-fonte bruto da ARTESP em `_temp/dados_artesp/`, que o
+`.gitignore` exclui do repositório. Um clone sem esse pacote deve declarar a
+ausência explicitamente, ou a suíte falha com um guardião dedicado em vez de
+pular os três testes de geração de instâncias em silêncio:
+
+```bash
+BUS_LOT_SEM_PACOTE_FONTE=1 uv run pytest -q tests
+```
+
+Com o pacote-fonte presente, os 564 testes coletados incluem esses três. Sem
+ele, com a declaração acima, são 561 aprovados e 3 pulados.
+
 A réplica GPU usa ambiente isolado e deve ser verificada separadamente:
 
 ```bash
