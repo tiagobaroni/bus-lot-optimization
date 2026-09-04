@@ -1757,7 +1757,7 @@ escolha mais consistente dentro da faixa de instâncias e `K` testada, com a
 ressalva de que, na instância grande, sua vantagem sobre o ACO some
 estatisticamente e sua vantagem sobre a heurística gulosa se inverte.
 
-Quanto à aceleração por GPU (pergunta 12), o resultado já registrado nas
+Quanto à aceleração por GPU (pergunta 11), o resultado já registrado nas
 seções 29.1.1 e 29.1.2 não é uniforme entre algoritmos: o PSO obteve speedup
 médio real de `1,814×` sobre CPU, compatível com a fração de seu custo
 delegável à GPU (seção 29.1.2); o ACO não obteve aceleração relevante

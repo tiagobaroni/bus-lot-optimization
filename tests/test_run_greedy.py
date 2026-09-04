@@ -64,3 +64,34 @@ def test_consolidate_writes_parquet_and_manifest(tmp_path):
     assert runs.iloc[0]["instance"] == "artesp_rmsp_20"
     written = json.loads((root / "results" / "tables" / "greedy_manifest.json").read_text())
     assert written["schema_version"] == 1
+
+
+def test_consolidate_marks_official_false_on_dirty_tree(tmp_path):
+    root = tmp_path
+    (root / "results" / "tables").mkdir(parents=True)
+    provenance = {"official": False, "git_commit": "deadbeef", "git_dirty": True}
+    documents = [
+        {
+            "algorithm": "greedy", "instance": f"artesp_rmsp_{size}",
+            "instance_path": f"data/instances/artesp_rmsp_{size}.json",
+            "instance_sha256": "x" * 64,
+            "instance_data_sha256": {
+                "artesp_rmsp_150_units.parquet": "u" * 64,
+                "artesp_rmsp_150_pair_metrics.parquet": "p" * 64,
+            },
+            "k": k, "evaluations": 10,
+            "runtime_seconds": 0.01, "total_cost": 0.5, "c_demand": 0.1,
+            "c_production": 0.1, "c_territorial": 0.1, "c_affinity": 0.1,
+            "cv_demand": 0.1, "cv_production": 0.1, "solution": [0, 1, 2],
+            "started_at": "2026-01-01T00:00:00Z", "finished_at": "2026-01-01T00:00:01Z",
+            "provenance": provenance, "official": False,
+            "content_sha256": "y" * 64,
+        }
+        for size in INSTANCE_SIZES
+        for k in K_VALUES
+    ]
+    manifest = consolidate(root, documents, provenance)
+    assert manifest["complete"] is True  # 18 de 18: só a proveniência pode zerar official
+    assert manifest["official"] is False
+    written = json.loads((root / "results" / "tables" / "greedy_manifest.json").read_text())
+    assert written["official"] is False
