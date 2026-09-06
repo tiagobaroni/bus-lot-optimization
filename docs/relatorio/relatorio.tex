@@ -537,6 +537,120 @@ das matrizes de entrada, o processamento geoespacial e a geração de
 gráficos, de modo que o tempo registrado reflita apenas o custo
 computacional do algoritmo de busca propriamente dito.
 
+\subsection{Piloto pré-benchmark}
+\label{sec:piloto}
+
+Antes da campanha oficial foi executado um piloto, com o propósito de
+responder empiricamente a três perguntas que decidem se o protocolo
+descrito acima é executável como planejado: o orçamento de avaliações é
+suficiente para que os algoritmos estabilizem? Quanto tempo custa cada
+combinação? A máquina suporta o paralelismo pretendido sem degradar a
+medição?
+
+O piloto cobriu 18 execuções --- as três instâncias, os dois extremos da
+faixa de $K$ ($3$ e $8$) e os três algoritmos ---, com os
+hiperparâmetros já congelados pelo tuning, os orçamentos finais e uma
+única seed, \texttt{20260818}. Uma seed basta porque o piloto não produz
+inferência: ele dimensiona a campanha, e não compara métodos.
+
+\subsubsection*{O orçamento é suficiente?}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../results/figures/pilot_convergence.pdf}
+\caption{Convergência preliminar do piloto: melhor custo em função das
+avaliações consumidas, por instância e por $K$.}
+\label{fig:piloto-convergencia}
+\end{figure}
+
+A Figura~\ref{fig:piloto-convergencia} mostra que a resposta depende do
+algoritmo. Medindo a fração do orçamento consumida até que cada execução
+alcance $99{,}9\,\%$ da melhoria total que viria a obter, o ACO estabiliza
+entre $3\,\%$ e $18\,\%$ do orçamento, e a Busca Tabu entre $5\,\%$ e
+$88\,\%$ --- o extremo superior é o cenário $N=60$, $K=3$, em que uma
+queda tardia aparece com o orçamento já quase esgotado, comportamento
+compatível com a aceitação de movimentos de piora que a memória tabu
+permite.
+
+O PSO é o caso que merece registro. Em $N=150$ com $K=8$ ele consome
+$100\,\%$ do orçamento, isto é, ainda estava melhorando quando as
+avaliações acabaram; em $N=20$ com $K=8$, consome $90\,\%$. Nesses dois
+cenários o orçamento não é suficiente para o PSO, e os resultados que ele
+apresenta na Seção~5 devem ser lidos com essa ressalva: parte da
+desvantagem do PSO em $K$ alto é desvantagem de convergência não
+concluída, e não apenas de qualidade da solução alcançável.
+
+A figura também expõe um comportamento do ACO que a análise agregada não
+mostraria: em $N=20$ com $K=8$, sua curva é praticamente horizontal, com
+melhoria de apenas $0{,}50\,\%$ sobre a solução inicial ao longo de todo
+o orçamento. A construção gulosa guiada por feromônio, nesse cenário de
+poucas unidades e muitos lotes, produz de saída uma solução que ela
+própria não consegue melhorar.
+
+Para os dois algoritmos que estabilizam bem antes do limite, o orçamento
+está corretamente dimensionado, e ampliá-lo não mudaria o resultado. Foi
+essa constatação que autorizou fixar os orçamentos da campanha oficial
+nos valores da Seção~4.1, em vez de aumentá-los por precaução.
+
+\subsubsection*{Quanto tempo custa?}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../results/figures/pilot_time.pdf}
+\caption{Tempo de otimização por cenário no piloto, em escala
+logarítmica.}
+\label{fig:piloto-tempo}
+\end{figure}
+
+A Figura~\ref{fig:piloto-tempo}, em escala logarítmica, mostra uma
+separação de uma a duas ordens de grandeza. Na instância de 150 unidades,
+a Busca Tabu completa o orçamento em cerca de $49$~s e o PSO em torno de
+$70$ a $76$~s, enquanto o ACO consome de $2\,595$ a $2\,967$~s, isto é,
+entre $43$ e $49$ minutos por execução. Sobre o conjunto dos seis
+cenários, o ACO é de $11$ a $61$ vezes mais lento que a Busca Tabu.
+
+A causa é estrutural e decorre da descrição da Seção~3.3: o ACO avalia o
+custo parcial de cada alocação candidata a cada passo da construção de
+cada formiga, de modo que o trabalho por avaliação de solução completa é
+muito maior que o dos outros dois métodos, ainda que o orçamento contado
+em avaliações seja idêntico. Essa medição foi o que permitiu dimensionar
+a campanha oficial: com 1.620 execuções, das quais um terço em ACO, o
+custo total projetado exigiu a organização em lotes e a escolha
+consciente do número de \emph{workers}.
+
+\subsubsection*{A máquina suporta o paralelismo?}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../results/figures/pilot_resources.pdf}
+\caption{Recursos consumidos durante o piloto: CPU agregada, memória
+residente do processo e memória disponível do sistema.}
+\label{fig:piloto-recursos}
+\end{figure}
+
+A Figura~\ref{fig:piloto-recursos} reúne 27.913 amostras coletadas em
+dez sessões de monitoração. O painel superior mostra a CPU agregada
+atingindo picos de $1\,635\,\%$, coerentes com os 16 \emph{workers}
+configurados numa máquina de 16 núcleos lógicos disponíveis ao processo,
+e caindo em patamares sucessivos --- cerca de $400\,\%$, $200\,\%$ e
+$100\,\%$ --- à medida que os cenários mais curtos terminam e restam
+apenas os mais longos, invariavelmente os do ACO.
+
+O painel central mostra a memória residente estabilizada em torno de
+$2{,}2$~GiB, com pico de $2{,}21$~GiB. O inferior mostra a memória
+disponível do sistema oscilando entre $35$ e $59$~GiB, de um total de
+$63$~GiB, sem nenhum episódio de consumo de \emph{swap}. As verificações
+automáticas do monitor confirmaram, além disso, que cada otimizador
+manteve uma única \emph{thread} ativa, que a CPU consumida permaneceu
+dentro do limite dos \emph{workers} declarados e que nenhum processo de
+otimização sobreviveu ao fim da campanha.
+
+A conclusão operacional é que a máquina comporta o paralelismo com folga
+larga: o fator limitante da campanha é tempo de CPU, não memória. Foi com
+base nesses números que se fixaram os 16 \emph{workers} da execução
+oficial, com a garantia de que a contenção de recursos não contaminaria a
+medição de tempo usada na comparação entre algoritmos.
+
 \subsection{Protocolo estatístico}
 
 A comparação entre as três metaheurísticas segue um protocolo não
