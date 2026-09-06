@@ -1,0 +1,536 @@
+{
+  "combinations": [
+    {
+      "algorithm": "aco",
+      "column": "lot_i150_aco_k3",
+      "instance": "artesp_rmsp_150",
+      "k": 3,
+      "scenario_id": "b2c0dd290e9967d0d8cd9714a12f652ea0b0b0be8bd9db7a0b5c1600b119f202",
+      "seed": 31,
+      "total_cost": 0.0781351698392236
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i150_aco_k4",
+      "instance": "artesp_rmsp_150",
+      "k": 4,
+      "scenario_id": "c45326876aa292dd064e1875539440ce516ea2b4c423815478d858e0519fb9ab",
+      "seed": 38,
+      "total_cost": 0.10809789811961551
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i150_aco_k5",
+      "instance": "artesp_rmsp_150",
+      "k": 5,
+      "scenario_id": "dc90f1cf4072b807b86ab0f9742cbda1c984fa6f49c02fa59c7596948810ebbd",
+      "seed": 27,
+      "total_cost": 0.13539633271790255
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i150_aco_k6",
+      "instance": "artesp_rmsp_150",
+      "k": 6,
+      "scenario_id": "ea6e26b37baa3d3b46ae7d3cb2ac6e2bbd5c33f6f4494bfeacafcf9cbe59a41c",
+      "seed": 38,
+      "total_cost": 0.1644339965171621
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i150_aco_k7",
+      "instance": "artesp_rmsp_150",
+      "k": 7,
+      "scenario_id": "a76bb5e208c5208eba35af08e179386b2d05a6c3b9482d6a9978e73a0a801260",
+      "seed": 10,
+      "total_cost": 0.2026548784572693
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i150_aco_k8",
+      "instance": "artesp_rmsp_150",
+      "k": 8,
+      "scenario_id": "749ff0f6e2d175fd33ed0c8e521a5635122b9f4074a74b8af11848c2c74388bb",
+      "seed": 10,
+      "total_cost": 0.24756077033758478
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i150_pso_k3",
+      "instance": "artesp_rmsp_150",
+      "k": 3,
+      "scenario_id": "6828d7a9e45836bf944eb6781ae4da54bc0cee6b6e8dcbc855d28d54f9ec2c7e",
+      "seed": 23,
+      "total_cost": 0.15587108994834226
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i150_pso_k4",
+      "instance": "artesp_rmsp_150",
+      "k": 4,
+      "scenario_id": "78b8d10e91e1e6fddbba2030da4589db0460f47658d8fe8a3a7ce323ffbd1c87",
+      "seed": 17,
+      "total_cost": 0.23847113187603952
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i150_pso_k5",
+      "instance": "artesp_rmsp_150",
+      "k": 5,
+      "scenario_id": "c7b1165e6d06d4c5e5dccc8ce3feb5bc16bfc877d6260d80738d62fdb20f49b1",
+      "seed": 15,
+      "total_cost": 0.27003058862206425
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i150_pso_k6",
+      "instance": "artesp_rmsp_150",
+      "k": 6,
+      "scenario_id": "264e25a4e98ab975bc1589e901b05a4a6c7b90613d3e76179de9c6a65b595461",
+      "seed": 39,
+      "total_cost": 0.3414165948446167
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i150_pso_k7",
+      "instance": "artesp_rmsp_150",
+      "k": 7,
+      "scenario_id": "0859d14dd6f164b7f5444e78edd444a7cd3d5ac9ab497e6137b7c878632e427f",
+      "seed": 15,
+      "total_cost": 0.3816896144900206
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i150_pso_k8",
+      "instance": "artesp_rmsp_150",
+      "k": 8,
+      "scenario_id": "a60d28f7c8d56f581c2569cb41b70b9bd7a0df0d7d997b5415a31e0cf6c138aa",
+      "seed": 32,
+      "total_cost": 0.3967514592825287
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i150_tabu_k3",
+      "instance": "artesp_rmsp_150",
+      "k": 3,
+      "scenario_id": "9cbe402cd3509720cde07db1ddaea3c89a1d0bcfac98315112586101f4d6976a",
+      "seed": 10,
+      "total_cost": 0.05754570367551022
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i150_tabu_k4",
+      "instance": "artesp_rmsp_150",
+      "k": 4,
+      "scenario_id": "918c426d816cc0fdda1bb76772d6d7458780150126db3fd8aee918e1d9eab8b1",
+      "seed": 31,
+      "total_cost": 0.08182239920841546
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i150_tabu_k5",
+      "instance": "artesp_rmsp_150",
+      "k": 5,
+      "scenario_id": "e10a9e05a6655dbbbaeeb39328f96f63829a070f27ee8fddc1acaf23fd7bc30b",
+      "seed": 38,
+      "total_cost": 0.10932492419328166
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i150_tabu_k6",
+      "instance": "artesp_rmsp_150",
+      "k": 6,
+      "scenario_id": "26a96e25406186cd1be92b11199f6d433bf17ef4de35081001734ae3c1da2637",
+      "seed": 29,
+      "total_cost": 0.1464160936491268
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i150_tabu_k7",
+      "instance": "artesp_rmsp_150",
+      "k": 7,
+      "scenario_id": "5ce9b5aac4c4d850eee96d7dc4fd5ff94a4f8a61abb5c38490428d2191a77ebc",
+      "seed": 37,
+      "total_cost": 0.18571957135026726
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i150_tabu_k8",
+      "instance": "artesp_rmsp_150",
+      "k": 8,
+      "scenario_id": "7b254d3846345f0ac3c1fe78752f02b1795cf589ff049b069cf1c9fc01ebed89",
+      "seed": 26,
+      "total_cost": 0.1952746107366894
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i20_aco_k3",
+      "instance": "artesp_rmsp_20",
+      "k": 3,
+      "scenario_id": "163f2b8b743c771daa0b3bde648b32093bae1e0ec34b766dcd6c9fc3ad50a316",
+      "seed": 10,
+      "total_cost": 0.053243789436315546
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i20_aco_k4",
+      "instance": "artesp_rmsp_20",
+      "k": 4,
+      "scenario_id": "271d5a949012352bd29ce9f2d12d86cf06079a26851f65e0379101a5645d1d3b",
+      "seed": 13,
+      "total_cost": 0.10325697550482095
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i20_aco_k5",
+      "instance": "artesp_rmsp_20",
+      "k": 5,
+      "scenario_id": "4c1359f34bc777659b282ad85af02a9a6207343feacd58d24096cb21a8e6e8ac",
+      "seed": 16,
+      "total_cost": 0.2078564286578002
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i20_aco_k6",
+      "instance": "artesp_rmsp_20",
+      "k": 6,
+      "scenario_id": "f917c825b7b679bfc7646a60b820ced3ff24c35abc203277bb4dabc79704a7dc",
+      "seed": 25,
+      "total_cost": 0.2540011846455904
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i20_aco_k7",
+      "instance": "artesp_rmsp_20",
+      "k": 7,
+      "scenario_id": "97052fa6cf046f8e5e922713a0222a126743a93d88fd7546ed9ad194e10d0fad",
+      "seed": 32,
+      "total_cost": 0.31598650884598595
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i20_aco_k8",
+      "instance": "artesp_rmsp_20",
+      "k": 8,
+      "scenario_id": "c22902f9e260b4a4e7415dfe51a9726152e12f673dd6ecd77c592321010bc5b4",
+      "seed": 22,
+      "total_cost": 0.3420809332609491
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i20_pso_k3",
+      "instance": "artesp_rmsp_20",
+      "k": 3,
+      "scenario_id": "f3933dc421147b7fa67166aa283ce3bb88e791f857c351c71c6d4c205a312dbc",
+      "seed": 12,
+      "total_cost": 0.05208163802829499
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i20_pso_k4",
+      "instance": "artesp_rmsp_20",
+      "k": 4,
+      "scenario_id": "017a542be3bba0c2116634a6dd8868d9184c50cedd9621fb492f75e544a28de2",
+      "seed": 36,
+      "total_cost": 0.08551970987253564
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i20_pso_k5",
+      "instance": "artesp_rmsp_20",
+      "k": 5,
+      "scenario_id": "895b9aa1f11b352b2963b759ef487840492fcbbb4c3da9bca1702079f44c9bef",
+      "seed": 39,
+      "total_cost": 0.14756686055700416
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i20_pso_k6",
+      "instance": "artesp_rmsp_20",
+      "k": 6,
+      "scenario_id": "35a9abf50900a70655086bded96fa3a9fe1834e31b2dbab926bf90d572f1fe7d",
+      "seed": 23,
+      "total_cost": 0.1972951435356649
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i20_pso_k7",
+      "instance": "artesp_rmsp_20",
+      "k": 7,
+      "scenario_id": "4ec69a08c8f511b5361fe1b98b50f71e8d9746c137857db4c7c3e4177aa91c81",
+      "seed": 30,
+      "total_cost": 0.2564076333542911
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i20_pso_k8",
+      "instance": "artesp_rmsp_20",
+      "k": 8,
+      "scenario_id": "01457d4650122be954a7bf16155f87d18dd813e1a4b035ea0aab6cf27ca4d7e3",
+      "seed": 27,
+      "total_cost": 0.28957348735748567
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i20_tabu_k3",
+      "instance": "artesp_rmsp_20",
+      "k": 3,
+      "scenario_id": "a0a310776600d4ed2e3a98d55224065a2ba3b734aa59b3f1bef53b99a0824ab1",
+      "seed": 10,
+      "total_cost": 0.05208163802829499
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i20_tabu_k4",
+      "instance": "artesp_rmsp_20",
+      "k": 4,
+      "scenario_id": "c65f72a06a2191a3cd8cb2b2d35d4bbf43167da5fdb8316f756084bd5a5adaea",
+      "seed": 10,
+      "total_cost": 0.08551970987253564
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i20_tabu_k5",
+      "instance": "artesp_rmsp_20",
+      "k": 5,
+      "scenario_id": "de7fbb714c8bf134ada09cc8a4f9b12a3fe8ce564c8f0d49795b201cf5d4d8b1",
+      "seed": 10,
+      "total_cost": 0.1418144253011988
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i20_tabu_k6",
+      "instance": "artesp_rmsp_20",
+      "k": 6,
+      "scenario_id": "00dcbd78ef14279e3ba889d7bd1c2e802920b103313fc2f780955ff5165ed05d",
+      "seed": 10,
+      "total_cost": 0.182725238499504
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i20_tabu_k7",
+      "instance": "artesp_rmsp_20",
+      "k": 7,
+      "scenario_id": "17cdca7293199216c1cc816587f0177bb2717dd24b94385a4bfa2d94d473cbbe",
+      "seed": 10,
+      "total_cost": 0.2143472750380493
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i20_tabu_k8",
+      "instance": "artesp_rmsp_20",
+      "k": 8,
+      "scenario_id": "db3902179ac1437ee6841cf63ee0a14453ffb5b19c6f785e5e66ee53f4b14c91",
+      "seed": 10,
+      "total_cost": 0.237501530470415
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i60_aco_k3",
+      "instance": "artesp_rmsp_60",
+      "k": 3,
+      "scenario_id": "59de68593d6e7641465b21aeeaeb3be06e8521e717834849fd4a9429dc44fa57",
+      "seed": 28,
+      "total_cost": 0.05488272167148515
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i60_aco_k4",
+      "instance": "artesp_rmsp_60",
+      "k": 4,
+      "scenario_id": "c10a7246570024a0827e21003b09eb5292bcada527cd81c4d6533b26a03f27de",
+      "seed": 10,
+      "total_cost": 0.08643551976648522
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i60_aco_k5",
+      "instance": "artesp_rmsp_60",
+      "k": 5,
+      "scenario_id": "6ec0754272da330c4846a8d785b36d3e9c3a0a4041d901e648e5677ce8276968",
+      "seed": 34,
+      "total_cost": 0.12883954071467663
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i60_aco_k6",
+      "instance": "artesp_rmsp_60",
+      "k": 6,
+      "scenario_id": "a6ecd8890209c7832e13563b20d61325eabbb54d68d051a6a23e32b9d15da161",
+      "seed": 34,
+      "total_cost": 0.19914095794091424
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i60_aco_k7",
+      "instance": "artesp_rmsp_60",
+      "k": 7,
+      "scenario_id": "b944970a17c08b0c97fe87913594295dcfe78bead368672d2327873782e20f23",
+      "seed": 25,
+      "total_cost": 0.24726958701510293
+    },
+    {
+      "algorithm": "aco",
+      "column": "lot_i60_aco_k8",
+      "instance": "artesp_rmsp_60",
+      "k": 8,
+      "scenario_id": "78cb4149f5d781fdb5fa6390e153a12bdd76823f7f0b8cedf809e6e57475a8a2",
+      "seed": 24,
+      "total_cost": 0.28232124661656544
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i60_pso_k3",
+      "instance": "artesp_rmsp_60",
+      "k": 3,
+      "scenario_id": "2d123fece55a795f81b06dda17a38b54030eed7a57a295e17b2c8d741cc8950b",
+      "seed": 23,
+      "total_cost": 0.08875081208946106
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i60_pso_k4",
+      "instance": "artesp_rmsp_60",
+      "k": 4,
+      "scenario_id": "8c7c1feceb9b02a8d1bb7999bd1749c69ce317dc5d535ea19932567ef9e1a7e3",
+      "seed": 29,
+      "total_cost": 0.15563981142900912
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i60_pso_k5",
+      "instance": "artesp_rmsp_60",
+      "k": 5,
+      "scenario_id": "33d0a712323da5c05ec202f4c96288aaf2498ad2a97547be23a4a6267d3677fe",
+      "seed": 13,
+      "total_cost": 0.20551973464373802
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i60_pso_k6",
+      "instance": "artesp_rmsp_60",
+      "k": 6,
+      "scenario_id": "1401b7b685c51dc2a54ac18b77af20aaf3668c725e5c539a8f56e7a5e2514c86",
+      "seed": 16,
+      "total_cost": 0.24355708932282838
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i60_pso_k7",
+      "instance": "artesp_rmsp_60",
+      "k": 7,
+      "scenario_id": "efc67b1b812ab1020be9c559ed900a55370402b057394e19e673ecb0f189cd82",
+      "seed": 30,
+      "total_cost": 0.2577757454382109
+    },
+    {
+      "algorithm": "pso",
+      "column": "lot_i60_pso_k8",
+      "instance": "artesp_rmsp_60",
+      "k": 8,
+      "scenario_id": "5fb32e22e123db74cb4b34448401e8f00c583f1c37dc6c5013ea4d953c536fce",
+      "seed": 16,
+      "total_cost": 0.3691798417819606
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i60_tabu_k3",
+      "instance": "artesp_rmsp_60",
+      "k": 3,
+      "scenario_id": "3b7291d7868831f3fa01bed5e3c5f08aa91210939d31f48a58ef3a6771e2a39c",
+      "seed": 37,
+      "total_cost": 0.04741061594892472
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i60_tabu_k4",
+      "instance": "artesp_rmsp_60",
+      "k": 4,
+      "scenario_id": "f3e37c16d8f058f1e912aa9f2d80a0258a08afe1fd2d9e3540fa2864a2b861b4",
+      "seed": 28,
+      "total_cost": 0.0740241824319457
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i60_tabu_k5",
+      "instance": "artesp_rmsp_60",
+      "k": 5,
+      "scenario_id": "fc1bdfc9a2e9d1c63b91190b86ea2b854347f8edde0247f8f668757ed96c3e20",
+      "seed": 27,
+      "total_cost": 0.1123482664024812
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i60_tabu_k6",
+      "instance": "artesp_rmsp_60",
+      "k": 6,
+      "scenario_id": "f781bf1bbbb13873e70c883c3f2f48fa71a980db52c09c2f39ac1f4a0a82533d",
+      "seed": 37,
+      "total_cost": 0.14756644440027952
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i60_tabu_k7",
+      "instance": "artesp_rmsp_60",
+      "k": 7,
+      "scenario_id": "633ccf325485b01bfeed71cc7d0c0a128955b0efb95f7c5344a2c14b611f7ab8",
+      "seed": 21,
+      "total_cost": 0.18594978695081016
+    },
+    {
+      "algorithm": "tabu",
+      "column": "lot_i60_tabu_k8",
+      "instance": "artesp_rmsp_60",
+      "k": 8,
+      "scenario_id": "34f766f9cba8adce98a9937d3d3aa8ac763b0408f97fa55ef275f9a29d50447b",
+      "seed": 34,
+      "total_cost": 0.20366265663076163
+    }
+  ],
+  "generated_at": "2026-09-06T16:51:22+00:00",
+  "instances": {
+    "artesp_rmsp_150": {
+      "gpkg_path": "data/instances/artesp_rmsp_150.gpkg",
+      "gpkg_sha256": "746fa4207eea695493adf7d53e585e5e5bbd3be9ca2eb1e40ce02d58cf353b4f",
+      "json_path": "data/instances/artesp_rmsp_150.json",
+      "json_sha256": "7ab22bad2ea9669a1fc1205e2ba2f1cf6af4d608c2ce5a2e2b6cb474c072be5d"
+    },
+    "artesp_rmsp_20": {
+      "gpkg_path": "data/instances/artesp_rmsp_20.gpkg",
+      "gpkg_sha256": "837abac54580ce45da7d6884ecf6b3c630b784e1ee3249ffb7eb4d022628fd40",
+      "json_path": "data/instances/artesp_rmsp_20.json",
+      "json_sha256": "9616ea96d24eaf1902bdc9857806f914f1a0ed024d6e875ec90e04421184c740"
+    },
+    "artesp_rmsp_60": {
+      "gpkg_path": "data/instances/artesp_rmsp_60.gpkg",
+      "gpkg_sha256": "285f42efeda0fec6afbcfca2815375e54c7c624ab09c15c9474b884f7ef7763a",
+      "json_path": "data/instances/artesp_rmsp_60.json",
+      "json_sha256": "a819812f87c91553dd10e34b0de92cd0d048832e9f3ee01a7e7314e118d1d412"
+    }
+  },
+  "references": {
+    "artesp_rmsp_150|3": "tabu",
+    "artesp_rmsp_150|4": "tabu",
+    "artesp_rmsp_150|5": "tabu",
+    "artesp_rmsp_150|6": "tabu",
+    "artesp_rmsp_150|7": "tabu",
+    "artesp_rmsp_150|8": "tabu",
+    "artesp_rmsp_20|3": "tabu",
+    "artesp_rmsp_20|4": "tabu",
+    "artesp_rmsp_20|5": "tabu",
+    "artesp_rmsp_20|6": "tabu",
+    "artesp_rmsp_20|7": "tabu",
+    "artesp_rmsp_20|8": "tabu",
+    "artesp_rmsp_60|3": "tabu",
+    "artesp_rmsp_60|4": "tabu",
+    "artesp_rmsp_60|5": "tabu",
+    "artesp_rmsp_60|6": "tabu",
+    "artesp_rmsp_60|7": "tabu",
+    "artesp_rmsp_60|8": "tabu"
+  },
+  "schema_version": "1.0.0",
+  "source": {
+    "content_sha256": "362b73efe890dc115e73ee12cd1c9c8b5b4c06ae858d947bb2191ae84a7ca93f",
+    "path": "results/tables/benchmark_runs.parquet"
+  }
+}

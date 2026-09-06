@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+import sys
 import tempfile
 from collections.abc import Sequence
+from datetime import datetime, timezone
 from pathlib import Path
 
 import geopandas as gpd
@@ -15,6 +18,7 @@ from scipy.optimize import linear_sum_assignment
 
 from metaheuristica.canonical import canonicalize_solution, validate_solution
 from metaheuristica.errors import ConfigurationError, SolutionValidationError
+from experiments.map_styles import write_style_files
 from experiments.scenarios import file_sha256
 
 MANIFEST_SCHEMA_VERSION = "1.0.0"
@@ -340,3 +344,89 @@ def build_manifest(
         "combinations": sorted(combinations, key=lambda item: item["column"]),
         "references": references,
     }
+
+
+def instance_unit_counts(instances_dir: Path) -> dict[str, int]:
+    """Número de unidades de cada instância, derivado de `unit_ids`."""
+
+    return {f"artesp_rmsp_{size}": len(ids)
+            for size, ids in read_unit_ids(instances_dir).items()}
+
+
+def export(
+    *,
+    tables_dir: Path,
+    instances_dir: Path,
+    output_dir: Path,
+    unit_counts: dict[str, int] | None = None,
+    expected_runs: int = EXPECTED_RUNS,
+    expected_seeds: int = EXPECTED_SEEDS,
+    combinations: int = COMBINATIONS,
+) -> dict:
+    """Exporta o pacote cartográfico completo e devolve o relatório."""
+
+    runs_path = tables_dir / "benchmark_runs.parquet"
+    if not runs_path.exists():
+        raise ConfigurationError(f"ausente: {runs_path}")
+    counts = unit_counts if unit_counts is not None else instance_unit_counts(instances_dir)
+    selected = select_best_runs(
+        pd.read_parquet(runs_path), unit_counts=counts,
+        expected_runs=expected_runs, expected_seeds=expected_seeds,
+        combinations=combinations,
+    )
+    aligned = align_selected(selected)
+    unit_ids = read_unit_ids(instances_dir)
+    itinerarios = build_itinerarios(instances_dir, aligned)
+    envoltorias = build_envoltorias(itinerarios, aligned, unit_ids)
+    terminais = gpd.read_file(instances_dir / f"{UNIVERSE}.gpkg", layer="terminais")
+
+    gpkg = write_gpkg(
+        output_dir / "lot_assignments.gpkg",
+        {"itinerarios": itinerarios, "envoltorias": envoltorias,
+         "terminais": terminais},
+    )
+    manifest = build_manifest(
+        runs_path, instances_dir, aligned,
+        generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    )
+    manifest_path = atomic_write_text(
+        output_dir / "lot_maps_manifest.json",
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    )
+    styles = write_style_files(output_dir / "qml", panels=style_panels(),
+                               nesting=nesting_entries(), writer=atomic_write_text)
+    return {
+        "gpkg": str(gpkg), "manifest": str(manifest_path),
+        "qml": sorted(str(path) for path in styles.values()),
+        "combinations": len(aligned), "envoltorias": len(envoltorias),
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI de exportação: só os três diretórios são configuráveis.
+
+    Os limiares de recusa (`expected_runs`, `expected_seeds`, `combinations`)
+    não viram flags: a spec manda recusar recorte incompleto, e uma flag
+    deixaria essa recusa desligável por quem chama a CLI.
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Exportação cartográfica dos agrupamentos (B15)"
+    )
+    parser.add_argument("--tables-dir", type=Path, default=Path("results/tables"))
+    parser.add_argument("--instances-dir", type=Path, default=Path("data/instances"))
+    parser.add_argument("--output-dir", type=Path, default=Path("results/maps"))
+    arguments = parser.parse_args(argv)
+    try:
+        report = export(tables_dir=arguments.tables_dir,
+                        instances_dir=arguments.instances_dir,
+                        output_dir=arguments.output_dir)
+        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+        return 0
+    except ConfigurationError as error:
+        print(f"erro: {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

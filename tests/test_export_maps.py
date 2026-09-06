@@ -22,6 +22,7 @@ from experiments.export_maps import (
     build_itinerarios,
     build_manifest,
     column_name,
+    export,
     nesting_entries,
     read_unit_ids,
     select_best_runs,
@@ -69,6 +70,15 @@ def _select(runs, **overrides):
                  "expected_seeds": 30, "combinations": 3}
     arguments.update(overrides)
     return select_best_runs(runs, **arguments)
+
+
+def _runs_for_export(tmp_path, directory):
+    tables = tmp_path / "tables"
+    tables.mkdir()
+    runs = _runs_frame(instances=("artesp_rmsp_150",), k_values=(2,))
+    runs["solution_json"] = json.dumps([0, 0, 0, 1, 1, 1])
+    runs.to_parquet(tables / "benchmark_runs.parquet", index=False)
+    return tables
 
 
 def test_select_best_runs_picks_lowest_cost_per_combination():
@@ -802,3 +812,73 @@ def test_nesting_colors_cover_every_label_the_data_uses():
 def test_lot_colors_are_distinct_and_cover_the_largest_k():
     # `len(LOT_COLORS) >= 8` passaria com oito cores identicas.
     assert len(set(LOT_COLORS)) >= 8
+
+
+def test_export_writes_every_artifact(tmp_path):
+    directory = _instances_dir(tmp_path)
+    tables = _runs_for_export(tmp_path, directory)
+    output = tmp_path / "maps"
+    report = export(tables_dir=tables, instances_dir=directory, output_dir=output,
+                    unit_counts=UNIT_COUNTS, expected_runs=90, expected_seeds=30,
+                    combinations=3)
+    assert report["combinations"] == 3
+    assert (output / "lot_maps_manifest.json").exists()
+    assert len(list((output / "qml").glob("*.qml"))) == 12
+    # As tres camadas, e nao so' a existencia do arquivo: sem esta asercao,
+    # remover `terminais` do pipeline nao quebraria teste nenhum.
+    assert sorted(name for name, _ in
+                  pyogrio.list_layers(output / "lot_assignments.gpkg")) == [
+        "envoltorias", "itinerarios", "terminais"]
+
+
+def test_export_is_deterministic_except_for_the_timestamp(tmp_path):
+    directory = _instances_dir(tmp_path)
+    tables = _runs_for_export(tmp_path, directory)
+    manifests, columns = [], []
+    for name in ("a", "b"):
+        output = tmp_path / name
+        export(tables_dir=tables, instances_dir=directory, output_dir=output,
+               unit_counts=UNIT_COUNTS, expected_runs=90, expected_seeds=30,
+               combinations=3)
+        manifest = json.loads(
+            (output / "lot_maps_manifest.json").read_text(encoding="utf-8"))
+        manifest.pop("generated_at")
+        manifests.append(manifest)
+        frame = gpd.read_file(output / "lot_assignments.gpkg", layer="itinerarios")
+        # `fillna(-1)`: a coluna volta do GPKG como float64 quando tem nulos, e
+        # NaN != NaN faria a comparacao falhar por motivo errado.
+        columns.append(frame.sort_values("unit_id")["lot_i150_tabu_k2"]
+                       .fillna(-1).tolist())
+    assert manifests[0] == manifests[1]
+    assert columns[0] == columns[1]
+
+
+def test_export_rejects_a_missing_parquet(tmp_path):
+    directory = _instances_dir(tmp_path)
+    with pytest.raises(ConfigurationError, match="benchmark_runs.parquet"):
+        export(tables_dir=tmp_path / "vazio", instances_dir=directory,
+               output_dir=tmp_path / "maps", unit_counts=UNIT_COUNTS,
+               expected_runs=90, expected_seeds=30, combinations=3)
+
+
+def test_export_writes_the_styles_through_the_atomic_writer(tmp_path, monkeypatch):
+    # Sem esta asercao, um `export` que omitisse `writer=atomic_write_text` ao
+    # chamar `write_style_files` ainda escreveria os doze `.qml` pelo writer
+    # padrao (nao atomico) e passaria pela suite inteira sem ser percebido.
+    directory = _instances_dir(tmp_path)
+    tables = _runs_for_export(tmp_path, directory)
+    output = tmp_path / "maps"
+    usados = []
+    original = export_maps.atomic_write_text
+
+    def _espia(path, content):
+        usados.append(Path(path))
+        return original(path, content)
+
+    monkeypatch.setattr(export_maps, "atomic_write_text", _espia)
+    export(tables_dir=tables, instances_dir=directory, output_dir=output,
+           unit_counts=UNIT_COUNTS, expected_runs=90, expected_seeds=30,
+           combinations=3)
+    qml = sorted((output / "qml").glob("*.qml"))
+    assert len(qml) == 12
+    assert set(qml) <= set(usados)
