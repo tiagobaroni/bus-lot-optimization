@@ -484,7 +484,8 @@ foram escritos, por serem o fechamento dos blocos anteriores.
   Tabu**, porque ela tem o menor custo, entre as 30 seeds, nas 18 combinações
   instância×K — não é constante suspeita, é o mecanismo de alinhamento
   funcionando;
-- o trabalho está na branch `b15-mapas`, commits `cbf460b` a `8741097`, ainda
+- o trabalho está na branch `b15-mapas`, commits de implementação
+  `cbf460b` a `8741097`, com o fecho em documentação depois deles, ainda
   não integrada à `main`; a integração é decisão do usuário, depois de uma
   revisão final da branch inteira;
 - **a B14 continua retida**: o fecho da B15 não a libera, e a liberação

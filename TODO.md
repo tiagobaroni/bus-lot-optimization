@@ -1613,8 +1613,9 @@ por combinação×lote) e `terminais` (311 polígonos de contexto); o manifesto
 `results/maps/qml/`. As 18 chaves de referência do alinhamento no manifesto
 apontam todas para a Busca Tabu, porque ela tem o menor custo, entre as 30
 seeds, nas 18 combinações instância×K — não é constante suspeita, é o
-mecanismo de alinhamento funcionando. Trabalho na branch `b15-mapas`, commits `cbf460b` a
-`8741097`, ainda não integrada à `main`. **A B14 continua retida**: o fecho da
+mecanismo de alinhamento funcionando. Trabalho na branch `b15-mapas`, commits
+de implementação `cbf460b` a `8741097`, com o fecho em documentação depois
+deles, ainda não integrada à `main`. **A B14 continua retida**: o fecho da
 B15 não a libera, e a liberação continua exigindo decisão explícita do
 usuário. **Próxima ação atômica: o usuário confere no QGIS os nove painéis do
 recorte `K=5`**, aplicando `itinerarios_aninhamento.qml` e um dos nove painéis,
