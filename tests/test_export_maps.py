@@ -49,7 +49,9 @@ def test_select_best_runs_picks_lowest_cost_per_combination():
 
 
 def test_select_best_runs_breaks_cost_ties_by_lowest_seed():
-    runs = _runs_frame()
+    # Seeds em ordem decrescente para forcar a ordenacao a realmente
+    # selecionar a seed minima, nao apenas preservar a ordem de insercao.
+    runs = _runs_frame(seeds=range(39, 9, -1))
     runs["total_cost"] = 0.5
     assert set(_select(runs)["seed"]) == {10}
 

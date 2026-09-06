@@ -11,7 +11,6 @@ from metaheuristica.errors import ConfigurationError, SolutionValidationError
 
 INSTANCE_SIZES = (20, 60, 150)
 ALGORITHMS = ("tabu", "aco", "pso")
-K_VALUES = (3, 4, 5, 6, 7, 8)
 EXPECTED_RUNS = 1620
 EXPECTED_SEEDS = 30
 COMBINATIONS = 54
