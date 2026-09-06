@@ -662,6 +662,13 @@ de subconjunto do QGIS:
 instance = 'artesp_rmsp_60' AND algorithm = 'tabu' AND k = 5
 ```
 
+Para carregar um `.qml` no QGIS: Propriedades da camada, aba Simbologia, botão
+Estilo, Carregar estilo, e apontar para o arquivo desejado em
+`results/maps/qml/`. Os demais 45 cenários (fora do recorte `K=5`) já estão
+nas colunas `lot_i<N>_<algoritmo>_k<K>` da camada `itinerarios`, sem `.qml`
+pronto: basta reaplicar a simbologia categorizada de um dos nove painéis
+apontando-a para a coluna correspondente.
+
 ## Licença
 
 Este projeto é distribuído sob a licença MIT. Consulte o arquivo [`LICENSE`](LICENSE).

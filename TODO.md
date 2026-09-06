@@ -1603,7 +1603,7 @@ comparáveis entre métodos, e a diferença visível entre eles é diferença de
 partição, não de renumeração de lotes.
 
 **Checkpoint de retomada (06/09/2026).** Tudo que não depende do usuário está
-verificado; só falta a conferência visual no QGIS. Suíte de testes com **624
+verificado; só falta a conferência visual no QGIS. Suíte de testes com **625
 aprovados** (`uv run pytest tests/ -q`), contra 564 antes do bloco. O exportador
 roda com `uv run python -m experiments.export_maps` e escreve
 `results/maps/lot_assignments.gpkg`, com **3,4 MB** e as camadas `itinerarios`
@@ -1611,9 +1611,11 @@ roda com `uv run python -m experiments.export_maps` e escreve
 por combinação×lote) e `terminais` (311 polígonos de contexto); o manifesto
 `results/maps/lot_maps_manifest.json`; e os doze estilos `.qml` em
 `results/maps/qml/`. As 18 chaves de referência do alinhamento no manifesto
-apontam todas para a Busca Tabu, porque ela tem o menor custo, entre as 30
-seeds, nas 18 combinações instância×K — não é constante suspeita, é o
-mecanismo de alinhamento funcionando. Trabalho na branch `b15-mapas`, commits
+apontam todas para a Busca Tabu, por ter o menor custo nas 18 combinações
+instância×K — em duas delas, `artesp_rmsp_20` com K=3 e com K=4, o PSO empata
+o custo exatamente com a Busca Tabu, e o desempate é resolvido pela ordem
+`tabu, aco, pso` — não é constante suspeita, é o mecanismo de alinhamento
+funcionando. Trabalho na branch `b15-mapas`, commits
 de implementação `cbf460b` a `8741097`, com o fecho em documentação depois
 deles, ainda não integrada à `main`. **A B14 continua retida**: o fecho da
 B15 não a libera, e a liberação continua exigindo decisão explícita do

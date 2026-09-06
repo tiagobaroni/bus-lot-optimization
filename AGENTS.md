@@ -472,7 +472,7 @@ foram escritos, por serem o fechamento dos blocos anteriores.
   visual dos nove painéis do recorte `K=5`, é do usuário e não foi executada
   aqui — é a única verificação real de que o QGIS aceita os `.qml`, já que os
   testes só provam XML bem-formado com a cor ligada à categoria;
-- a suíte de testes está em **624 aprovados** (`uv run pytest tests/ -q`),
+- a suíte de testes está em **625 aprovados** (`uv run pytest tests/ -q`),
   contra 564 antes do bloco;
 - o exportador roda com `uv run python -m experiments.export_maps` e escreve
   `results/maps/lot_assignments.gpkg`, com **3,4 MB** e as camadas
@@ -481,9 +481,10 @@ foram escritos, por serem o fechamento dos blocos anteriores.
   contexto); o manifesto de proveniência `results/maps/lot_maps_manifest.json`;
   e os doze estilos `.qml` em `results/maps/qml/`;
 - **as 18 chaves de referência do alinhamento apontam todas para a Busca
-  Tabu**, porque ela tem o menor custo, entre as 30 seeds, nas 18 combinações
-  instância×K — não é constante suspeita, é o mecanismo de alinhamento
-  funcionando;
+  Tabu**, por ter o menor custo nas 18 combinações instância×K — em duas
+  delas, `artesp_rmsp_20` com K=3 e com K=4, o PSO empata o custo exatamente
+  com a Busca Tabu, e o desempate é resolvido pela ordem `tabu, aco, pso` —
+  não é constante suspeita, é o mecanismo de alinhamento funcionando;
 - o trabalho está na branch `b15-mapas`, commits de implementação
   `cbf460b` a `8741097`, com o fecho em documentação depois deles, ainda
   não integrada à `main`; a integração é decisão do usuário, depois de uma

@@ -487,7 +487,7 @@
       "total_cost": 0.20366265663076163
     }
   ],
-  "generated_at": "2026-09-06T16:51:22+00:00",
+  "generated_at": "2026-09-06T17:59:48+00:00",
   "instances": {
     "artesp_rmsp_150": {
       "gpkg_path": "data/instances/artesp_rmsp_150.gpkg",
@@ -506,6 +506,52 @@
       "gpkg_sha256": "285f42efeda0fec6afbcfca2815375e54c7c624ab09c15c9474b884f7ef7763a",
       "json_path": "data/instances/artesp_rmsp_60.json",
       "json_sha256": "a819812f87c91553dd10e34b0de92cd0d048832e9f3ee01a7e7314e118d1d412"
+    }
+  },
+  "provenance": {
+    "architecture": "x86_64",
+    "cpu_count": 32,
+    "dirty_sha256": "e756b0ded780fd07423aec871ed8427f255d3ec1ac95105bc0fb4c6ecfd635c4",
+    "geospatial_stack": {
+      "geopandas": "1.1.4",
+      "pyogrio": "0.13.0",
+      "scipy": "1.18.1",
+      "shapely": "2.1.2"
+    },
+    "git_commit": "bcf9f2897f62e399c3782a5d0e9a6153c3a19661",
+    "git_dirty": true,
+    "inherited_thread_limits": {
+      "ARROW_NUM_THREADS": null,
+      "BLIS_NUM_THREADS": null,
+      "MKL_NUM_THREADS": null,
+      "NUMEXPR_NUM_THREADS": null,
+      "OMP_NUM_THREADS": null,
+      "OPENBLAS_NUM_THREADS": null,
+      "VECLIB_MAXIMUM_THREADS": null
+    },
+    "kernel": "7.0.0-31-generic",
+    "nonofficial_reasons": [
+      "dirty_worktree"
+    ],
+    "official": false,
+    "packages": {
+      "bus-lot-optimization": "0.1.0",
+      "matplotlib": "3.11.1",
+      "numpy": "2.5.2",
+      "pandas": "3.0.5",
+      "pyarrow": "25.0.1"
+    },
+    "processor": "x86_64",
+    "python": "3.14.3",
+    "system": "Linux",
+    "thread_limits": {
+      "ARROW_NUM_THREADS": "1",
+      "BLIS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1",
+      "NUMEXPR_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "VECLIB_MAXIMUM_THREADS": "1"
     }
   },
   "references": {

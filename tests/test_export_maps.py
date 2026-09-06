@@ -39,6 +39,10 @@ from experiments.map_styles import (
 
 UNIT_COUNTS = {"artesp_rmsp_20": 6, "artesp_rmsp_60": 6, "artesp_rmsp_150": 6}
 
+# Proveniencia falsa para testes de `build_manifest` que nao versam sobre
+# proveniencia em si: evita repetir git de verdade em cada teste de conteudo.
+FAKE_PROVENANCE = {"git_commit": "deadbeef", "git_dirty": False, "dirty_sha256": None}
+
 
 def _solution(k: int, n_units: int = 6) -> list[int]:
     # Solucao valida: exatamente k lotes nao vazios sobre n_units unidades.
@@ -72,7 +76,7 @@ def _select(runs, **overrides):
     return select_best_runs(runs, **arguments)
 
 
-def _runs_for_export(tmp_path, directory):
+def _runs_for_export(tmp_path):
     tables = tmp_path / "tables"
     tables.mkdir()
     runs = _runs_frame(instances=("artesp_rmsp_150",), k_values=(2,))
@@ -253,13 +257,16 @@ def test_align_selected_stores_the_canonical_labels_of_the_reference():
 def test_align_selected_breaks_cost_ties_by_tabu_aco_pso_order():
     # Os tres `total_cost` sao iguais: sem o desempate `tabu, aco, pso`, a
     # escolha da referencia dependeria da ordem de insercao das linhas.
+    # Linhas inseridas em `pso, aco, tabu` de proposito: a ordenacao estavel
+    # do pandas nao pode devolver `tabu` por acidente de posicao de insercao,
+    # so' porque o criterio `_order` de fato a colocou primeiro.
     selected = pd.DataFrame([
-        {"instance": "i", "algorithm": "tabu", "k": 3, "seed": 10, "total_cost": 0.5,
-         "scenario_id": "a", "solution": DISCRIMINATING_REFERENCE},
-        {"instance": "i", "algorithm": "aco", "k": 3, "seed": 11, "total_cost": 0.5,
-         "scenario_id": "b", "solution": DISCRIMINATING_OTHER},
         {"instance": "i", "algorithm": "pso", "k": 3, "seed": 12, "total_cost": 0.5,
          "scenario_id": "c", "solution": [2, 2, 0, 0, 1, 1]},
+        {"instance": "i", "algorithm": "aco", "k": 3, "seed": 11, "total_cost": 0.5,
+         "scenario_id": "b", "solution": DISCRIMINATING_OTHER},
+        {"instance": "i", "algorithm": "tabu", "k": 3, "seed": 10, "total_cost": 0.5,
+         "scenario_id": "a", "solution": DISCRIMINATING_REFERENCE},
     ])
     aligned = align_selected(selected)
     assert set(aligned["reference_algorithm"]) == {"tabu"}
@@ -267,14 +274,15 @@ def test_align_selected_breaks_cost_ties_by_tabu_aco_pso_order():
 
 def test_align_selected_breaks_ties_among_non_reference_methods_too():
     # `tabu` e' o mais caro; `aco` e `pso` empatam entre si. O desempate tem
-    # de escolher `aco` pela ordem `tabu, aco, pso`, nao `pso`.
+    # de escolher `aco` pela ordem `tabu, aco, pso`, nao `pso`. Linhas
+    # inseridas em `pso, aco, tabu` pelo mesmo motivo do teste anterior.
     selected = pd.DataFrame([
-        {"instance": "i", "algorithm": "tabu", "k": 3, "seed": 10, "total_cost": 0.9,
-         "scenario_id": "a", "solution": DISCRIMINATING_REFERENCE},
-        {"instance": "i", "algorithm": "aco", "k": 3, "seed": 11, "total_cost": 0.2,
-         "scenario_id": "b", "solution": DISCRIMINATING_OTHER},
         {"instance": "i", "algorithm": "pso", "k": 3, "seed": 12, "total_cost": 0.2,
          "scenario_id": "c", "solution": [2, 2, 0, 0, 1, 1]},
+        {"instance": "i", "algorithm": "aco", "k": 3, "seed": 11, "total_cost": 0.2,
+         "scenario_id": "b", "solution": DISCRIMINATING_OTHER},
+        {"instance": "i", "algorithm": "tabu", "k": 3, "seed": 10, "total_cost": 0.9,
+         "scenario_id": "a", "solution": DISCRIMINATING_REFERENCE},
     ])
     aligned = align_selected(selected)
     assert set(aligned["reference_algorithm"]) == {"aco"}
@@ -499,8 +507,13 @@ def test_build_envoltorias_creates_one_polygon_per_lot(tmp_path):
 def test_build_envoltorias_computes_area_in_the_metric_crs(tmp_path):
     # Em graus, a area destes cascos sairia na casa de 1e-6; em km2, de 1e4.
     # A asercao de magnitude separa a implementacao que nunca reprojeta.
+    # O teto fecha o outro lado: com a geometria desta fixture, os dois
+    # cascos ficam entre 51.367 e 57.692 km2; um fator de conversao errado
+    # por mil (`hull.area / 1e3` em vez de `/ 1e6`) os levaria para a casa
+    # dos 51-57 MILHOES de km2, bem acima do teto.
     envoltorias = _envoltorias(tmp_path, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])
     assert envoltorias["area_km2"].min() > 1.0
+    assert envoltorias["area_km2"].max() < 100_000.0
 
 
 def test_build_envoltorias_returns_geographic_coordinates(tmp_path):
@@ -521,6 +534,12 @@ def test_build_envoltorias_marks_the_degenerate_lot(tmp_path):
     assert single["degenerado"]
     assert single.geometry.geom_type == "Polygon"
     assert single["n_units"] == 1
+    # Com esta fixture e o buffer de 50 m declarado, a area do lote
+    # degenerado fica perto de 17,3 km2. Um buffer de 500 m no lugar do de
+    # 50 m (`DEGENERATE_BUFFER_METERS` errado por uma ordem de grandeza) a
+    # levaria para perto de 173,6 km2, acima do teto: e' este teste, e nao o
+    # de area em geral, que de fato exercita o ramo do buffer degenerado.
+    assert single["area_km2"] < 50.0
     # E o lote normal do mesmo cenario nao pode vir marcado.
     assert not envoltorias[envoltorias["lot"] == 1].iloc[0]["degenerado"]
 
@@ -616,7 +635,8 @@ def test_build_manifest_records_the_real_source_digest(tmp_path):
     aligned = pd.DataFrame([_aligned_row(
         "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
     manifest = build_manifest(runs_path, directory, aligned,
-                              generated_at="2026-09-06T00:00:00")
+                              generated_at="2026-09-06T00:00:00",
+                              provenance=FAKE_PROVENANCE)
     # Comparar com o digest conhecido, e nao so' afirmar que a chave e' verdadeira:
     # `assert manifest[...]["content_sha256"]` passa com o sha de qualquer coisa.
     assert manifest["source"]["content_sha256"] == \
@@ -639,7 +659,8 @@ def test_build_manifest_lists_every_combination_with_its_winning_seed(tmp_path):
                      seed=33, cost=0.3, scenario="p"),
     ])
     manifest = build_manifest(runs_path, directory, aligned,
-                              generated_at="2026-09-06T00:00:00")
+                              generated_at="2026-09-06T00:00:00",
+                              provenance=FAKE_PROVENANCE)
     by_column = {item["column"]: item for item in manifest["combinations"]}
     assert by_column["lot_i150_tabu_k2"]["seed"] == 11
     assert by_column["lot_i60_aco_k2"]["seed"] == 22
@@ -654,7 +675,8 @@ def test_build_manifest_records_path_and_digest_of_every_instance(tmp_path):
     aligned = pd.DataFrame([_aligned_row(
         "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
     manifest = build_manifest(runs_path, directory, aligned,
-                              generated_at="2026-09-06T00:00:00")
+                              generated_at="2026-09-06T00:00:00",
+                              provenance=FAKE_PROVENANCE)
     entry = manifest["instances"]["artesp_rmsp_20"]
     # A spec, secao 6.4, pede caminho E sha de cada instancia consumida, e
     # nenhum sha pode ser nulo: instancia sem arquivo e' caso de recusa.
@@ -686,7 +708,8 @@ def test_build_manifest_rejects_a_missing_instance_file(tmp_path, missing_suffix
         "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
     with pytest.raises(ConfigurationError, match="instância ausente"):
         build_manifest(runs_path, directory, aligned,
-                       generated_at="2026-09-06T00:00:00")
+                       generated_at="2026-09-06T00:00:00",
+                       provenance=FAKE_PROVENANCE)
 
 
 def test_categorized_qml_is_well_formed_and_points_at_the_attribute():
@@ -816,7 +839,7 @@ def test_lot_colors_are_distinct_and_cover_the_largest_k():
 
 def test_export_writes_every_artifact(tmp_path):
     directory = _instances_dir(tmp_path)
-    tables = _runs_for_export(tmp_path, directory)
+    tables = _runs_for_export(tmp_path)
     output = tmp_path / "maps"
     report = export(tables_dir=tables, instances_dir=directory, output_dir=output,
                     unit_counts=UNIT_COUNTS, expected_runs=90, expected_seeds=30,
@@ -831,9 +854,34 @@ def test_export_writes_every_artifact(tmp_path):
         "envoltorias", "itinerarios", "terminais"]
 
 
+def test_export_records_provenance_and_the_geospatial_stack(tmp_path):
+    # A cultura dos demais manifestos do projeto (benchmark_manifest.json,
+    # greedy_manifest.json, tuning_manifest.json) e' carregar um bloco
+    # `provenance`. Dos 54 alinhamentos, 10 tem otimo nao unico no
+    # `linear_sum_assignment`, e quem decide o desempate e' a versao do scipy;
+    # sem proveniencia registrada, o artefato versionado nao diz o que o
+    # produziu.
+    directory = _instances_dir(tmp_path)
+    tables = _runs_for_export(tmp_path)
+    output = tmp_path / "maps"
+    export(tables_dir=tables, instances_dir=directory, output_dir=output,
+           unit_counts=UNIT_COUNTS, expected_runs=90, expected_seeds=30,
+           combinations=3)
+    manifest = json.loads(
+        (output / "lot_maps_manifest.json").read_text(encoding="utf-8"))
+    provenance = manifest["provenance"]
+    assert provenance["git_commit"]
+    # `scipy` decide os empates de alinhamento; `geopandas`, `pyogrio` e
+    # `shapely` decidem a geometria escrita no GPKG. Nenhum dos quatro entra
+    # na tupla congelada de `capture_provenance`.
+    stack = provenance["geospatial_stack"]
+    for package in ("scipy", "geopandas", "pyogrio", "shapely"):
+        assert stack[package]
+
+
 def test_export_is_deterministic_except_for_the_timestamp(tmp_path):
     directory = _instances_dir(tmp_path)
-    tables = _runs_for_export(tmp_path, directory)
+    tables = _runs_for_export(tmp_path)
     manifests, columns = [], []
     for name in ("a", "b"):
         output = tmp_path / name
@@ -866,7 +914,7 @@ def test_export_writes_the_styles_through_the_atomic_writer(tmp_path, monkeypatc
     # chamar `write_style_files` ainda escreveria os doze `.qml` pelo writer
     # padrao (nao atomico) e passaria pela suite inteira sem ser percebido.
     directory = _instances_dir(tmp_path)
-    tables = _runs_for_export(tmp_path, directory)
+    tables = _runs_for_export(tmp_path)
     output = tmp_path / "maps"
     usados = []
     original = export_maps.atomic_write_text

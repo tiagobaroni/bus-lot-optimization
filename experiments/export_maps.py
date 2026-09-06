@@ -9,6 +9,7 @@ import sys
 import tempfile
 from collections.abc import Sequence
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import geopandas as gpd
@@ -19,7 +20,18 @@ from scipy.optimize import linear_sum_assignment
 from metaheuristica.canonical import canonicalize_solution, validate_solution
 from metaheuristica.errors import ConfigurationError, SolutionValidationError
 from experiments.map_styles import write_style_files
+from experiments.provenance import capture_provenance
 from experiments.scenarios import file_sha256
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+# Pacotes que decidem os empates de alinhamento (`scipy`) e a geometria do
+# pacote cartográfico (`geopandas`, `pyogrio`, `shapely`), registrados à parte
+# de `capture_provenance`. A tupla de pacotes do helper cobre numpy, pandas,
+# pyarrow, matplotlib e o próprio projeto, e não inclui nenhum dos quatro
+# acima; mudar essa tupla arriscaria os manifestos oficiais que já a
+# congelam, então a B15 os registra em bloco próprio, no mesmo padrão.
+GEOSPATIAL_PACKAGES = ("scipy", "geopandas", "pyogrio", "shapely")
 
 MANIFEST_SCHEMA_VERSION = "1.0.0"
 
@@ -302,12 +314,36 @@ def write_gpkg(path: Path, layers: dict[str, gpd.GeoDataFrame]) -> Path:
     return path
 
 
+def geospatial_stack_versions() -> dict[str, str | None]:
+    """Versões de `scipy`, `geopandas`, `pyogrio` e `shapely`.
+
+    Registradas fora de `capture_provenance` por decisão deliberada: dos 54
+    alinhamentos da B15, 10 têm atribuição ótima não única em
+    `scipy.optimize.linear_sum_assignment` — outra permutação de rótulos
+    empata na mesma sobreposição máxima —, e qual delas sai depende do
+    desempate interno do `scipy`. Um deles, `lot_i20_aco_k5`, é um dos nove
+    painéis de destaque, e a atribuição alternativa recoloriria 8 das 20
+    linhas do painel. A pilha geoespacial, por sua vez, decide a geometria
+    escrita no GPKG. Nenhum dos quatro entra na tupla congelada de pacotes de
+    `capture_provenance`, e essa tupla não é alterada aqui.
+    """
+
+    versions: dict[str, str | None] = {}
+    for package in GEOSPATIAL_PACKAGES:
+        try:
+            versions[package] = version(package)
+        except PackageNotFoundError:
+            versions[package] = None
+    return versions
+
+
 def build_manifest(
     runs_path: Path,
     instances_dir: Path,
     aligned: pd.DataFrame,
     *,
     generated_at: str,
+    provenance: dict,
 ) -> dict:
     """Proveniência da exportação, na forma dos demais manifestos do projeto."""
 
@@ -343,6 +379,7 @@ def build_manifest(
         "instances": instances,
         "combinations": sorted(combinations, key=lambda item: item["column"]),
         "references": references,
+        "provenance": {**provenance, "geospatial_stack": geospatial_stack_versions()},
     }
 
 
@@ -364,6 +401,13 @@ def export(
     combinations: int = COMBINATIONS,
 ) -> dict:
     """Exporta o pacote cartográfico completo e devolve o relatório."""
+
+    # Capturada antes de qualquer escrita de artefato: se viesse depois, o
+    # próprio GPKG recém-escrito sujaria a árvore e o registro seria falso.
+    # `allow_dirty=True` é deliberado — recusar a exportação por árvore suja
+    # seria hostil a uma tarefa cartográfica; `git_dirty` e `dirty_sha256`
+    # registram a verdade do estado sem bloquear a exportação.
+    provenance = capture_provenance(REPOSITORY_ROOT, allow_dirty=True)
 
     runs_path = tables_dir / "benchmark_runs.parquet"
     if not runs_path.exists():
@@ -388,6 +432,7 @@ def export(
     manifest = build_manifest(
         runs_path, instances_dir, aligned,
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        provenance=provenance,
     )
     manifest_path = atomic_write_text(
         output_dir / "lot_maps_manifest.json",
