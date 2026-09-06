@@ -884,6 +884,168 @@ paralelizável nesse desenho, por depender do estado parcial já construído a
 cada posição -- domina $98{,}7\%$ do tempo de execução de uma geração. A
 Busca Tabu não foi objeto deste estudo adicional de GPU.
 
+\section{Análise espacial dos agrupamentos}
+\label{sec:analise-espacial}
+
+As seções anteriores compararam os três algoritmos por indicadores
+agregados: custo total, componentes, tempo, escalabilidade e
+significância estatística. Nenhum desses indicadores diz onde, no
+território, os lotes efetivamente ficaram. Esta seção examina a forma
+espacial das soluções, que é o critério pelo qual um lote operacional é
+julgado na prática.
+
+As três figuras a seguir mostram a melhor solução de cada algoritmo para
+a instância de 150 unidades com $K=5$, sobre a Região Metropolitana de
+São Paulo. Cada cor representa um lote, e as cores são comparáveis entre
+as três figuras: os rótulos de lote foram alinhados entre os métodos por
+sobreposição máxima, de modo que a mesma cor identifica o mesmo conjunto
+de linhas sempre que os algoritmos concordam. Sem esse alinhamento, os
+rótulos seriam inteiros arbitrários e as três figuras pareceriam
+maximamente diferentes por artefato de numeração.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figuras/mapa_tabu_k5.png}
+  \caption{Busca Tabu, instância de 150 unidades, $K=5$. Os lotes formam
+  regiões contíguas e reconhecíveis, com poucas linhas destacadas de sua
+  concentração principal.}
+  \label{fig:mapa-tabu}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figuras/mapa_aco_k5.png}
+  \caption{ACO, instância de 150 unidades, $K=5$. O padrão é semelhante
+  ao da Busca Tabu, também com lotes territorialmente coesos.}
+  \label{fig:mapa-aco}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figuras/mapa_pso_k5.png}
+  \caption{PSO com Random Keys, instância de 150 unidades, $K=5$. Os
+  lotes se interpenetram: uma mesma vizinhança concentra linhas de dois
+  ou mais lotes distintos.}
+  \label{fig:mapa-pso}
+\end{figure}
+
+\subsection{O que as figuras mostram}
+
+A Busca Tabu (Figura~\ref{fig:mapa-tabu}) e o ACO
+(Figura~\ref{fig:mapa-aco}) produzem lotes territorialmente coesos: cada
+cor ocupa uma região reconhecível do território metropolitano, e um
+operador poderia descrever seu lote por referência geográfica. O PSO
+(Figura~\ref{fig:mapa-pso}) produz o oposto: os lotes se interpenetram, e
+uma mesma cidade ou vizinhança concentra linhas atribuídas a dois ou mais
+lotes distintos.
+
+A diferença tem consequência operacional direta, e não apenas estética.
+Se lotes distintos correspondem a operadores distintos, a solução do PSO
+implica duas ou mais empresas atendendo o mesmo território, com
+sobreposição de itinerários, de pontos de parada e de necessidades de
+apoio. Isso multiplica custos fixos, dificulta a fiscalização por área e
+complica qualquer racionalização futura da rede. É uma configuração que
+seria difícil de administrar no mundo real, independentemente do valor da
+função objetivo que a produziu.
+
+\subsection{Por que os três algoritmos divergem}
+
+A explicação está na relação entre a estrutura de cada algoritmo e a
+forma como a informação territorial chega até ele.
+
+O componente territorial $C_T$ da função objetivo
+(Equação~\ref{eq:custo-total}) é uma razão entre a massa de sobreposição
+cortada pela partição e a massa total: penaliza separar, em lotes
+distintos, linhas cujos buffers de 200 m se sobrepõem. Essa informação
+existe para os três algoritmos, mas cada um a recebe de uma forma
+diferente.
+
+A Busca Tabu opera pelo movimento \texttt{move(i, origem, destino)}, que
+realoca uma unidade por vez, e avalia cada movimento candidato
+individualmente. Mover uma linha para longe daquelas com as quais ela se
+sobrepõe eleva $C_T$ de imediato, e esse movimento perde para outro na
+mesma amostra de vizinhança. O crédito pela decisão é atribuído à unidade
+movida.
+
+O ACO constrói a solução unidade a unidade e, a cada escolha, calcula o
+custo parcial da alocação candidata, convertendo-o na informação
+heurística $\eta_{i,k}$. Esse custo parcial inclui o componente
+territorial, de modo que a formiga, ao decidir o lote da unidade $i$,
+enxerga o efeito territorial daquela decisão específica. O feromônio
+$\tau_{i,k}$ depois reforça as alocações que participaram de boas
+soluções completas. Também aqui a informação territorial é local e
+dirigida à decisão individual.
+
+O PSO com Random Keys não tem nenhum desses mecanismos. Sua decodificação
+é independente por coordenada: cada chave $x_i$ é discretizada
+isoladamente em $\text{lote}(x_i)=\min(\lfloor K x_i\rfloor, K-1)$, sem
+qualquer interação entre unidades. Duas linhas territorialmente
+sobrepostas ocupam coordenadas que não se comunicam, e nada na
+representação ou nos operadores de posição e velocidade faz com que elas
+tendam ao mesmo lote. A única informação territorial que o enxame recebe
+é o valor escalar da função objetivo, calculado \emph{depois} da
+decodificação, agregado sobre todos os pares e diluído a um quarto do
+custo total pelos pesos iguais. O PSO sabe que uma solução inteira é
+melhor ou pior; não sabe qual par de linhas foi cortado, nem qual
+coordenada é responsável.
+
+Essa é a raiz da diferença: Busca Tabu e ACO atribuem crédito a decisões
+individuais de alocação, e o PSO na formulação adotada não atribui. A
+coesão espacial é uma propriedade que emerge de decisões locais bem
+informadas, e é justamente essa informação local que a adaptação Random
+Keys não transporta.
+
+\subsection{As distorções que permanecem em ACO e Busca Tabu}
+
+Mesmo nas duas soluções coesas restam linhas isoladas, deslocadas da
+concentração principal do lote a que pertencem. Não se trata de falha de
+convergência: é consequência direta da forma de $C_T$.
+
+Como $C_T$ é a razão entre massa de sobreposição cortada e massa total,
+uma linha que não se sobrepõe a nenhuma outra contribui com massa
+próxima de zero, e sua alocação praticamente não altera o componente
+territorial. Medindo a instância de 150 unidades, a massa territorial por
+unidade --- a soma de $S_{ij}$ sobre todos os pares que a contêm --- tem
+mediana de $2{,}781$, mas as quinze unidades do decil inferior somam
+apenas $1{,}58\,\%$ de toda a massa de sobreposição do problema, e a mais
+isolada delas registra $0{,}081$, cerca de trinta e quatro vezes abaixo
+da mediana. Para essas linhas, o custo territorial é quase cego: movê-las
+de um lote a outro altera $C_T$ em quantidade desprezível, e quem decide
+sua alocação são os componentes de equilíbrio $C_D$ e $C_P$, que podem
+empurrá-las para qualquer lote que precise de carga.
+
+Dito de outro modo, a função objetivo penaliza \emph{cortar vizinhança
+existente}, mas não penaliza \emph{dispersão geográfica}. Não há termo de
+compacidade --- diâmetro do lote, raio, distância ao centroide --- que
+torne custosa a alocação de uma linha periférica a um lote distante. As
+distorções observadas são, portanto, o comportamento correto do
+algoritmo sobre a função objetivo especificada, e indicam que é a
+formulação, e não a busca, que deve ser aprimorada.
+
+\subsection{A limitação de garagens e oficinas}
+
+Há uma segunda razão, esta de modelagem, para que a coesão obtida não
+corresponda inteiramente à coesão desejável na prática. A alocação real
+de linhas a operadores é fortemente condicionada pela localização das
+garagens e oficinas: um lote é operacionalmente viável quando suas linhas
+podem ser atendidas a partir de uma base comum, com percursos mortos
+curtos entre a base e os pontos inicial e final de cada itinerário.
+
+O modelo não incorpora essa dimensão. O levantamento das localizações de
+garagens e oficinas dos operadores não pôde ser realizado no prazo deste
+trabalho, e a decisão foi documentar a ausência como limitação em vez de
+substituí-la por uma aproximação não verificada. A consequência é que uma
+linha periférica pode ser atribuída a um lote geograficamente distante
+sem qualquer penalidade, quando na prática o percurso morto tornaria essa
+atribuição onerosa ou inviável.
+
+As duas limitações apontam para a mesma extensão: acrescentar à função
+objetivo um termo que capture distância, seja como medida de compacidade
+do lote, seja como custo de acesso a uma base de apoio cuja localização
+tenha sido levantada. Ambas mudam a formulação, não os algoritmos, e
+qualquer uma delas exigiria repetir o protocolo experimental completo
+descrito na Seção~4.
+
 \section{Discussão e conclusões}
 
 \subsection{Qual algoritmo é mais adequado}
@@ -1001,6 +1163,194 @@ trabalho como parâmetro externo, resolvido separadamente para cada valor
 entre 3 e 8 (Seção 5.7); uma extensão natural é a seleção endógena de $K$,
 incorporando seu custo institucional diretamente à otimização, em vez de
 deixá-lo para comparação a posteriori.
+
+\section{Guia de execução em máquina Linux}
+\label{sec:guia-execucao}
+
+Esta seção descreve, passo a passo, como reproduzir a execução do
+trabalho em uma máquina nova. O roteiro pressupõe um sistema
+\textbf{Linux}: os experimentos finais foram executados em Linux nativo,
+o monitor de recursos usado na automação depende de interfaces do sistema
+e os números de tempo relatados neste documento só são comparáveis nesse
+ambiente.
+
+Os algoritmos de CPU --- Busca Tabu, ACO e PSO --- podem ser executados
+livremente, sem hardware especial. A réplica em GPU, descrita na
+Seção~\ref{sec:guia-gpu} abaixo, \textbf{só pode ser executada em uma
+máquina que disponha de GPU NVIDIA compatível com CUDA 12}; sem ela, o
+Passo~7 deve simplesmente ser omitido, sem prejuízo para todo o restante.
+
+\subsection{Pré-requisitos}
+
+Instale, se ainda não estiverem presentes:
+
+\begin{itemize}
+  \item \texttt{git};
+  \item \textbf{Python 3.14}, versão exigida pelo projeto;
+  \item \textbf{uv}, o gerenciador de ambiente e dependências usado aqui.
+    A forma mais direta de instalá-lo, em Linux, é executar
+    \verb+curl -LsSf https://astral.sh/uv/install.sh | sh+.
+\end{itemize}
+
+Para compilar este relatório a partir da fonte é necessária, além disso,
+uma distribuição \LaTeX{} com \texttt{latexmk}; isso não é requisito para
+executar os algoritmos. Para visualizar os mapas da
+Seção~\ref{sec:analise-espacial} é necessário o QGIS 3.40 ou superior,
+também opcional.
+
+\subsection{Passo 1 --- obter o repositório}
+
+Em um diretório de trabalho de sua escolha:
+
+\begin{verbatim}
+git clone https://github.com/tiagobaroni/bus-lot-optimization.git
+cd bus-lot-optimization
+\end{verbatim}
+
+Todos os comandos seguintes devem ser executados a partir da raiz do
+repositório, isto é, do diretório \texttt{bus-lot-optimization} criado
+pelo comando acima.
+
+\subsection{Passo 2 --- obter os dados de origem}
+
+As três instâncias do estudo já acompanham o repositório, em
+\texttt{data/instances/}, e são suficientes para executar os algoritmos e
+reproduzir as análises. O que \emph{não} acompanha o repositório é o
+pacote-fonte bruto da ARTESP, do qual as instâncias foram geradas: ele
+não é versionado por ser volumoso e por não ser redistribuível junto do
+código.
+
+Esse pacote foi compactado e disponibilizado separadamente, e o link para
+download foi compartilhado por meio do Moodle da disciplina. Baixe o
+arquivo compactado e descompacte-o de modo que o conteúdo fique
+diretamente sob o diretório
+
+\begin{verbatim}
+_temp/dados_artesp/
+\end{verbatim}
+
+criando-o se necessário. Ao final, esse diretório deve conter os arquivos
+de dados de origem e o \texttt{manifest.json} que os descreve. O
+diretório \texttt{\_temp/} é ignorado pelo controle de versão, de modo que
+o pacote não interfere no estado do repositório.
+
+O pacote-fonte é necessário apenas para os três testes que reexecutam a
+geração das instâncias a partir dos dados brutos. Se preferir executar
+sem ele, o Passo~4 indica como declarar sua ausência.
+
+\subsection{Passo 3 --- preparar o ambiente}
+
+\begin{verbatim}
+uv sync --dev
+\end{verbatim}
+
+O comando lê \texttt{pyproject.toml} e \texttt{uv.lock} e instala as
+dependências nas versões exatas em que o trabalho foi executado. Nenhum
+outro passo de instalação é necessário: todos os comandos seguintes são
+prefixados por \texttt{uv run}, que resolve o ambiente automaticamente.
+
+\subsection{Passo 4 --- verificar a instalação}
+
+Com o pacote-fonte do Passo~2 instalado:
+
+\begin{verbatim}
+uv run pytest -q tests
+\end{verbatim}
+
+O resultado esperado é a suíte completa aprovada. Sem o pacote-fonte, a
+ausência precisa ser declarada explicitamente, para que os três testes de
+geração de instâncias sejam pulados de forma registrada em vez de
+falharem em silêncio:
+
+\begin{verbatim}
+BUS_LOT_SEM_PACOTE_FONTE=1 uv run pytest -q tests
+\end{verbatim}
+
+Nesse caso, três testes aparecem como pulados e o restante da suíte é
+aprovado normalmente.
+
+\subsection{Passo 5 --- executar os algoritmos}
+
+Para inspecionar o plano de execução de um conjunto de cenários, sem
+executá-los, o que é a forma mais rápida de confirmar que o ambiente está
+correto:
+
+\begin{verbatim}
+uv run python -m experiments.run \
+  --config experiments/configs/pilot.toml plan
+\end{verbatim}
+
+Para executar de fato esse conjunto, com o monitor de recursos do Linux:
+
+\begin{verbatim}
+uv run python -m experiments.run \
+  --config experiments/configs/pilot.toml \
+  --workers 16 --monitor-resources execute
+\end{verbatim}
+
+O número de \emph{workers} deve ser escolhido conforme a máquina: cada um
+mantém uma thread por execução. Convém começar com um valor baixo e
+aumentar apenas se houver folga de memória e de núcleos. A campanha
+completa do benchmark, com suas 1.620 execuções, é operada por comandos
+próprios de lote, documentados no \texttt{README.md}, e leva várias
+horas; ela não precisa ser repetida para avaliar o trabalho, uma vez que
+seus resultados consolidados acompanham o repositório.
+
+\subsection{Passo 6 --- reproduzir as análises e os mapas}
+
+As tabelas e figuras estatísticas apresentadas na Seção~5 são regeradas
+a partir dos resultados consolidados por:
+
+\begin{verbatim}
+uv run python -m experiments.analyze_benchmark
+\end{verbatim}
+
+Os mapas da Seção~\ref{sec:analise-espacial} são regerados por:
+
+\begin{verbatim}
+uv run python -m experiments.export_maps
+\end{verbatim}
+
+O segundo comando produz, em \texttt{results/maps/}, um arquivo
+GeoPackage com as camadas de itinerários, envoltórias e terminais, um
+manifesto de proveniência e doze arquivos de estilo \texttt{.qml}. Para
+visualizá-los, abra \texttt{results/maps/lot\_assignments.gpkg} no QGIS
+e aplique o estilo desejado em Propriedades da camada, Simbologia,
+Estilo, Carregar estilo.
+
+\subsection{Passo 7 --- réplica em GPU, apenas se houver GPU disponível}
+\label{sec:guia-gpu}
+
+Este passo é \textbf{condicional}. Ele exige uma GPU NVIDIA com suporte a
+CUDA 12 e os respectivos drivers instalados. Em uma máquina sem GPU,
+omita-o: nenhum resultado das seções anteriores depende dele.
+
+O ambiente de GPU é isolado do ambiente de CPU, de modo que instalá-lo
+não altera nada do que foi feito até aqui:
+
+\begin{verbatim}
+uv sync --project gpu --dev
+uv run --project gpu python -m metaheuristica_gpu.run readiness
+\end{verbatim}
+
+O subcomando \texttt{readiness} verifica driver, dispositivo e
+conformidade numérica, e recusa a execução se algo não estiver
+disponível. A suíte de testes específica da GPU é executada por
+\texttt{uv run --project gpu pytest -q gpu/tests}.
+
+Convém lembrar, ao interpretar o resultado, o que a Seção~5.9 já
+registra: a aceleração observada depende do algoritmo, sendo relevante no
+PSO e praticamente nula no ACO, e o estudo de GPU foi encerrado com essa
+limitação documentada.
+
+\subsection{Observações finais}
+
+A automação recusa, por padrão, executar campanhas oficiais a partir de
+uma cópia de trabalho com alterações não versionadas, para que todo
+resultado permaneça rastreável ao estado exato do código que o produziu.
+Se você alterar arquivos do repositório e quiser executar mesmo assim, os
+comandos oferecem uma opção explícita para isso, e a execução resultante
+é marcada como não oficial no registro de proveniência.
 
 \bibliographystyle{plain}
 \bibliography{referencias}
