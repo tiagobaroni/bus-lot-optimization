@@ -9,7 +9,7 @@
     <symbols>
       <symbol alpha="1" clip_to_extent="1" name="0" type="line">
         <layer class="SimpleLine" enabled="1" locked="0" pass="0">
-          <prop k="line_color" v="8,69,148,255"/>
+          <prop k="line_color" v="8,48,107,255"/>
           <prop k="line_style" v="solid"/>
           <prop k="line_width" v="0.86"/>
           <prop k="line_width_unit" v="MM"/>
@@ -19,7 +19,7 @@
       </symbol>
       <symbol alpha="1" clip_to_extent="1" name="1" type="line">
         <layer class="SimpleLine" enabled="1" locked="0" pass="0">
-          <prop k="line_color" v="107,174,214,255"/>
+          <prop k="line_color" v="33,113,181,255"/>
           <prop k="line_style" v="solid"/>
           <prop k="line_width" v="0.86"/>
           <prop k="line_width_unit" v="MM"/>
@@ -29,7 +29,7 @@
       </symbol>
       <symbol alpha="1" clip_to_extent="1" name="2" type="line">
         <layer class="SimpleLine" enabled="1" locked="0" pass="0">
-          <prop k="line_color" v="198,219,239,255"/>
+          <prop k="line_color" v="66,146,198,255"/>
           <prop k="line_style" v="solid"/>
           <prop k="line_width" v="0.86"/>
           <prop k="line_width_unit" v="MM"/>

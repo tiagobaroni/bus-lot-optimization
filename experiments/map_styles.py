@@ -15,7 +15,12 @@ LOT_COLORS = [
     "#1b9e77", "#d95f02", "#7570b3", "#e7298a",
     "#66a61e", "#e6ab02", "#a6761d", "#666666",
 ]
-NESTING_COLORS = {"20_60_150": "#084594", "60_150": "#6baed6", "so_150": "#c6dbef"}
+# Rampa azul sequencial, escolhida contra fundo claro de mapa-base: o tom mais
+# claro precisa manter contraste utilizável sozinho, porque são as 90 linhas do
+# recorte externo, a classe mais numerosa. Os contrastes contra um cinza `#efefef`
+# são de 11,1:1, 4,5:1 e 3,0:1; a rampa anterior terminava em `#c6dbef`, que dava
+# 1,2:1 e sumia no fundo.
+NESTING_COLORS = {"20_60_150": "#08306b", "60_150": "#2171b5", "so_150": "#4292c6"}
 CONTEXT_GRAY = "#bdbdbd"
 
 
