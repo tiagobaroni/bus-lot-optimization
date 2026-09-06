@@ -29,6 +29,10 @@ DESCRIPTIVE_COLUMNS = [
 ]
 NESTING_LABELS = {20: "20_60_150", 60: "60_150", 150: "so_150"}
 
+METRIC_CRS = "EPSG:31983"
+GEOGRAPHIC_CRS = "EPSG:4326"
+DEGENERATE_BUFFER_METERS = 50.0
+
 
 def select_best_runs(
     runs: pd.DataFrame,
@@ -191,3 +195,33 @@ def build_itinerarios(instances_dir: Path, aligned: pd.DataFrame) -> gpd.GeoData
         mapping = dict(zip(unit_ids[size], solution_aligned))
         frame[column] = frame["unit_id"].map(mapping).astype("Int64")
     return frame
+
+
+def build_envoltorias(
+    itinerarios: gpd.GeoDataFrame,
+    aligned: pd.DataFrame,
+    unit_ids: dict[int, list[str]],
+) -> gpd.GeoDataFrame:
+    """Casco convexo dos itinerários de cada lote, calculado em CRS métrico."""
+
+    metric = itinerarios.to_crs(METRIC_CRS).set_index("unit_id")
+    records = []
+    for row in aligned.itertuples():
+        size = int(row.instance.rsplit("_", 1)[-1])
+        labels = pd.Series(row.solution_aligned, index=unit_ids[size])
+        for lot, members in labels.groupby(labels):
+            geometries = metric.loc[list(members.index), "geometry"]
+            hull = geometries.union_all().convex_hull
+            degenerate = hull.geom_type != "Polygon"
+            if degenerate:
+                hull = hull.buffer(DEGENERATE_BUFFER_METERS)
+            records.append({
+                "instance": row.instance, "algorithm": row.algorithm,
+                "k": int(row.k), "lot": int(lot), "seed": int(row.seed),
+                "total_cost": float(row.total_cost),
+                "scenario_id": row.scenario_id, "n_units": int(len(members)),
+                "area_km2": float(hull.area / 1e6), "degenerado": bool(degenerate),
+                "geometry": hull,
+            })
+    frame = gpd.GeoDataFrame(records, geometry="geometry", crs=METRIC_CRS)
+    return frame.to_crs(GEOGRAPHIC_CRS)

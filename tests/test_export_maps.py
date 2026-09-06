@@ -12,6 +12,7 @@ from metaheuristica.errors import ConfigurationError
 from experiments.export_maps import (
     align_selected,
     align_to_reference,
+    build_envoltorias,
     build_itinerarios,
     column_name,
     read_unit_ids,
@@ -447,3 +448,58 @@ def test_build_itinerarios_rejects_a_duplicate_lot_column(tmp_path):
     ])
     with pytest.raises(ConfigurationError, match="duplicada"):
         build_itinerarios(directory, aligned)
+
+
+def _envoltorias(tmp_path, solution, solution_aligned, k=2):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", k, solution, solution_aligned)])
+    itinerarios = build_itinerarios(directory, aligned)
+    return build_envoltorias(itinerarios, aligned, read_unit_ids(directory))
+
+
+def test_build_envoltorias_creates_one_polygon_per_lot(tmp_path):
+    envoltorias = _envoltorias(tmp_path, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])
+    assert len(envoltorias) == 2
+    assert sorted(envoltorias["lot"]) == [0, 1]
+    assert set(envoltorias["n_units"]) == {3}
+    assert (envoltorias.geometry.geom_type == "Polygon").all()
+    assert list(envoltorias["seed"]) == [10, 10]
+    # Sem esta asercao, `degenerado = True` incondicional passaria.
+    assert not envoltorias["degenerado"].any()
+
+
+def test_build_envoltorias_computes_area_in_the_metric_crs(tmp_path):
+    # Em graus, a area destes cascos sairia na casa de 1e-6; em km2, de 1e4.
+    # A asercao de magnitude separa a implementacao que nunca reprojeta.
+    envoltorias = _envoltorias(tmp_path, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])
+    assert envoltorias["area_km2"].min() > 1.0
+
+
+def test_build_envoltorias_returns_geographic_coordinates(tmp_path):
+    # `set_crs` sem transformar deixaria o CRS certo e as coordenadas em 1e6.
+    # Esta asercao pega essa, e a de area pega a outra: sao defeitos distintos.
+    envoltorias = _envoltorias(tmp_path, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])
+    assert envoltorias.crs.to_string() == "EPSG:4326"
+    minimum_x, minimum_y, maximum_x, maximum_y = envoltorias.total_bounds
+    assert -180 <= minimum_x <= maximum_x <= 180
+    assert -90 <= minimum_y <= maximum_y <= 90
+
+
+def test_build_envoltorias_marks_the_degenerate_lot(tmp_path):
+    envoltorias = _envoltorias(tmp_path, [0, 1, 1, 1, 1, 1], [0, 1, 1, 1, 1, 1])
+    single = envoltorias[envoltorias["lot"] == 0].iloc[0]
+    # O casco convexo de um segmento reto e' LineString, nao poligono: o ramo
+    # do buffer de 50 m e' de fato exercitado aqui.
+    assert single["degenerado"]
+    assert single.geometry.geom_type == "Polygon"
+    assert single["n_units"] == 1
+    # E o lote normal do mesmo cenario nao pode vir marcado.
+    assert not envoltorias[envoltorias["lot"] == 1].iloc[0]["degenerado"]
+
+
+def test_build_envoltorias_uses_the_aligned_labels_not_the_raw_ones(tmp_path):
+    # Bruto poria uma unidade no lote 0 e cinco no 1; alinhado, o inverso.
+    envoltorias = _envoltorias(tmp_path, [0, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0])
+    by_lot = envoltorias.set_index("lot")["n_units"].to_dict()
+    assert by_lot == {0: 5, 1: 1}
