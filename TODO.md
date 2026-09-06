@@ -45,10 +45,9 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   regenerado de novo. Resultado científico do piloto idêntico ao anterior em
   tudo que não é temporal ou de proveniência.
 - **Último bloco concluído:** B13 - relatório, README e empacotamento.
-- **Branch de trabalho:** `main`, sincronizada com `origin/main`. Os dezesseis
-  commits da B13 (`39adab6` a `4f2d8f8`) já foram enviados ao remoto. Seguem
-  não rastreados na árvore, à espera de decisão, o material de apoio
-  `docs/texto_Base.tex` e artefatos de compilação do LaTeX.
+- **Branch de trabalho:** `main`, sincronizada com `origin/main` e com a árvore
+  limpa. Os dezesseis commits da B13 (`39adab6` a `4f2d8f8`) foram enviados ao
+  remoto em 04/09/2026.
 - **A B11A-E foi iniciada em 02/09/2026 e interrompida no cenário 4 de 60.** O
   guarda térmico recusou a entrada do cenário com `GpuSafetyError`, e a sessão
   ficou registrada como `interrupted`. Os cenários 1 a 3 concluíram e foram
@@ -1525,11 +1524,11 @@ Suíte de CPU medida em 06/09/2026: **564 aprovados** em 104 s
 escrito antes de `0a92a10`, o último commit da própria B12, que acrescentou um
 teste. **A diferença não é regressão.**
 
-Pendências conhecidas, nenhuma impeditiva: `docs/texto_Base.tex` e seus
-artefatos de compilação seguem não rastreados, à espera de decisão sobre
-versionar, ignorar ou remover; e o `.gitignore` cobre os artefatos de build do
-relatório mas não `docs/relatorio/*.synctex.gz`, que reaparece a cada
-compilação feita por editor com SyncTeX.
+Duas decisões sobre a árvore, tomadas em 06/09/2026 e sem pendência restante:
+o `.gitignore` passou a cobrir `docs/relatorio/*.synctex.gz`, que reaparecia a
+cada compilação feita por editor com SyncTeX; e `docs/texto_Base.tex`, material
+de exemplo e não entregável, ficou fora do repositório por exclusão local, sem
+entrar no `.gitignore` versionado justamente por não pertencer ao pacote.
 
 **Próxima ação atômica: revisão do relatório técnico pelo usuário.** A B14 não
 deve ser iniciada até liberação explícita dele.

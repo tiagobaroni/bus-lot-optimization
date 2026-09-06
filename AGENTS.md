@@ -675,6 +675,4 @@ Próximo objetivo recomendado:
 1. revisar o relatório técnico, `docs/relatorio/relatorio.tex`, com o usuário
    conduzindo a revisão;
 2. iniciar a B14, vídeo e auditoria final, somente após liberação explícita
-   dele;
-3. decidir o destino de `docs/texto_Base.tex`, hoje não rastreado, e se o
-   `.gitignore` deve passar a cobrir `docs/relatorio/*.synctex.gz`.
+   dele.

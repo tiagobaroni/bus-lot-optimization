@@ -56,3 +56,4 @@ docs/relatorio/*.blg
 docs/relatorio/*.toc
 docs/relatorio/*.fdb_latexmk
 docs/relatorio/*.fls
+docs/relatorio/*.synctex.gz
