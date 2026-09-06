@@ -1,12 +1,23 @@
 import json
 from itertools import permutations
+from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytest
+from shapely.geometry import LineString, Polygon
 
 from metaheuristica.errors import ConfigurationError
-from experiments.export_maps import align_selected, align_to_reference, select_best_runs
+from experiments.export_maps import (
+    DESCRIPTIVE_COLUMNS,
+    align_selected,
+    align_to_reference,
+    build_itinerarios,
+    column_name,
+    read_unit_ids,
+    select_best_runs,
+)
 
 UNIT_COUNTS = {"artesp_rmsp_20": 6, "artesp_rmsp_60": 6, "artesp_rmsp_150": 6}
 
@@ -240,3 +251,158 @@ def test_align_selected_breaks_ties_among_non_reference_methods_too():
     ])
     aligned = align_selected(selected)
     assert set(aligned["reference_algorithm"]) == {"aco"}
+
+
+def _instances_dir(tmp_path: Path) -> Path:
+    # Universo de 6 unidades: 2 no recorte de 20, 4 no de 60, 6 no de 150.
+    # A ordem do GPKG e' invertida em relacao a `unit_ids` de proposito: um
+    # `build` que confiasse na ordem das feicoes trocaria os lotes de lugar.
+    directory = tmp_path / "instances"
+    directory.mkdir()
+    unit_ids = {20: ["u0", "u1"], 60: ["u0", "u1", "u2", "u3"],
+                150: ["u0", "u1", "u2", "u3", "u4", "u5"]}
+    for size, ids in unit_ids.items():
+        (directory / f"artesp_rmsp_{size}.json").write_text(
+            json.dumps({"name": f"artesp_rmsp_{size}", "n_units": len(ids),
+                        "unit_ids": ids}), encoding="utf-8")
+    gpkg = directory / "artesp_rmsp_150.gpkg"
+    gpd.GeoDataFrame(
+        {
+            "unit_id": list(reversed(unit_ids[150])),
+            "codigo_linha": ["c"] * 6, "sentido": ["ida"] * 6,
+            "nome_legivel": ["n"] * 6, "passengers_day": [1.0] * 6,
+            "pu_km_day": [2.0] * 6, "route_length_km": [3.0] * 6,
+        },
+        # Segmentos retos: o casco convexo de um deles NAO e' poligono, o que
+        # torna o ramo do lote degenerado exercitavel na Task 5.
+        geometry=[LineString([(index, 0), (index, 1)]) for index in range(6)],
+        crs="EPSG:4326",
+    ).to_file(gpkg, layer="itinerarios", driver="GPKG")
+    # `main` le a camada `terminais`: sem ela, os testes da Task 8 abortam com
+    # DataLayerError antes da primeira asercao.
+    gpd.GeoDataFrame(
+        {"id_terminal": [1], "nome": ["t"], "terminal_situacao": ["ativo"]},
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])], crs="EPSG:4326",
+    ).to_file(gpkg, layer="terminais", driver="GPKG", mode="a")
+    # As instancias menores tambem precisam do proprio `.gpkg`: a spec, secao 9,
+    # manda recusar quando falta, e o manifesto registra o sha de cada uma.
+    for size in (20, 60):
+        gpd.GeoDataFrame(
+            {"unit_id": unit_ids[size]},
+            geometry=[LineString([(index, 0), (index, 1)])
+                      for index in range(len(unit_ids[size]))],
+            crs="EPSG:4326",
+        ).to_file(directory / f"artesp_rmsp_{size}.gpkg", layer="itinerarios",
+                  driver="GPKG")
+    return directory
+
+
+def _aligned_row(instance, algorithm, k, solution, solution_aligned, *, seed=10,
+                 cost=0.1, scenario="s") -> dict:
+    return {"instance": instance, "algorithm": algorithm, "k": k, "seed": seed,
+            "total_cost": cost, "scenario_id": scenario, "solution": solution,
+            "solution_aligned": solution_aligned, "reference_algorithm": algorithm}
+
+
+def test_column_name_follows_the_agreed_pattern():
+    assert column_name("artesp_rmsp_20", "pso", 5) == "lot_i20_pso_k5"
+
+
+def test_read_unit_ids_returns_the_three_nested_slices(tmp_path):
+    unit_ids = read_unit_ids(_instances_dir(tmp_path))
+    assert set(unit_ids) == {20, 60, 150}
+    assert unit_ids[20] == ["u0", "u1"]
+    # O aninhamento que a spec, secao 2, declara verificado.
+    assert set(unit_ids[20]) < set(unit_ids[60]) < set(unit_ids[150])
+
+
+def test_read_unit_ids_rejects_a_missing_instance_file(tmp_path):
+    directory = _instances_dir(tmp_path)
+    (directory / "artesp_rmsp_60.gpkg").unlink()
+    with pytest.raises(ConfigurationError, match="instância ausente"):
+        read_unit_ids(directory)
+
+
+def test_build_itinerarios_joins_by_unit_id_not_by_position(tmp_path):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [1, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 1])])
+    frame = build_itinerarios(directory, aligned).set_index("unit_id")
+    column = column_name("artesp_rmsp_150", "tabu", 2)
+    assert list(frame.loc[["u0", "u1", "u2"], column]) == [0, 0, 0]
+    assert list(frame.loc[["u3", "u4", "u5"], column]) == [1, 1, 1]
+
+
+def test_build_itinerarios_uses_the_aligned_labels_not_the_raw_ones(tmp_path):
+    # `solution` e `solution_aligned` sao DIFERENTES de proposito: trocar uma
+    # pela outra na implementacao e' um bug de uma palavra que produziria os
+    # nove paineis coloridos pela numeracao bruta, que e' o que a spec, secao 7,
+    # diz que arruina o bloco.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "aco", 2, [1, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 1])])
+    frame = build_itinerarios(directory, aligned).set_index("unit_id")
+    column = column_name("artesp_rmsp_150", "aco", 2)
+    assert list(frame.loc[["u0", "u1", "u2"], column]) == [0, 0, 0]
+
+
+def test_build_itinerarios_marks_the_nesting(tmp_path):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame(columns=["instance", "algorithm", "k", "seed",
+                                    "total_cost", "scenario_id", "solution",
+                                    "solution_aligned", "reference_algorithm"])
+    frame = build_itinerarios(directory, aligned).set_index("unit_id")
+    assert list(frame.loc[["u0", "u1"], "aninhamento"]) == ["20_60_150"] * 2
+    assert list(frame.loc[["u2", "u3"], "aninhamento"]) == ["60_150"] * 2
+    assert list(frame.loc[["u4", "u5"], "aninhamento"]) == ["so_150"] * 2
+    assert list(frame.loc[["u0", "u2", "u4"], "in_20"]) == [True, False, False]
+    assert list(frame.loc[["u0", "u2", "u4"], "in_60"]) == [True, True, False]
+    assert "in_150" not in frame.columns
+
+
+def test_build_itinerarios_leaves_units_outside_the_slice_null(tmp_path):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_20", "pso", 2, [0, 1], [0, 1])])
+    frame = build_itinerarios(directory, aligned).set_index("unit_id")
+    column = column_name("artesp_rmsp_20", "pso", 2)
+    assert list(frame.loc[["u0", "u1"], column]) == [0, 1]
+    assert frame.loc[["u2", "u3", "u4", "u5"], column].isna().all()
+
+
+def test_build_itinerarios_holds_the_three_instances_side_by_side(tmp_path):
+    # A camada real tem 54 colunas de lote das tres instancias ao mesmo tempo,
+    # com o padrao de nulos aninhado. Nenhum teste de instancia unica prova isso.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([
+        _aligned_row("artesp_rmsp_20", "pso", 2, [0, 1], [0, 1]),
+        _aligned_row("artesp_rmsp_60", "aco", 2, [0, 0, 1, 1], [0, 0, 1, 1]),
+        _aligned_row("artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1],
+                     [0, 0, 0, 1, 1, 1]),
+    ])
+    frame = build_itinerarios(directory, aligned)
+    columns = [column_name("artesp_rmsp_20", "pso", 2),
+               column_name("artesp_rmsp_60", "aco", 2),
+               column_name("artesp_rmsp_150", "tabu", 2)]
+    assert len(set(columns)) == 3
+    assert all(column in frame.columns for column in columns)
+    assert [int(frame[column].notna().sum()) for column in columns] == [2, 4, 6]
+    assert all(str(frame[column].dtype) == "Int64" for column in columns)
+    # Os atributos descritivos da instancia de 150 sobrevivem ao recorte de
+    # colunas, e o resultado continua um GeoDataFrame em EPSG:4326 (CRS de
+    # armazenamento exigido pelas restricoes globais do bloco).
+    assert all(column in frame.columns for column in DESCRIPTIVE_COLUMNS)
+    assert isinstance(frame, gpd.GeoDataFrame)
+    assert frame.crs.to_string() == "EPSG:4326"
+
+
+def test_build_itinerarios_rejects_unit_id_divergence(tmp_path):
+    directory = _instances_dir(tmp_path)
+    payload = json.loads((directory / "artesp_rmsp_150.json").read_text(encoding="utf-8"))
+    payload["unit_ids"][0] = "fantasma"
+    (directory / "artesp_rmsp_150.json").write_text(json.dumps(payload), encoding="utf-8")
+    aligned = pd.DataFrame(columns=["instance", "algorithm", "k", "seed",
+                                    "total_cost", "scenario_id", "solution",
+                                    "solution_aligned", "reference_algorithm"])
+    with pytest.raises(ConfigurationError, match="divergem"):
+        build_itinerarios(directory, aligned)

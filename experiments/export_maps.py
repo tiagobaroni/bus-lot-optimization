@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
+from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment
@@ -18,6 +20,14 @@ EXPECTED_RUNS = 1620
 EXPECTED_SEEDS = 30
 COMBINATIONS = 54
 GROUP_KEYS = ["instance", "algorithm", "k"]
+
+UNIVERSE_SIZE = 150
+UNIVERSE = f"artesp_rmsp_{UNIVERSE_SIZE}"
+DESCRIPTIVE_COLUMNS = [
+    "unit_id", "codigo_linha", "sentido", "nome_legivel",
+    "passengers_day", "pu_km_day", "route_length_km",
+]
+NESTING_LABELS = {20: "20_60_150", 60: "60_150", 150: "so_150"}
 
 
 def select_best_runs(
@@ -108,3 +118,63 @@ def align_selected(selected: pd.DataFrame) -> pd.DataFrame:
         result["reference_algorithm"] = reference_row["algorithm"]
         frames.append(result)
     return pd.concat(frames, ignore_index=True)
+
+
+def column_name(instance: str, algorithm: str, k: int) -> str:
+    """Nome da coluna de lote de uma combinação instância×algoritmo×K."""
+
+    size = instance.rsplit("_", 1)[-1]
+    return f"lot_i{size}_{algorithm}_k{k}"
+
+
+def instance_paths(instances_dir: Path, size: int) -> dict[str, Path]:
+    """Caminhos do `.gpkg` e do `.json` de uma instância, pelo seu tamanho."""
+
+    return {"gpkg": instances_dir / f"artesp_rmsp_{size}.gpkg",
+            "json": instances_dir / f"artesp_rmsp_{size}.json"}
+
+
+def read_unit_ids(instances_dir: Path) -> dict[int, list[str]]:
+    """Lê `unit_ids` das três instâncias, recusando arquivo ausente."""
+
+    unit_ids: dict[int, list[str]] = {}
+    for size in INSTANCE_SIZES:
+        paths = instance_paths(instances_dir, size)
+        for path in paths.values():
+            if not path.exists():
+                raise ConfigurationError(f"instância ausente: {path}")
+        unit_ids[size] = list(
+            json.loads(paths["json"].read_text(encoding="utf-8"))["unit_ids"]
+        )
+    return unit_ids
+
+
+def build_itinerarios(instances_dir: Path, aligned: pd.DataFrame) -> gpd.GeoDataFrame:
+    """Monta o universo de itinerários com o aninhamento e as colunas de lote."""
+
+    unit_ids = read_unit_ids(instances_dir)
+    frame = gpd.read_file(instances_dir / f"{UNIVERSE}.gpkg", layer="itinerarios")
+    missing = set(unit_ids[UNIVERSE_SIZE]) - set(frame["unit_id"])
+    unknown = set(frame["unit_id"]) - set(unit_ids[UNIVERSE_SIZE])
+    if missing or unknown:
+        raise ConfigurationError(
+            f"itinerários divergem de unit_ids; faltando {sorted(missing)}, "
+            f"sobrando {sorted(unknown)}"
+        )
+    frame = frame[[*DESCRIPTIVE_COLUMNS, "geometry"]].copy()
+
+    in_20 = frame["unit_id"].isin(unit_ids[20])
+    in_60 = frame["unit_id"].isin(unit_ids[60])
+    frame["in_20"] = in_20
+    frame["in_60"] = in_60
+    frame["aninhamento"] = np.where(
+        in_20, NESTING_LABELS[20],
+        np.where(in_60, NESTING_LABELS[60], NESTING_LABELS[150]),
+    )
+
+    for row in aligned.itertuples():
+        size = int(row.instance.rsplit("_", 1)[-1])
+        mapping = dict(zip(unit_ids[size], row.solution_aligned, strict=True))
+        column = column_name(row.instance, row.algorithm, int(row.k))
+        frame[column] = frame["unit_id"].map(mapping).astype("Int64")
+    return frame
