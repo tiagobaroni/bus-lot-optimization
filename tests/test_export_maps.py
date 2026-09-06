@@ -747,6 +747,18 @@ def test_write_style_files_writes_the_twelve_styles(tmp_path):
         if prop.get("k") in {"line_color", "color"}
     )
     assert cor == "189,189,189,255"
+    # O `alpha` do simbolo nao tinha trava: uma inversao de "0.45" (envoltoria
+    # semitransparente) para "1" (opaca) produz XML bem-formado e nao mexe em
+    # nenhuma cor ou `attr`, mas esconde os itinerarios por baixo no mapa
+    # geral, o primeiro entregavel do bloco -- com a suite inteira verde.
+    envoltorias_symbol = ElementTree.fromstring(
+        written["envoltorias"].read_text(encoding="utf-8")
+    ).find(".//symbol")
+    assert envoltorias_symbol.get("alpha") == "0.45"
+    painel_symbol = ElementTree.fromstring(
+        written["itinerarios_lot_i150_tabu_k5"].read_text(encoding="utf-8")
+    ).find(".//symbol")
+    assert painel_symbol.get("alpha") == "1"
 
 
 def test_write_style_files_uses_the_injected_writer(tmp_path):
