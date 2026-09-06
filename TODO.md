@@ -8,11 +8,14 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 06/09/2026
-- **Bloco ativo:** B15, em especificação. **A B13 está concluída e a B14 segue
-  retida por decisão do usuário em 06/09/2026, liberável só por decisão
-  explícita dele. A próxima ação atômica é a aprovação da especificação da
-  B15**, exportação cartográfica dos agrupamentos, aberta em 06/09/2026 para
-  apoiar a revisão do relatório e a produção do vídeo.
+- **Bloco ativo:** nenhum. **A B15, exportação cartográfica dos agrupamentos,
+  está `CONCLUÍDA - PENDENTE DE CONFERENCIA VISUAL NO QGIS`: falta apenas a
+  conferência visual no QGIS dos nove painéis do recorte `K=5`, que é do
+  usuário. A B13 está concluída e a B14 segue retida por decisão do usuário em
+  06/09/2026, liberável só por decisão explícita dele; o fecho da B15 não
+  libera a B14. A próxima ação atômica é a conferência visual da B15 pelo
+  usuário.** O trabalho da B15 está na branch `b15-mapas`, ainda não integrada
+  à `main`.
 - **O estudo adicional de GPU foi encerrado em 03/09/2026, por escopo e não por
   impedimento técnico.** A implementação está correta: conformidade aprovada com
   diferença máxima de `3,33e-16` contra régua de `1e-12`. Os três cenários ACO
@@ -46,10 +49,19 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   regenerado (5 lotes, 270 subgrupos, 1.620 cenários, inalterado) e manifesto
   regenerado de novo. Resultado científico do piloto idêntico ao anterior em
   tudo que não é temporal ou de proveniência.
-- **Último bloco concluído:** B13 - relatório, README e empacotamento.
-- **Branch de trabalho:** `main`, sincronizada com `origin/main` e com a árvore
-  limpa. Os dezesseis commits da B13 (`39adab6` a `4f2d8f8`) foram enviados ao
-  remoto em 04/09/2026.
+- **Último bloco concluído:** B15 - exportação cartográfica dos agrupamentos,
+  com o registro `CONCLUÍDA - PENDENTE DE CONFERENCIA VISUAL NO QGIS`. Antes
+  dela, B13 - relatório, README e empacotamento.
+- **Branch de trabalho:** `b15-mapas`, com a árvore limpa, reunindo os
+  commits do bloco a partir de `cbf460b`: a implementação foi concluída em
+  `8741097`, e os commits seguintes registram o fecho em documentação (a
+  contagem exata não é fixada aqui porque uma revisão final da branch inteira
+  ainda pode acrescentar commits). Ainda não integrada à `main`; a integração
+  é decisão do usuário, depois dessa revisão final. A `main` e o `origin/main`
+  estão em `8b43079`, que é também a base comum (`merge-base`) entre `main` e
+  `b15-mapas` — esse commit já abriu a seção "## B15" em `TODO.md`, antes do
+  início da implementação. Os dezesseis commits da B13 (`39adab6` a
+  `4f2d8f8`) foram enviados ao remoto em 04/09/2026.
 - **A B11A-E foi iniciada em 02/09/2026 e interrompida no cenário 4 de 60.** O
   guarda térmico recusou a entrada do cenário com `GpuSafetyError`, e a sessão
   ficou registrada como `interrupted`. Os cenários 1 a 3 concluíram e foram
@@ -1562,7 +1574,7 @@ deve ser iniciada até liberação explícita dele.
 
 ## B15 - Exportação cartográfica dos agrupamentos
 
-**Estado:** `EM ESPECIFICAÇÃO`
+**Estado:** `CONCLUÍDA - PENDENTE DE CONFERENCIA VISUAL NO QGIS`
 
 **Depende de:** B12, pelos resultados oficiais consolidados, e B13, que consome
 as figuras. Não depende da B14 e não a libera.
@@ -1572,20 +1584,48 @@ exportar imagens de qualidade para o relatório e para o vídeo.
 
 **Tarefas:**
 
-- [ ] Selecionar, por combinação instância×método×`K`, a execução de menor custo
+- [x] Selecionar, por combinação instância×método×`K`, a execução de menor custo
       entre as 30 seeds.
-- [ ] Alinhar os rótulos de lote entre métodos dentro de cada par
+- [x] Alinhar os rótulos de lote entre métodos dentro de cada par
       (instância, `K`), para que a cor signifique a mesma coisa nos painéis.
-- [ ] Escrever `results/maps/lot_assignments.gpkg` com itinerários, envoltórias
+- [x] Escrever `results/maps/lot_assignments.gpkg` com itinerários, envoltórias
       por lote e terminais.
-- [ ] Escrever o manifesto de proveniência da exportação.
-- [ ] Gerar os doze estilos `.qml` do QGIS.
-- [ ] Documentar geração, uso e filtro das envoltórias no README.
-- [ ] Conferir no QGIS os nove painéis do recorte `K=5`.
+- [x] Escrever o manifesto de proveniência da exportação.
+- [x] Gerar os doze estilos `.qml` do QGIS.
+- [x] Documentar geração, uso e filtro das envoltórias no README.
+- [ ] Conferir no QGIS os nove painéis do recorte `K=5` (item pendente do
+      usuário — aguarda a conferência visual dele; é a única verificação real
+      de que o QGIS aceita os `.qml`, já que os testes só provam XML
+      bem-formado com a cor ligada à categoria).
 
 **Critério de saída:** os nove painéis de `K=5` abrem no QGIS com cores
 comparáveis entre métodos, e a diferença visível entre eles é diferença de
 partição, não de renumeração de lotes.
+
+**Checkpoint de retomada (06/09/2026).** Tudo que não depende do usuário está
+verificado; só falta a conferência visual no QGIS. Suíte de testes com **625
+aprovados** (`uv run pytest tests/ -q`), contra 564 antes do bloco. O exportador
+roda com `uv run python -m experiments.export_maps` e escreve
+`results/maps/lot_assignments.gpkg`, com **3,4 MB** e as camadas `itinerarios`
+(150 unidades, 54 colunas de lote), `envoltorias` (297 polígonos, forma longa
+por combinação×lote) e `terminais` (311 polígonos de contexto); o manifesto
+`results/maps/lot_maps_manifest.json`; e os doze estilos `.qml` em
+`results/maps/qml/`. As 18 chaves de referência do alinhamento no manifesto
+apontam todas para a Busca Tabu, por ter o menor custo nas 18 combinações
+instância×K — em duas delas, `artesp_rmsp_20` com K=3 e com K=4, o PSO empata
+o custo exatamente com a Busca Tabu, e o desempate é resolvido pela ordem
+`tabu, aco, pso` — não é constante suspeita, é o mecanismo de alinhamento
+funcionando. Trabalho na branch `b15-mapas`, commits
+de implementação `cbf460b` a `8741097`, com o fecho em documentação depois
+deles, ainda não integrada à `main`. **A B14 continua retida**: o fecho da
+B15 não a libera, e a liberação continua exigindo decisão explícita do
+usuário. **Próxima ação atômica: o usuário confere no QGIS os nove painéis do
+recorte `K=5`**, aplicando `itinerarios_aninhamento.qml` e um dos nove painéis,
+depois `envoltorias.qml` com o filtro de subconjunto
+`instance = 'artesp_rmsp_60' AND algorithm = 'tabu' AND k = 5`, verificando que
+os nove painéis de `K=5` usam cores comparáveis entre métodos. Só depois disso,
+e de decisão explícita sobre a integração da branch à `main`, a próxima ação
+passa a ser a B14.
 
 ---
 

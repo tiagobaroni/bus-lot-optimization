@@ -1,0 +1,932 @@
+import hashlib
+import json
+import xml.etree.ElementTree as ElementTree
+from itertools import permutations
+from pathlib import Path
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import pyogrio
+import pytest
+from shapely.geometry import LineString, Polygon
+
+from metaheuristica.errors import ConfigurationError
+from experiments import export_maps
+from experiments.export_maps import (
+    HIGHLIGHT_K,
+    align_selected,
+    align_to_reference,
+    atomic_write_text,
+    build_envoltorias,
+    build_itinerarios,
+    build_manifest,
+    column_name,
+    export,
+    nesting_entries,
+    read_unit_ids,
+    select_best_runs,
+    style_panels,
+    write_gpkg,
+)
+from experiments.map_styles import (
+    LOT_COLORS,
+    NESTING_COLORS,
+    categorized_qml,
+    single_symbol_qml,
+    write_style_files,
+)
+
+UNIT_COUNTS = {"artesp_rmsp_20": 6, "artesp_rmsp_60": 6, "artesp_rmsp_150": 6}
+
+# Proveniencia falsa para testes de `build_manifest` que nao versam sobre
+# proveniencia em si: evita repetir git de verdade em cada teste de conteudo.
+FAKE_PROVENANCE = {"git_commit": "deadbeef", "git_dirty": False, "dirty_sha256": None}
+
+
+def _solution(k: int, n_units: int = 6) -> list[int]:
+    # Solucao valida: exatamente k lotes nao vazios sobre n_units unidades.
+    return [index % k for index in range(n_units)]
+
+
+def _runs_frame(*, instances=("artesp_rmsp_20",), algorithms=("tabu", "aco", "pso"),
+                k_values=(3,), seeds=range(10, 40), official=True) -> pd.DataFrame:
+    # Custo em V, com o minimo na seed 25: nem a primeira nem a ultima linha do
+    # grupo e' a vencedora, entao um `first()` ou um `last()` que ignorasse a
+    # ordenacao por custo seria pego por este teste sozinho.
+    rows = []
+    for instance in instances:
+        for algorithm in algorithms:
+            for k in k_values:
+                for seed in seeds:
+                    rows.append({
+                        "instance": instance, "algorithm": algorithm, "k": k,
+                        "seed": seed, "total_cost": 0.5 + abs(seed - 25) * 0.01,
+                        "scenario_id": f"{algorithm}_{instance}_k{k}_s{seed}",
+                        "solution_json": json.dumps(_solution(k)),
+                        "official": official,
+                    })
+    return pd.DataFrame(rows)
+
+
+def _select(runs, **overrides):
+    arguments = {"unit_counts": UNIT_COUNTS, "expected_runs": 90,
+                 "expected_seeds": 30, "combinations": 3}
+    arguments.update(overrides)
+    return select_best_runs(runs, **arguments)
+
+
+def _runs_for_export(tmp_path):
+    tables = tmp_path / "tables"
+    tables.mkdir()
+    runs = _runs_frame(instances=("artesp_rmsp_150",), k_values=(2,))
+    runs["solution_json"] = json.dumps([0, 0, 0, 1, 1, 1])
+    runs.to_parquet(tables / "benchmark_runs.parquet", index=False)
+    return tables
+
+
+def test_select_best_runs_picks_lowest_cost_per_combination():
+    selected = _select(_runs_frame())
+    assert len(selected) == 3
+    assert set(selected["seed"]) == {25}
+
+
+def test_select_best_runs_breaks_cost_ties_by_lowest_seed():
+    # Seeds em ordem decrescente para forcar a ordenacao a realmente
+    # selecionar a seed minima, nao apenas preservar a ordem de insercao.
+    runs = _runs_frame(seeds=range(39, 9, -1))
+    runs["total_cost"] = 0.5
+    assert set(_select(runs)["seed"]) == {10}
+
+
+def test_select_best_runs_ignores_unofficial_rows():
+    extra = _runs_frame(seeds=[99], official=False)
+    extra["total_cost"] = -1.0
+    runs = pd.concat([_runs_frame(), extra], ignore_index=True)
+    assert 99 not in set(_select(runs)["seed"])
+
+
+def test_select_best_runs_keeps_the_whole_winning_row():
+    # `groupby(...).first()` do pandas toma o primeiro valor NAO-NULO de cada
+    # coluna independentemente, e pode compor uma linha quimera com campos de
+    # execucoes diferentes. Aqui a vencedora tem `scenario_id` nulo: se a
+    # implementacao usar `first()`, o `scenario_id` vem da linha perdedora.
+    runs = _runs_frame()
+    winner = (runs["seed"] == 25) & (runs["algorithm"] == "tabu")
+    runs.loc[winner, "scenario_id"] = None
+    selected = _select(runs).set_index("algorithm")
+    assert pd.isna(selected.loc["tabu", "scenario_id"])
+
+
+def test_select_best_runs_rejects_wrong_total():
+    with pytest.raises(ConfigurationError, match="execuções"):
+        _select(_runs_frame(seeds=range(10, 39)))
+
+
+def test_select_best_runs_rejects_missing_seeds():
+    runs = _runs_frame().drop(index=0)
+    with pytest.raises(ConfigurationError, match="seeds esperadas"):
+        _select(runs, expected_runs=89)
+
+
+def test_select_best_runs_rejects_missing_combination():
+    with pytest.raises(ConfigurationError, match="combinações"):
+        _select(_runs_frame(algorithms=("tabu", "aco")), expected_runs=60)
+
+
+def test_select_best_runs_rejects_solution_with_wrong_length():
+    runs = _runs_frame()
+    winner = (runs["seed"] == 25) & (runs["algorithm"] == "tabu")
+    runs.loc[winner, "solution_json"] = json.dumps([0, 1, 2])
+    with pytest.raises(ConfigurationError, match="solução inválida"):
+        _select(runs)
+
+
+def test_select_best_runs_rejects_solution_with_wrong_lot_count():
+    # k=3 declarado, dois lotes de fato: a spec manda recusar, e sem esta guarda
+    # a coluna sairia com rotulos nao contiguos e a simbologia perderia a classe.
+    runs = _runs_frame()
+    winner = (runs["seed"] == 25) & (runs["algorithm"] == "tabu")
+    runs.loc[winner, "solution_json"] = json.dumps([0, 0, 0, 1, 1, 1])
+    with pytest.raises(ConfigurationError, match="solução inválida"):
+        _select(runs)
+
+
+# Par discriminante: alinhar por sobreposicao maxima concorda com a referencia
+# em 5 das 6 posicoes; canonicalizar por primeira ocorrencia concorda em 3.
+DISCRIMINATING_REFERENCE = [0, 0, 1, 1, 2, 2]
+DISCRIMINATING_OTHER = [0, 1, 0, 0, 2, 2]
+DISCRIMINATING_ALIGNED = [1, 0, 1, 1, 2, 2]
+
+# Segundo par, armadilha do guloso por linha: escolher o maximo de cada linha
+# da matriz de contingencia sem impor bijecao funde os lotes 1 e 2 (ambos tem
+# o maximo na mesma coluna) e da concordancia 4, MAIOR que o otimo (3), o que
+# e' impossivel para uma permutacao valida. Sem este par, um guloso por linha
+# (`contingency.argmax(axis=1)`) passa nos mesmos testes que a atribuicao
+# otima por `linear_sum_assignment`.
+GREEDY_TRAP_OTHER = [0, 0, 1, 2, 0, 0]
+
+
+def _agreement(left, right) -> int:
+    return sum(1 for a, b in zip(left, right) if a == b)
+
+
+def test_align_to_reference_recovers_a_permuted_copy():
+    permuted = [2, 2, 0, 0, 1, 1]
+    assert list(align_to_reference(permuted, DISCRIMINATING_REFERENCE, k=3)) == \
+        DISCRIMINATING_REFERENCE
+
+
+def test_align_to_reference_beats_canonicalization():
+    # O teste que a versao 1 nao tinha: canonicalizar `other` daria
+    # [0, 1, 0, 0, 2, 2], que concorda com a referencia em 3 posicoes.
+    aligned = list(align_to_reference(DISCRIMINATING_OTHER,
+                                      DISCRIMINATING_REFERENCE, k=3))
+    assert aligned == DISCRIMINATING_ALIGNED
+    assert _agreement(aligned, DISCRIMINATING_REFERENCE) == 5
+    assert _agreement(DISCRIMINATING_OTHER, DISCRIMINATING_REFERENCE) == 3
+
+
+@pytest.mark.parametrize("other", [DISCRIMINATING_OTHER, GREEDY_TRAP_OTHER])
+def test_align_to_reference_maximizes_agreement_over_every_permutation(other):
+    # Propriedade, e nao caso: nenhuma das k! renomeacoes concorda mais com a
+    # referencia do que a escolhida. Mata canonicalizacao, identidade e guloso.
+    # `GREEDY_TRAP_OTHER` e' o par que pega o guloso por linha: ele da
+    # concordancia 4, acima do otimo (3), porque nao e' uma permutacao valida.
+    aligned = align_to_reference(other, DISCRIMINATING_REFERENCE, k=3)
+    best = max(
+        _agreement([mapping[label] for label in other],
+                   DISCRIMINATING_REFERENCE)
+        for mapping in permutations(range(3))
+    )
+    assert _agreement(aligned, DISCRIMINATING_REFERENCE) == best
+
+
+@pytest.mark.parametrize("other", [DISCRIMINATING_OTHER, GREEDY_TRAP_OTHER])
+def test_align_to_reference_is_a_permutation(other):
+    aligned = align_to_reference(other, DISCRIMINATING_REFERENCE, k=3)
+    assert sorted(np.bincount(aligned, minlength=3)) == \
+        sorted(np.bincount(other, minlength=3))
+    for i in range(len(other)):
+        for j in range(len(other)):
+            same_before = other[i] == other[j]
+            assert same_before == (aligned[i] == aligned[j])
+
+
+def test_align_to_reference_is_idempotent_on_the_reference():
+    aligned = align_to_reference(DISCRIMINATING_REFERENCE,
+                                 DISCRIMINATING_REFERENCE, k=3)
+    assert list(aligned) == DISCRIMINATING_REFERENCE
+
+
+def _discriminating_selected() -> pd.DataFrame:
+    return pd.DataFrame([
+        {"instance": "artesp_rmsp_150", "algorithm": "tabu", "k": 3, "seed": 10,
+         "total_cost": 0.1, "scenario_id": "a", "solution": DISCRIMINATING_REFERENCE},
+        {"instance": "artesp_rmsp_150", "algorithm": "aco", "k": 3, "seed": 11,
+         "total_cost": 0.2, "scenario_id": "b", "solution": DISCRIMINATING_OTHER},
+        {"instance": "artesp_rmsp_150", "algorithm": "pso", "k": 3, "seed": 12,
+         "total_cost": 0.3, "scenario_id": "c", "solution": [2, 2, 0, 0, 1, 1]},
+    ])
+
+
+def test_align_selected_uses_the_cheapest_method_as_reference():
+    aligned = align_selected(_discriminating_selected()).set_index("algorithm")
+    assert set(aligned["reference_algorithm"]) == {"tabu"}
+    # `pso` e' a referencia permutada: alinhado, tem de coincidir com ela.
+    assert aligned.loc["pso", "solution_aligned"] == DISCRIMINATING_REFERENCE
+    # `aco` e' outra particao: alinhado, e' o vetor de sobreposicao maxima, e
+    # NAO a sua canonicalizacao.
+    assert aligned.loc["aco", "solution_aligned"] == DISCRIMINATING_ALIGNED
+    assert aligned.loc["aco", "solution_aligned"] != DISCRIMINATING_OTHER
+
+
+def test_align_selected_stores_the_canonical_labels_of_the_reference():
+    selected = pd.DataFrame([
+        {"instance": "i", "algorithm": "tabu", "k": 2, "seed": 10, "total_cost": 0.1,
+         "scenario_id": "a", "solution": [1, 1, 0, 0]},
+        {"instance": "i", "algorithm": "aco", "k": 2, "seed": 11, "total_cost": 0.2,
+         "scenario_id": "b", "solution": [0, 0, 1, 1]},
+        {"instance": "i", "algorithm": "pso", "k": 2, "seed": 12, "total_cost": 0.3,
+         "scenario_id": "c", "solution": [0, 0, 1, 1]},
+    ])
+    aligned = align_selected(selected).set_index("algorithm")
+    assert aligned.loc["tabu", "solution_aligned"] == [0, 0, 1, 1]
+
+
+def test_align_selected_breaks_cost_ties_by_tabu_aco_pso_order():
+    # Os tres `total_cost` sao iguais: sem o desempate `tabu, aco, pso`, a
+    # escolha da referencia dependeria da ordem de insercao das linhas.
+    # Linhas inseridas em `pso, aco, tabu` de proposito: a ordenacao estavel
+    # do pandas nao pode devolver `tabu` por acidente de posicao de insercao,
+    # so' porque o criterio `_order` de fato a colocou primeiro.
+    selected = pd.DataFrame([
+        {"instance": "i", "algorithm": "pso", "k": 3, "seed": 12, "total_cost": 0.5,
+         "scenario_id": "c", "solution": [2, 2, 0, 0, 1, 1]},
+        {"instance": "i", "algorithm": "aco", "k": 3, "seed": 11, "total_cost": 0.5,
+         "scenario_id": "b", "solution": DISCRIMINATING_OTHER},
+        {"instance": "i", "algorithm": "tabu", "k": 3, "seed": 10, "total_cost": 0.5,
+         "scenario_id": "a", "solution": DISCRIMINATING_REFERENCE},
+    ])
+    aligned = align_selected(selected)
+    assert set(aligned["reference_algorithm"]) == {"tabu"}
+
+
+def test_align_selected_breaks_ties_among_non_reference_methods_too():
+    # `tabu` e' o mais caro; `aco` e `pso` empatam entre si. O desempate tem
+    # de escolher `aco` pela ordem `tabu, aco, pso`, nao `pso`. Linhas
+    # inseridas em `pso, aco, tabu` pelo mesmo motivo do teste anterior.
+    selected = pd.DataFrame([
+        {"instance": "i", "algorithm": "pso", "k": 3, "seed": 12, "total_cost": 0.2,
+         "scenario_id": "c", "solution": [2, 2, 0, 0, 1, 1]},
+        {"instance": "i", "algorithm": "aco", "k": 3, "seed": 11, "total_cost": 0.2,
+         "scenario_id": "b", "solution": DISCRIMINATING_OTHER},
+        {"instance": "i", "algorithm": "tabu", "k": 3, "seed": 10, "total_cost": 0.9,
+         "scenario_id": "a", "solution": DISCRIMINATING_REFERENCE},
+    ])
+    aligned = align_selected(selected)
+    assert set(aligned["reference_algorithm"]) == {"aco"}
+
+
+def _instances_dir(tmp_path: Path) -> Path:
+    # Universo de 6 unidades: 2 no recorte de 20, 4 no de 60, 6 no de 150.
+    # A ordem do GPKG e' invertida em relacao a `unit_ids` de proposito: um
+    # `build` que confiasse na ordem das feicoes trocaria os lotes de lugar.
+    directory = tmp_path / "instances"
+    directory.mkdir()
+    unit_ids = {20: ["u0", "u1"], 60: ["u0", "u1", "u2", "u3"],
+                150: ["u0", "u1", "u2", "u3", "u4", "u5"]}
+    for size, ids in unit_ids.items():
+        (directory / f"artesp_rmsp_{size}.json").write_text(
+            json.dumps({"name": f"artesp_rmsp_{size}", "n_units": len(ids),
+                        "unit_ids": ids}), encoding="utf-8")
+    gpkg = directory / "artesp_rmsp_150.gpkg"
+    gpd.GeoDataFrame(
+        {
+            "unit_id": list(reversed(unit_ids[150])),
+            "codigo_linha": ["c"] * 6, "sentido": ["ida"] * 6,
+            "nome_legivel": ["n"] * 6, "passengers_day": [1.0] * 6,
+            "pu_km_day": [2.0] * 6, "route_length_km": [3.0] * 6,
+        },
+        # Segmentos retos: o casco convexo de um deles NAO e' poligono, o que
+        # torna o ramo do lote degenerado exercitavel na Task 5.
+        geometry=[LineString([(index, 0), (index, 1)]) for index in range(6)],
+        crs="EPSG:4326",
+    ).to_file(gpkg, layer="itinerarios", driver="GPKG")
+    # `main` le a camada `terminais`: sem ela, os testes da Task 8 abortam com
+    # DataLayerError antes da primeira asercao.
+    gpd.GeoDataFrame(
+        {"id_terminal": [1], "nome": ["t"], "terminal_situacao": ["ativo"]},
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])], crs="EPSG:4326",
+    ).to_file(gpkg, layer="terminais", driver="GPKG", mode="a")
+    # As instancias menores tambem precisam do proprio `.gpkg`: a spec, secao 9,
+    # manda recusar quando falta, e o manifesto registra o sha de cada uma.
+    for size in (20, 60):
+        gpd.GeoDataFrame(
+            {"unit_id": unit_ids[size]},
+            geometry=[LineString([(index, 0), (index, 1)])
+                      for index in range(len(unit_ids[size]))],
+            crs="EPSG:4326",
+        ).to_file(directory / f"artesp_rmsp_{size}.gpkg", layer="itinerarios",
+                  driver="GPKG")
+    return directory
+
+
+def _aligned_row(instance, algorithm, k, solution, solution_aligned, *, seed=10,
+                 cost=0.1, scenario="s") -> dict:
+    return {"instance": instance, "algorithm": algorithm, "k": k, "seed": seed,
+            "total_cost": cost, "scenario_id": scenario, "solution": solution,
+            "solution_aligned": solution_aligned, "reference_algorithm": algorithm}
+
+
+def test_column_name_follows_the_agreed_pattern():
+    assert column_name("artesp_rmsp_20", "pso", 5) == "lot_i20_pso_k5"
+
+
+def test_read_unit_ids_returns_the_three_nested_slices(tmp_path):
+    unit_ids = read_unit_ids(_instances_dir(tmp_path))
+    assert set(unit_ids) == {20, 60, 150}
+    assert unit_ids[20] == ["u0", "u1"]
+    # O aninhamento que a spec, secao 2, declara verificado.
+    assert set(unit_ids[20]) < set(unit_ids[60]) < set(unit_ids[150])
+
+
+def test_read_unit_ids_rejects_a_missing_instance_file(tmp_path):
+    directory = _instances_dir(tmp_path)
+    (directory / "artesp_rmsp_60.gpkg").unlink()
+    with pytest.raises(ConfigurationError, match="instância ausente"):
+        read_unit_ids(directory)
+
+
+def test_build_itinerarios_joins_by_unit_id_not_by_position(tmp_path):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [1, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 1])])
+    frame = build_itinerarios(directory, aligned).set_index("unit_id")
+    column = column_name("artesp_rmsp_150", "tabu", 2)
+    assert list(frame.loc[["u0", "u1", "u2"], column]) == [0, 0, 0]
+    assert list(frame.loc[["u3", "u4", "u5"], column]) == [1, 1, 1]
+
+
+def test_build_itinerarios_uses_the_aligned_labels_not_the_raw_ones(tmp_path):
+    # `solution` e `solution_aligned` sao DIFERENTES de proposito: trocar uma
+    # pela outra na implementacao e' um bug de uma palavra que produziria os
+    # nove paineis coloridos pela numeracao bruta, que e' o que a spec, secao 7,
+    # diz que arruina o bloco.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "aco", 2, [1, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 1])])
+    frame = build_itinerarios(directory, aligned).set_index("unit_id")
+    column = column_name("artesp_rmsp_150", "aco", 2)
+    assert list(frame.loc[["u0", "u1", "u2"], column]) == [0, 0, 0]
+
+
+def test_build_itinerarios_marks_the_nesting(tmp_path):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame(columns=["instance", "algorithm", "k", "seed",
+                                    "total_cost", "scenario_id", "solution",
+                                    "solution_aligned", "reference_algorithm"])
+    frame = build_itinerarios(directory, aligned).set_index("unit_id")
+    assert list(frame.loc[["u0", "u1"], "aninhamento"]) == ["20_60_150"] * 2
+    assert list(frame.loc[["u2", "u3"], "aninhamento"]) == ["60_150"] * 2
+    assert list(frame.loc[["u4", "u5"], "aninhamento"]) == ["so_150"] * 2
+    assert list(frame.loc[["u0", "u2", "u4"], "in_20"]) == [True, False, False]
+    assert list(frame.loc[["u0", "u2", "u4"], "in_60"]) == [True, True, False]
+    assert "in_150" not in frame.columns
+
+
+def test_build_itinerarios_leaves_units_outside_the_slice_null(tmp_path):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_20", "pso", 2, [0, 1], [0, 1])])
+    frame = build_itinerarios(directory, aligned).set_index("unit_id")
+    column = column_name("artesp_rmsp_20", "pso", 2)
+    assert list(frame.loc[["u0", "u1"], column]) == [0, 1]
+    assert frame.loc[["u2", "u3", "u4", "u5"], column].isna().all()
+
+
+def test_build_itinerarios_holds_the_three_instances_side_by_side(tmp_path):
+    # A camada real tem 54 colunas de lote das tres instancias ao mesmo tempo,
+    # com o padrao de nulos aninhado. Nenhum teste de instancia unica prova isso.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([
+        _aligned_row("artesp_rmsp_20", "pso", 2, [0, 1], [0, 1]),
+        _aligned_row("artesp_rmsp_60", "aco", 2, [0, 0, 1, 1], [0, 0, 1, 1]),
+        _aligned_row("artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1],
+                     [0, 0, 0, 1, 1, 1]),
+    ])
+    frame = build_itinerarios(directory, aligned)
+    columns = [column_name("artesp_rmsp_20", "pso", 2),
+               column_name("artesp_rmsp_60", "aco", 2),
+               column_name("artesp_rmsp_150", "tabu", 2)]
+    assert len(set(columns)) == 3
+    assert all(column in frame.columns for column in columns)
+    assert [int(frame[column].notna().sum()) for column in columns] == [2, 4, 6]
+    assert all(str(frame[column].dtype) == "Int64" for column in columns)
+    # Os atributos descritivos da instancia de 150 sobrevivem ao recorte de
+    # colunas, e o resultado continua um GeoDataFrame em EPSG:4326 (CRS de
+    # armazenamento exigido pelas restricoes globais do bloco). A lista abaixo
+    # e' literal, e nao a constante `DESCRIPTIVE_COLUMNS` do proprio modulo:
+    # comparar a constante contra si mesma, atraves do recorte feito com ela,
+    # nunca falharia por uma constante truncada.
+    expected_descriptive_columns = ["unit_id", "codigo_linha", "sentido",
+                                    "nome_legivel", "passengers_day",
+                                    "pu_km_day", "route_length_km"]
+    assert all(column in frame.columns for column in expected_descriptive_columns)
+    # Um valor sobrevivente de verdade, nao so o nome da coluna: pega
+    # truncamento que preservasse o rotulo mas descartasse o conteudo.
+    assert frame.set_index("unit_id").loc["u0", "pu_km_day"] == 2.0
+    assert isinstance(frame, gpd.GeoDataFrame)
+    assert frame.crs.to_string() == "EPSG:4326"
+
+
+def test_build_itinerarios_rejects_unit_id_divergence(tmp_path):
+    directory = _instances_dir(tmp_path)
+    payload = json.loads((directory / "artesp_rmsp_150.json").read_text(encoding="utf-8"))
+    payload["unit_ids"][0] = "fantasma"
+    (directory / "artesp_rmsp_150.json").write_text(json.dumps(payload), encoding="utf-8")
+    aligned = pd.DataFrame(columns=["instance", "algorithm", "k", "seed",
+                                    "total_cost", "scenario_id", "solution",
+                                    "solution_aligned", "reference_algorithm"])
+    with pytest.raises(ConfigurationError, match="divergem"):
+        build_itinerarios(directory, aligned)
+
+
+def test_build_itinerarios_rejects_an_unknown_instance_size(tmp_path):
+    # `read_unit_ids` so conhece 20, 60 e 150; uma linha de `aligned` com outro
+    # tamanho nao pode virar `KeyError` cru — o `main` da Task 8 so pega
+    # `ConfigurationError`.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_999", "pso", 2, [0, 1], [0, 1])])
+    with pytest.raises(ConfigurationError, match="desconhecida"):
+        build_itinerarios(directory, aligned)
+
+
+def test_build_itinerarios_rejects_a_solution_length_mismatch(tmp_path):
+    # `solution_aligned` com comprimento diferente do `unit_ids` da instancia
+    # nao pode virar `ValueError` cru do `zip(..., strict=True)`.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_20", "pso", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    with pytest.raises(ConfigurationError, match="alinhada"):
+        build_itinerarios(directory, aligned)
+
+
+def test_build_itinerarios_rejects_a_duplicate_lot_column(tmp_path):
+    # Duas linhas de `aligned` que produzem o mesmo nome de coluna nao podem
+    # sobrescrever uma a outra em silencio.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([
+        _aligned_row("artesp_rmsp_20", "pso", 2, [0, 1], [0, 1], seed=10),
+        _aligned_row("artesp_rmsp_20", "pso", 2, [1, 0], [1, 0], seed=11),
+    ])
+    with pytest.raises(ConfigurationError, match="duplicada"):
+        build_itinerarios(directory, aligned)
+
+
+def _envoltorias(tmp_path, solution, solution_aligned, k=2):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", k, solution, solution_aligned)])
+    itinerarios = build_itinerarios(directory, aligned)
+    return build_envoltorias(itinerarios, aligned, read_unit_ids(directory))
+
+
+def test_build_envoltorias_creates_one_polygon_per_lot(tmp_path):
+    envoltorias = _envoltorias(tmp_path, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])
+    assert len(envoltorias) == 2
+    assert sorted(envoltorias["lot"]) == [0, 1]
+    assert set(envoltorias["n_units"]) == {3}
+    assert (envoltorias.geometry.geom_type == "Polygon").all()
+    assert list(envoltorias["seed"]) == [10, 10]
+    # Sem esta asercao, `degenerado = True` incondicional passaria.
+    assert not envoltorias["degenerado"].any()
+
+
+def test_build_envoltorias_computes_area_in_the_metric_crs(tmp_path):
+    # Em graus, a area destes cascos sairia na casa de 1e-6; em km2, de 1e4.
+    # A asercao de magnitude separa a implementacao que nunca reprojeta.
+    # O teto fecha o outro lado: com a geometria desta fixture, os dois
+    # cascos ficam entre 51.367 e 57.692 km2; um fator de conversao errado
+    # por mil (`hull.area / 1e3` em vez de `/ 1e6`) os levaria para a casa
+    # dos 51-57 MILHOES de km2, bem acima do teto.
+    envoltorias = _envoltorias(tmp_path, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])
+    assert envoltorias["area_km2"].min() > 1.0
+    assert envoltorias["area_km2"].max() < 100_000.0
+
+
+def test_build_envoltorias_returns_geographic_coordinates(tmp_path):
+    # `set_crs` sem transformar deixaria o CRS certo e as coordenadas em 1e6.
+    # Esta asercao pega essa, e a de area pega a outra: sao defeitos distintos.
+    envoltorias = _envoltorias(tmp_path, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])
+    assert envoltorias.crs.to_string() == "EPSG:4326"
+    minimum_x, minimum_y, maximum_x, maximum_y = envoltorias.total_bounds
+    assert -180 <= minimum_x <= maximum_x <= 180
+    assert -90 <= minimum_y <= maximum_y <= 90
+
+
+def test_build_envoltorias_marks_the_degenerate_lot(tmp_path):
+    envoltorias = _envoltorias(tmp_path, [0, 1, 1, 1, 1, 1], [0, 1, 1, 1, 1, 1])
+    single = envoltorias[envoltorias["lot"] == 0].iloc[0]
+    # O casco convexo de um segmento reto e' LineString, nao poligono: o ramo
+    # do buffer de 50 m e' de fato exercitado aqui.
+    assert single["degenerado"]
+    assert single.geometry.geom_type == "Polygon"
+    assert single["n_units"] == 1
+    # Com esta fixture e o buffer de 50 m declarado, a area do lote
+    # degenerado fica perto de 17,3 km2. Um buffer de 500 m no lugar do de
+    # 50 m (`DEGENERATE_BUFFER_METERS` errado por uma ordem de grandeza) a
+    # levaria para perto de 173,6 km2, acima do teto: e' este teste, e nao o
+    # de area em geral, que de fato exercita o ramo do buffer degenerado.
+    assert single["area_km2"] < 50.0
+    # E o lote normal do mesmo cenario nao pode vir marcado.
+    assert not envoltorias[envoltorias["lot"] == 1].iloc[0]["degenerado"]
+
+
+def test_build_envoltorias_uses_the_aligned_labels_not_the_raw_ones(tmp_path):
+    # Bruto poria uma unidade no lote 0 e cinco no 1; alinhado, o inverso.
+    envoltorias = _envoltorias(tmp_path, [0, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0])
+    by_lot = envoltorias.set_index("lot")["n_units"].to_dict()
+    assert by_lot == {0: 5, 1: 1}
+
+
+def _one_scenario(tmp_path):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    itinerarios = build_itinerarios(directory, aligned)
+    envoltorias = build_envoltorias(itinerarios, aligned, read_unit_ids(directory))
+    return directory, aligned, itinerarios, envoltorias
+
+
+def test_write_gpkg_writes_every_layer(tmp_path):
+    directory, aligned, itinerarios, envoltorias = _one_scenario(tmp_path)
+    terminais = gpd.read_file(directory / "artesp_rmsp_150.gpkg", layer="terminais")
+    target = tmp_path / "saida" / "lot_assignments.gpkg"
+    write_gpkg(target, {"itinerarios": itinerarios, "envoltorias": envoltorias,
+                        "terminais": terminais})
+    assert sorted(name for name, _ in pyogrio.list_layers(target)) == [
+        "envoltorias", "itinerarios", "terminais"]
+
+
+def test_write_gpkg_leaves_no_file_when_a_layer_fails(tmp_path):
+    # Atomicidade de verdade: a asercao "nao sobrou .tmp" e' satisfeita ate' por
+    # uma escrita direta sem temporario. O que so' a escrita atomica garante e'
+    # que uma falha no meio nao deixa o arquivo final pela metade.
+    _, _, itinerarios, _ = _one_scenario(tmp_path)
+    target = tmp_path / "saida" / "lot_assignments.gpkg"
+    with pytest.raises(AttributeError):
+        write_gpkg(target, {"itinerarios": itinerarios, "quebrada": "não é camada"})
+    assert not target.exists()
+    # O temporario de `write_gpkg` tem sufixo `.gpkg`, e nao `.tmp`: um glob por
+    # "*tmp*" nunca acharia o nome real e nunca poderia acusar um vazamento.
+    # Este padrao casa com o nome de verdade gerado por `_temporary_beside`.
+    assert not list(target.parent.glob(f".{target.name}.*"))
+
+
+def test_atomic_write_text_replaces_without_leaving_residue(tmp_path):
+    target = tmp_path / "saida" / "manifesto.json"
+    atomic_write_text(target, "primeiro")
+    atomic_write_text(target, "segundo")
+    assert target.read_text(encoding="utf-8") == "segundo"
+    assert not list(target.parent.glob(".*tmp*"))
+
+
+def test_atomic_write_text_leaves_no_file_when_replace_fails(tmp_path, monkeypatch):
+    # Analogo ao teste de `write_gpkg`: forcar a falha DEPOIS que o temporario
+    # ja foi escrito, e afirmar que o alvo (que ainda nao existia) continua
+    # ausente. Sem forcar falha no meio, o teste anterior so prova o estado
+    # final apos duas chamadas bem-sucedidas, nao atomicidade nenhuma.
+    target = tmp_path / "saida" / "manifesto.json"
+
+    def _replace_quebrado(origem, destino):
+        raise OSError("falha simulada apos a escrita do temporario")
+
+    monkeypatch.setattr(export_maps.os, "replace", _replace_quebrado)
+    with pytest.raises(OSError):
+        atomic_write_text(target, "conteudo")
+    assert not target.exists()
+    assert not list(target.parent.glob(f".{target.name}.*"))
+
+
+def test_atomic_write_text_preserves_the_previous_content_when_replace_fails(
+    tmp_path, monkeypatch
+):
+    # O caso mais valioso: uma escrita interrompida no meio NAO pode corromper
+    # o arquivo bom que ja estava no lugar do alvo.
+    target = tmp_path / "saida" / "manifesto.json"
+    atomic_write_text(target, "bom")
+
+    def _replace_quebrado(origem, destino):
+        raise OSError("falha simulada apos a escrita do temporario")
+
+    monkeypatch.setattr(export_maps.os, "replace", _replace_quebrado)
+    with pytest.raises(OSError):
+        atomic_write_text(target, "ruim")
+    assert target.read_text(encoding="utf-8") == "bom"
+    assert not list(target.parent.glob(f".{target.name}.*"))
+
+
+def test_build_manifest_records_the_real_source_digest(tmp_path):
+    directory = _instances_dir(tmp_path)
+    runs_path = tmp_path / "benchmark_runs.parquet"
+    runs_path.write_bytes(b"conteudo")
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    manifest = build_manifest(runs_path, directory, aligned,
+                              generated_at="2026-09-06T00:00:00",
+                              provenance=FAKE_PROVENANCE)
+    # Comparar com o digest conhecido, e nao so' afirmar que a chave e' verdadeira:
+    # `assert manifest[...]["content_sha256"]` passa com o sha de qualquer coisa.
+    assert manifest["source"]["content_sha256"] == \
+        hashlib.sha256(b"conteudo").hexdigest()
+    assert manifest["source"]["path"] == str(runs_path)
+
+
+def test_build_manifest_lists_every_combination_with_its_winning_seed(tmp_path):
+    directory = _instances_dir(tmp_path)
+    runs_path = tmp_path / "benchmark_runs.parquet"
+    runs_path.write_bytes(b"conteudo")
+    # Tres combinacoes com seeds DIFERENTES: com uma linha so' e uma seed so',
+    # a asercao sobre a seed vencedora passa por vacuo.
+    aligned = pd.DataFrame([
+        _aligned_row("artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1],
+                     [0, 0, 0, 1, 1, 1], seed=11, cost=0.1, scenario="t"),
+        _aligned_row("artesp_rmsp_60", "aco", 2, [0, 0, 1, 1], [0, 0, 1, 1],
+                     seed=22, cost=0.2, scenario="a"),
+        _aligned_row("artesp_rmsp_20", "pso", 2, [0, 1], [0, 1],
+                     seed=33, cost=0.3, scenario="p"),
+    ])
+    manifest = build_manifest(runs_path, directory, aligned,
+                              generated_at="2026-09-06T00:00:00",
+                              provenance=FAKE_PROVENANCE)
+    by_column = {item["column"]: item for item in manifest["combinations"]}
+    assert by_column["lot_i150_tabu_k2"]["seed"] == 11
+    assert by_column["lot_i60_aco_k2"]["seed"] == 22
+    assert by_column["lot_i20_pso_k2"]["seed"] == 33
+    assert manifest["references"]["artesp_rmsp_150|2"] == "tabu"
+
+
+def test_build_manifest_records_path_and_digest_of_every_instance(tmp_path):
+    directory = _instances_dir(tmp_path)
+    runs_path = tmp_path / "benchmark_runs.parquet"
+    runs_path.write_bytes(b"conteudo")
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    manifest = build_manifest(runs_path, directory, aligned,
+                              generated_at="2026-09-06T00:00:00",
+                              provenance=FAKE_PROVENANCE)
+    entry = manifest["instances"]["artesp_rmsp_20"]
+    # A spec, secao 6.4, pede caminho E sha de cada instancia consumida, e
+    # nenhum sha pode ser nulo: instancia sem arquivo e' caso de recusa.
+    assert entry["gpkg_path"].endswith("artesp_rmsp_20.gpkg")
+    assert len(entry["gpkg_sha256"]) == 64
+    assert len(entry["json_sha256"]) == 64
+    # Guarda contra regressao futura (por exemplo, um `.get(..., None)` no
+    # lugar do `if not path.exists(): raise`): nenhum valor de instancia pode
+    # sair nulo quando o arquivo existe de fato.
+    assert all(
+        value is not None
+        for instance in manifest["instances"].values()
+        for value in instance.values()
+    )
+
+
+@pytest.mark.parametrize("missing_suffix", ["gpkg", "json"])
+def test_build_manifest_rejects_a_missing_instance_file(tmp_path, missing_suffix):
+    # A spec, secao 9, manda recusar quando uma instancia declarada nao tem
+    # `.gpkg` ou `.json`. Nenhum dos outros testes de `build_manifest`
+    # exercitava esse caminho: uma regressao que trocasse a ordem do
+    # `if not path.exists()`, ou usasse um `.get(..., None)`, passaria
+    # despercebida sem este teste.
+    directory = _instances_dir(tmp_path)
+    (directory / f"artesp_rmsp_20.{missing_suffix}").unlink()
+    runs_path = tmp_path / "benchmark_runs.parquet"
+    runs_path.write_bytes(b"conteudo")
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    with pytest.raises(ConfigurationError, match="instância ausente"):
+        build_manifest(runs_path, directory, aligned,
+                       generated_at="2026-09-06T00:00:00",
+                       provenance=FAKE_PROVENANCE)
+
+
+def test_categorized_qml_is_well_formed_and_points_at_the_attribute():
+    xml = categorized_qml(attribute="lot_i20_pso_k5", symbol_type="line",
+                          categories=[(0, "Lote 0", "#1b9e77"), (1, "Lote 1", "#d95f02")])
+    renderer = ElementTree.fromstring(xml).find("renderer-v2")
+    assert renderer.get("type") == "categorizedSymbol"
+    assert renderer.get("attr") == "lot_i20_pso_k5"
+    assert len(renderer.find("categories")) == 2
+
+
+def test_categorized_qml_links_each_category_to_the_symbol_with_its_color():
+    # Um deslocamento de indice entre categoria e simbolo produz XML bem-formado,
+    # com a contagem certa, e entrega os nove paineis com as cores trocadas.
+    xml = categorized_qml(attribute="a", symbol_type="line",
+                          categories=[(0, "Lote 0", "#1b9e77"), (1, "Lote 1", "#d95f02")])
+    renderer = ElementTree.fromstring(xml).find("renderer-v2")
+    symbols = {symbol.get("name"): symbol for symbol in renderer.find("symbols")}
+    for category, expected in zip(renderer.find("categories"),
+                                  ("27,158,119,255", "217,95,2,255")):
+        symbol = symbols[category.get("symbol")]
+        colors = [prop.get("v") for prop in symbol.iter("prop")
+                  if prop.get("k") in {"line_color", "color"}]
+        assert colors == [expected]
+
+
+def test_categorized_qml_converts_hex_to_the_rgba_qgis_expects():
+    xml = categorized_qml(attribute="a", symbol_type="fill",
+                          categories=[(0, "z", "#1b9e77")])
+    assert 'v="27,158,119,255"' in xml
+
+
+def test_single_symbol_qml_has_no_categories():
+    xml = single_symbol_qml(symbol_type="fill", color="#bdbdbd")
+    renderer = ElementTree.fromstring(xml).find("renderer-v2")
+    assert renderer.get("type") == "singleSymbol"
+    assert renderer.find("categories") is None
+
+
+def test_write_style_files_writes_the_twelve_styles(tmp_path):
+    written = write_style_files(tmp_path, panels=style_panels(),
+                                nesting=nesting_entries())
+    assert len(written) == 12
+    assert (tmp_path / "itinerarios_aninhamento.qml").exists()
+    assert (tmp_path / "itinerarios_lot_i150_tabu_k5.qml").exists()
+    assert (tmp_path / "envoltorias.qml").exists()
+    assert (tmp_path / "terminais_contexto.qml").exists()
+    for path in written.values():
+        ElementTree.fromstring(path.read_text(encoding="utf-8"))
+    # As tres camadas fora dos paineis nao tem teste dedicado ao seu `attr` ou
+    # ao seu tipo de simbolo; sem estas asercoes, trocar "aninhamento" por
+    # "aninhamentos", "lot" por "lote", ou usar categorizedSymbol em vez de
+    # singleSymbol em terminais_contexto passa por vacuo.
+    aninhamento = ElementTree.fromstring(
+        written["itinerarios_aninhamento"].read_text(encoding="utf-8")
+    ).find("renderer-v2")
+    assert aninhamento.get("attr") == "aninhamento"
+    envoltorias = ElementTree.fromstring(
+        written["envoltorias"].read_text(encoding="utf-8")
+    ).find("renderer-v2")
+    assert envoltorias.get("attr") == "lot"
+    terminais = ElementTree.fromstring(
+        written["terminais_contexto"].read_text(encoding="utf-8")
+    ).find("renderer-v2")
+    assert terminais.get("type") == "singleSymbol"
+    cor = next(
+        prop.get("v") for prop in terminais.iter("prop")
+        if prop.get("k") in {"line_color", "color"}
+    )
+    assert cor == "189,189,189,255"
+    # O `alpha` do simbolo nao tinha trava: uma inversao de "0.45" (envoltoria
+    # semitransparente) para "1" (opaca) produz XML bem-formado e nao mexe em
+    # nenhuma cor ou `attr`, mas esconde os itinerarios por baixo no mapa
+    # geral, o primeiro entregavel do bloco -- com a suite inteira verde.
+    envoltorias_symbol = ElementTree.fromstring(
+        written["envoltorias"].read_text(encoding="utf-8")
+    ).find(".//symbol")
+    assert envoltorias_symbol.get("alpha") == "0.45"
+    painel_symbol = ElementTree.fromstring(
+        written["itinerarios_lot_i150_tabu_k5"].read_text(encoding="utf-8")
+    ).find(".//symbol")
+    assert painel_symbol.get("alpha") == "1"
+
+
+def test_write_style_files_uses_the_injected_writer(tmp_path):
+    # A restricao global manda escrever todo artefato atomicamente, inclusive os
+    # `.qml`. A injecao e' o que permite isso sem `map_styles` importar
+    # `export_maps`, o que fecharia um ciclo.
+    usados = []
+
+    def _writer(path, content):
+        usados.append(path)
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    written = write_style_files(tmp_path, panels=style_panels(),
+                                nesting=nesting_entries(), writer=_writer)
+    assert sorted(usados) == sorted(written.values())
+
+
+def test_style_panels_match_the_generated_column_names(tmp_path):
+    # A travessia: o `attr` de cada painel tem de ser exatamente o nome de
+    # coluna que `build_itinerarios` grava. Sem esta asercao, um `.qml` pode
+    # apontar para coluna inexistente e o painel abre em branco.
+    panels = style_panels()
+    assert len(panels) == 9
+    expected = {column_name(f"artesp_rmsp_{size}", algorithm, HIGHLIGHT_K)
+                for size in (20, 60, 150) for algorithm in ("tabu", "aco", "pso")}
+    assert {attribute for _, attribute, _ in panels} == expected
+    written = write_style_files(tmp_path, panels=panels, nesting=nesting_entries())
+    for name, attribute, _ in panels:
+        renderer = ElementTree.fromstring(
+            written[name].read_text(encoding="utf-8")).find("renderer-v2")
+        assert renderer.get("attr") == attribute
+
+
+def test_nesting_colors_cover_every_label_the_data_uses():
+    # Divergencia de uma letra entre o rotulo gravado e o rotulo estilizado faz
+    # o mapa geral abrir em branco com a suite verde.
+    assert {value for value, _ in nesting_entries()} <= set(NESTING_COLORS)
+
+
+def test_lot_colors_are_distinct_and_cover_the_largest_k():
+    # `len(LOT_COLORS) >= 8` passaria com oito cores identicas.
+    assert len(set(LOT_COLORS)) >= 8
+
+
+def test_export_writes_every_artifact(tmp_path):
+    directory = _instances_dir(tmp_path)
+    tables = _runs_for_export(tmp_path)
+    output = tmp_path / "maps"
+    report = export(tables_dir=tables, instances_dir=directory, output_dir=output,
+                    unit_counts=UNIT_COUNTS, expected_runs=90, expected_seeds=30,
+                    combinations=3)
+    assert report["combinations"] == 3
+    assert (output / "lot_maps_manifest.json").exists()
+    assert len(list((output / "qml").glob("*.qml"))) == 12
+    # As tres camadas, e nao so' a existencia do arquivo: sem esta asercao,
+    # remover `terminais` do pipeline nao quebraria teste nenhum.
+    assert sorted(name for name, _ in
+                  pyogrio.list_layers(output / "lot_assignments.gpkg")) == [
+        "envoltorias", "itinerarios", "terminais"]
+
+
+def test_export_records_provenance_and_the_geospatial_stack(tmp_path):
+    # A cultura dos demais manifestos do projeto (benchmark_manifest.json,
+    # greedy_manifest.json, tuning_manifest.json) e' carregar um bloco
+    # `provenance`. Dos 54 alinhamentos, 10 tem otimo nao unico no
+    # `linear_sum_assignment`, e quem decide o desempate e' a versao do scipy;
+    # sem proveniencia registrada, o artefato versionado nao diz o que o
+    # produziu.
+    directory = _instances_dir(tmp_path)
+    tables = _runs_for_export(tmp_path)
+    output = tmp_path / "maps"
+    export(tables_dir=tables, instances_dir=directory, output_dir=output,
+           unit_counts=UNIT_COUNTS, expected_runs=90, expected_seeds=30,
+           combinations=3)
+    manifest = json.loads(
+        (output / "lot_maps_manifest.json").read_text(encoding="utf-8"))
+    provenance = manifest["provenance"]
+    assert provenance["git_commit"]
+    # `scipy` decide os empates de alinhamento; `geopandas`, `pyogrio` e
+    # `shapely` decidem a geometria escrita no GPKG. Nenhum dos quatro entra
+    # na tupla congelada de `capture_provenance`.
+    stack = provenance["geospatial_stack"]
+    for package in ("scipy", "geopandas", "pyogrio", "shapely"):
+        assert stack[package]
+
+
+def test_export_is_deterministic_except_for_the_timestamp(tmp_path):
+    directory = _instances_dir(tmp_path)
+    tables = _runs_for_export(tmp_path)
+    manifests, columns = [], []
+    for name in ("a", "b"):
+        output = tmp_path / name
+        export(tables_dir=tables, instances_dir=directory, output_dir=output,
+               unit_counts=UNIT_COUNTS, expected_runs=90, expected_seeds=30,
+               combinations=3)
+        manifest = json.loads(
+            (output / "lot_maps_manifest.json").read_text(encoding="utf-8"))
+        manifest.pop("generated_at")
+        manifests.append(manifest)
+        frame = gpd.read_file(output / "lot_assignments.gpkg", layer="itinerarios")
+        # `fillna(-1)`: a coluna volta do GPKG como float64 quando tem nulos, e
+        # NaN != NaN faria a comparacao falhar por motivo errado.
+        columns.append(frame.sort_values("unit_id")["lot_i150_tabu_k2"]
+                       .fillna(-1).tolist())
+    assert manifests[0] == manifests[1]
+    assert columns[0] == columns[1]
+
+
+def test_export_rejects_a_missing_parquet(tmp_path):
+    directory = _instances_dir(tmp_path)
+    with pytest.raises(ConfigurationError, match="benchmark_runs.parquet"):
+        export(tables_dir=tmp_path / "vazio", instances_dir=directory,
+               output_dir=tmp_path / "maps", unit_counts=UNIT_COUNTS,
+               expected_runs=90, expected_seeds=30, combinations=3)
+
+
+def test_export_writes_the_styles_through_the_atomic_writer(tmp_path, monkeypatch):
+    # Sem esta asercao, um `export` que omitisse `writer=atomic_write_text` ao
+    # chamar `write_style_files` ainda escreveria os doze `.qml` pelo writer
+    # padrao (nao atomico) e passaria pela suite inteira sem ser percebido.
+    directory = _instances_dir(tmp_path)
+    tables = _runs_for_export(tmp_path)
+    output = tmp_path / "maps"
+    usados = []
+    original = export_maps.atomic_write_text
+
+    def _espia(path, content):
+        usados.append(Path(path))
+        return original(path, content)
+
+    monkeypatch.setattr(export_maps, "atomic_write_text", _espia)
+    export(tables_dir=tables, instances_dir=directory, output_dir=output,
+           unit_counts=UNIT_COUNTS, expected_runs=90, expected_seeds=30,
+           combinations=3)
+    qml = sorted((output / "qml").glob("*.qml"))
+    assert len(qml) == 12
+    assert set(qml) <= set(usados)

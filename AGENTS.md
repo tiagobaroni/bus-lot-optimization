@@ -462,6 +462,36 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
+**Estado registrado em 06/09/2026, com a B15 concluída, pendente apenas da
+conferência visual no QGIS.** Os registros datados abaixo permanecem como
+foram escritos, por serem o fechamento dos blocos anteriores.
+
+- **a B15, exportação cartográfica dos agrupamentos, está registrada em
+  `TODO.md`, seção "## B15", como `CONCLUÍDA - PENDENTE DE CONFERENCIA VISUAL
+  NO QGIS`.** Seis das sete tarefas estão marcadas; a sétima, a conferência
+  visual dos nove painéis do recorte `K=5`, é do usuário e não foi executada
+  aqui — é a única verificação real de que o QGIS aceita os `.qml`, já que os
+  testes só provam XML bem-formado com a cor ligada à categoria;
+- a suíte de testes está em **625 aprovados** (`uv run pytest tests/ -q`),
+  contra 564 antes do bloco;
+- o exportador roda com `uv run python -m experiments.export_maps` e escreve
+  `results/maps/lot_assignments.gpkg`, com **3,4 MB** e as camadas
+  `itinerarios` (150 unidades, 54 colunas de lote), `envoltorias` (297
+  polígonos, forma longa por combinação×lote) e `terminais` (311 polígonos de
+  contexto); o manifesto de proveniência `results/maps/lot_maps_manifest.json`;
+  e os doze estilos `.qml` em `results/maps/qml/`;
+- **as 18 chaves de referência do alinhamento apontam todas para a Busca
+  Tabu**, por ter o menor custo nas 18 combinações instância×K — em duas
+  delas, `artesp_rmsp_20` com K=3 e com K=4, o PSO empata o custo exatamente
+  com a Busca Tabu, e o desempate é resolvido pela ordem `tabu, aco, pso` —
+  não é constante suspeita, é o mecanismo de alinhamento funcionando;
+- o trabalho está na branch `b15-mapas`, commits de implementação
+  `cbf460b` a `8741097`, com o fecho em documentação depois deles, ainda
+  não integrada à `main`; a integração é decisão do usuário, depois de uma
+  revisão final da branch inteira;
+- **a B14 continua retida**: o fecho da B15 não a libera, e a liberação
+  continua exigindo decisão explícita do usuário.
+
 **Estado registrado em 06/09/2026, com a B13 concluída e a B14 retida.** Os
 registros datados abaixo permanecem como foram escritos, por serem o
 fechamento dos blocos anteriores.
