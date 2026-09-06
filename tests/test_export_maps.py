@@ -11,6 +11,7 @@ import pytest
 from shapely.geometry import LineString, Polygon
 
 from metaheuristica.errors import ConfigurationError
+from experiments import export_maps
 from experiments.export_maps import (
     align_selected,
     align_to_reference,
@@ -538,7 +539,10 @@ def test_write_gpkg_leaves_no_file_when_a_layer_fails(tmp_path):
     with pytest.raises(AttributeError):
         write_gpkg(target, {"itinerarios": itinerarios, "quebrada": "não é camada"})
     assert not target.exists()
-    assert not list(target.parent.glob(".*tmp*"))
+    # O temporario de `write_gpkg` tem sufixo `.gpkg`, e nao `.tmp`: um glob por
+    # "*tmp*" nunca acharia o nome real e nunca poderia acusar um vazamento.
+    # Este padrao casa com o nome de verdade gerado por `_temporary_beside`.
+    assert not list(target.parent.glob(f".{target.name}.*"))
 
 
 def test_atomic_write_text_replaces_without_leaving_residue(tmp_path):
@@ -547,6 +551,41 @@ def test_atomic_write_text_replaces_without_leaving_residue(tmp_path):
     atomic_write_text(target, "segundo")
     assert target.read_text(encoding="utf-8") == "segundo"
     assert not list(target.parent.glob(".*tmp*"))
+
+
+def test_atomic_write_text_leaves_no_file_when_replace_fails(tmp_path, monkeypatch):
+    # Analogo ao teste de `write_gpkg`: forcar a falha DEPOIS que o temporario
+    # ja foi escrito, e afirmar que o alvo (que ainda nao existia) continua
+    # ausente. Sem forcar falha no meio, o teste anterior so prova o estado
+    # final apos duas chamadas bem-sucedidas, nao atomicidade nenhuma.
+    target = tmp_path / "saida" / "manifesto.json"
+
+    def _replace_quebrado(origem, destino):
+        raise OSError("falha simulada apos a escrita do temporario")
+
+    monkeypatch.setattr(export_maps.os, "replace", _replace_quebrado)
+    with pytest.raises(OSError):
+        atomic_write_text(target, "conteudo")
+    assert not target.exists()
+    assert not list(target.parent.glob(f".{target.name}.*"))
+
+
+def test_atomic_write_text_preserves_the_previous_content_when_replace_fails(
+    tmp_path, monkeypatch
+):
+    # O caso mais valioso: uma escrita interrompida no meio NAO pode corromper
+    # o arquivo bom que ja estava no lugar do alvo.
+    target = tmp_path / "saida" / "manifesto.json"
+    atomic_write_text(target, "bom")
+
+    def _replace_quebrado(origem, destino):
+        raise OSError("falha simulada apos a escrita do temporario")
+
+    monkeypatch.setattr(export_maps.os, "replace", _replace_quebrado)
+    with pytest.raises(OSError):
+        atomic_write_text(target, "ruim")
+    assert target.read_text(encoding="utf-8") == "bom"
+    assert not list(target.parent.glob(f".{target.name}.*"))
 
 
 def test_build_manifest_records_the_real_source_digest(tmp_path):
@@ -601,3 +640,29 @@ def test_build_manifest_records_path_and_digest_of_every_instance(tmp_path):
     assert entry["gpkg_path"].endswith("artesp_rmsp_20.gpkg")
     assert len(entry["gpkg_sha256"]) == 64
     assert len(entry["json_sha256"]) == 64
+    # Guarda contra regressao futura (por exemplo, um `.get(..., None)` no
+    # lugar do `if not path.exists(): raise`): nenhum valor de instancia pode
+    # sair nulo quando o arquivo existe de fato.
+    assert all(
+        value is not None
+        for instance in manifest["instances"].values()
+        for value in instance.values()
+    )
+
+
+@pytest.mark.parametrize("missing_suffix", ["gpkg", "json"])
+def test_build_manifest_rejects_a_missing_instance_file(tmp_path, missing_suffix):
+    # A spec, secao 9, manda recusar quando uma instancia declarada nao tem
+    # `.gpkg` ou `.json`. Nenhum dos outros testes de `build_manifest`
+    # exercitava esse caminho: uma regressao que trocasse a ordem do
+    # `if not path.exists()`, ou usasse um `.get(..., None)`, passaria
+    # despercebida sem este teste.
+    directory = _instances_dir(tmp_path)
+    (directory / f"artesp_rmsp_20.{missing_suffix}").unlink()
+    runs_path = tmp_path / "benchmark_runs.parquet"
+    runs_path.write_bytes(b"conteudo")
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    with pytest.raises(ConfigurationError, match="instância ausente"):
+        build_manifest(runs_path, directory, aligned,
+                       generated_at="2026-09-06T00:00:00")
