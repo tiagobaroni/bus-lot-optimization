@@ -1220,19 +1220,25 @@ pacote-fonte bruto da ARTESP, do qual as instâncias foram geradas: ele
 não é versionado por ser volumoso e por não ser redistribuível junto do
 código.
 
-Esse pacote foi compactado e disponibilizado separadamente, e o link para
-download foi compartilhado por meio do Moodle da disciplina. Baixe o
-arquivo compactado e descompacte-o de modo que o conteúdo fique
-diretamente sob o diretório
+Esse pacote foi compactado no arquivo
+\texttt{dados\_origem\_artesp.zip}, e o link para download foi
+compartilhado por meio do Moodle da disciplina. Baixe o arquivo e
+descompacte-o \textbf{na raiz do repositório clonado}, isto é, dentro do
+diretório \texttt{bus-lot-optimization} criado no Passo~1:
 
 \begin{verbatim}
-_temp/dados_artesp/
+cd bus-lot-optimization
+unzip caminho/para/dados_origem_artesp.zip
 \end{verbatim}
 
-criando-o se necessário. Ao final, esse diretório deve conter os arquivos
-de dados de origem e o \texttt{manifest.json} que os descreve. O
-diretório \texttt{\_temp/} é ignorado pelo controle de versão, de modo que
-o pacote não interfere no estado do repositório.
+O arquivo já carrega a estrutura de diretórios correta, de modo que seu
+conteúdo é colocado automaticamente em \texttt{\_temp/dados\_artesp/},
+que é onde o projeto o procura; não é necessário criar diretório algum
+nem mover arquivos. Ao final, esse diretório conterá os arquivos de dados
+de origem, o dicionário de dados e o \texttt{manifest.json} que registra
+a proveniência do pacote. O diretório \texttt{\_temp/} é ignorado pelo
+controle de versão, de modo que o pacote não altera o estado do
+repositório.
 
 O pacote-fonte é necessário apenas para os três testes que reexecutam a
 geração das instâncias a partir dos dados brutos. Se preferir executar
