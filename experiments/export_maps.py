@@ -173,8 +173,21 @@ def build_itinerarios(instances_dir: Path, aligned: pd.DataFrame) -> gpd.GeoData
     )
 
     for row in aligned.itertuples():
-        size = int(row.instance.rsplit("_", 1)[-1])
-        mapping = dict(zip(unit_ids[size], row.solution_aligned, strict=True))
         column = column_name(row.instance, row.algorithm, int(row.k))
+        if column in frame.columns:
+            raise ConfigurationError(f"coluna de lote duplicada: {column}")
+        size_text = row.instance.rsplit("_", 1)[-1]
+        size = int(size_text) if size_text.isdigit() else None
+        if size not in unit_ids:
+            raise ConfigurationError(
+                f"instância desconhecida em aligned: {row.instance}"
+            )
+        solution_aligned = list(row.solution_aligned)
+        if len(solution_aligned) != len(unit_ids[size]):
+            raise ConfigurationError(
+                f"solução alinhada de {row.instance} tem {len(solution_aligned)} "
+                f"unidades, e não {len(unit_ids[size])}"
+            )
+        mapping = dict(zip(unit_ids[size], solution_aligned))
         frame[column] = frame["unit_id"].map(mapping).astype("Int64")
     return frame

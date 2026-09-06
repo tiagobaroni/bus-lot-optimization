@@ -10,7 +10,6 @@ from shapely.geometry import LineString, Polygon
 
 from metaheuristica.errors import ConfigurationError
 from experiments.export_maps import (
-    DESCRIPTIVE_COLUMNS,
     align_selected,
     align_to_reference,
     build_itinerarios,
@@ -390,8 +389,17 @@ def test_build_itinerarios_holds_the_three_instances_side_by_side(tmp_path):
     assert all(str(frame[column].dtype) == "Int64" for column in columns)
     # Os atributos descritivos da instancia de 150 sobrevivem ao recorte de
     # colunas, e o resultado continua um GeoDataFrame em EPSG:4326 (CRS de
-    # armazenamento exigido pelas restricoes globais do bloco).
-    assert all(column in frame.columns for column in DESCRIPTIVE_COLUMNS)
+    # armazenamento exigido pelas restricoes globais do bloco). A lista abaixo
+    # e' literal, e nao a constante `DESCRIPTIVE_COLUMNS` do proprio modulo:
+    # comparar a constante contra si mesma, atraves do recorte feito com ela,
+    # nunca falharia por uma constante truncada.
+    expected_descriptive_columns = ["unit_id", "codigo_linha", "sentido",
+                                    "nome_legivel", "passengers_day",
+                                    "pu_km_day", "route_length_km"]
+    assert all(column in frame.columns for column in expected_descriptive_columns)
+    # Um valor sobrevivente de verdade, nao so o nome da coluna: pega
+    # truncamento que preservasse o rotulo mas descartasse o conteudo.
+    assert frame.set_index("unit_id").loc["u0", "pu_km_day"] == 2.0
     assert isinstance(frame, gpd.GeoDataFrame)
     assert frame.crs.to_string() == "EPSG:4326"
 
@@ -405,4 +413,37 @@ def test_build_itinerarios_rejects_unit_id_divergence(tmp_path):
                                     "total_cost", "scenario_id", "solution",
                                     "solution_aligned", "reference_algorithm"])
     with pytest.raises(ConfigurationError, match="divergem"):
+        build_itinerarios(directory, aligned)
+
+
+def test_build_itinerarios_rejects_an_unknown_instance_size(tmp_path):
+    # `read_unit_ids` so conhece 20, 60 e 150; uma linha de `aligned` com outro
+    # tamanho nao pode virar `KeyError` cru — o `main` da Task 8 so pega
+    # `ConfigurationError`.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_999", "pso", 2, [0, 1], [0, 1])])
+    with pytest.raises(ConfigurationError, match="desconhecida"):
+        build_itinerarios(directory, aligned)
+
+
+def test_build_itinerarios_rejects_a_solution_length_mismatch(tmp_path):
+    # `solution_aligned` com comprimento diferente do `unit_ids` da instancia
+    # nao pode virar `ValueError` cru do `zip(..., strict=True)`.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_20", "pso", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    with pytest.raises(ConfigurationError, match="alinhada"):
+        build_itinerarios(directory, aligned)
+
+
+def test_build_itinerarios_rejects_a_duplicate_lot_column(tmp_path):
+    # Duas linhas de `aligned` que produzem o mesmo nome de coluna nao podem
+    # sobrescrever uma a outra em silencio.
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([
+        _aligned_row("artesp_rmsp_20", "pso", 2, [0, 1], [0, 1], seed=10),
+        _aligned_row("artesp_rmsp_20", "pso", 2, [1, 0], [1, 0], seed=11),
+    ])
+    with pytest.raises(ConfigurationError, match="duplicada"):
         build_itinerarios(directory, aligned)
