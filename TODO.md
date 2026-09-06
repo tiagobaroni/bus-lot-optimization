@@ -52,14 +52,16 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 - **Último bloco concluído:** B15 - exportação cartográfica dos agrupamentos,
   com o registro `CONCLUÍDA - PENDENTE DE CONFERENCIA VISUAL NO QGIS`. Antes
   dela, B13 - relatório, README e empacotamento.
-- **Branch de trabalho:** `b15-mapas`, com a árvore limpa e os catorze commits
-  do bloco (`cbf460b` a `8741097`) mais o de documentação. Ainda não integrada
-  à `main`; a integração é decisão do usuário, depois de uma revisão final da
-  branch inteira. A `main` e o `origin/main` estão em `8b43079`, que é também
-  a base comum (`merge-base`) entre `main` e `b15-mapas` — esse commit já
-  abriu a seção "## B15" em `TODO.md`, antes do início da implementação. Os
-  dezesseis commits da B13 (`39adab6` a `4f2d8f8`) foram enviados ao remoto em
-  04/09/2026.
+- **Branch de trabalho:** `b15-mapas`, com a árvore limpa, reunindo os
+  commits do bloco a partir de `cbf460b`: a implementação foi concluída em
+  `8741097`, e os commits seguintes registram o fecho em documentação (a
+  contagem exata não é fixada aqui porque uma revisão final da branch inteira
+  ainda pode acrescentar commits). Ainda não integrada à `main`; a integração
+  é decisão do usuário, depois dessa revisão final. A `main` e o `origin/main`
+  estão em `8b43079`, que é também a base comum (`merge-base`) entre `main` e
+  `b15-mapas` — esse commit já abriu a seção "## B15" em `TODO.md`, antes do
+  início da implementação. Os dezesseis commits da B13 (`39adab6` a
+  `4f2d8f8`) foram enviados ao remoto em 04/09/2026.
 - **A B11A-E foi iniciada em 02/09/2026 e interrompida no cenário 4 de 60.** O
   guarda térmico recusou a entrada do cenário com `GpuSafetyError`, e a sessão
   ficou registrada como `interrupted`. Os cenários 1 a 3 concluíram e foram
