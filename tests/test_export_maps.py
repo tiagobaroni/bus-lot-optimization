@@ -116,6 +116,14 @@ DISCRIMINATING_REFERENCE = [0, 0, 1, 1, 2, 2]
 DISCRIMINATING_OTHER = [0, 1, 0, 0, 2, 2]
 DISCRIMINATING_ALIGNED = [1, 0, 1, 1, 2, 2]
 
+# Segundo par, armadilha do guloso por linha: escolher o maximo de cada linha
+# da matriz de contingencia sem impor bijecao funde os lotes 1 e 2 (ambos tem
+# o maximo na mesma coluna) e da concordancia 4, MAIOR que o otimo (3), o que
+# e' impossivel para uma permutacao valida. Sem este par, um guloso por linha
+# (`contingency.argmax(axis=1)`) passa nos mesmos testes que a atribuicao
+# otima por `linear_sum_assignment`.
+GREEDY_TRAP_OTHER = [0, 0, 1, 2, 0, 0]
+
 
 def _agreement(left, right) -> int:
     return sum(1 for a, b in zip(left, right) if a == b)
@@ -137,25 +145,29 @@ def test_align_to_reference_beats_canonicalization():
     assert _agreement(DISCRIMINATING_OTHER, DISCRIMINATING_REFERENCE) == 3
 
 
-def test_align_to_reference_maximizes_agreement_over_every_permutation():
+@pytest.mark.parametrize("other", [DISCRIMINATING_OTHER, GREEDY_TRAP_OTHER])
+def test_align_to_reference_maximizes_agreement_over_every_permutation(other):
     # Propriedade, e nao caso: nenhuma das k! renomeacoes concorda mais com a
     # referencia do que a escolhida. Mata canonicalizacao, identidade e guloso.
-    aligned = align_to_reference(DISCRIMINATING_OTHER, DISCRIMINATING_REFERENCE, k=3)
+    # `GREEDY_TRAP_OTHER` e' o par que pega o guloso por linha: ele da
+    # concordancia 4, acima do otimo (3), porque nao e' uma permutacao valida.
+    aligned = align_to_reference(other, DISCRIMINATING_REFERENCE, k=3)
     best = max(
-        _agreement([mapping[label] for label in DISCRIMINATING_OTHER],
+        _agreement([mapping[label] for label in other],
                    DISCRIMINATING_REFERENCE)
         for mapping in permutations(range(3))
     )
     assert _agreement(aligned, DISCRIMINATING_REFERENCE) == best
 
 
-def test_align_to_reference_is_a_permutation():
-    aligned = align_to_reference(DISCRIMINATING_OTHER, DISCRIMINATING_REFERENCE, k=3)
+@pytest.mark.parametrize("other", [DISCRIMINATING_OTHER, GREEDY_TRAP_OTHER])
+def test_align_to_reference_is_a_permutation(other):
+    aligned = align_to_reference(other, DISCRIMINATING_REFERENCE, k=3)
     assert sorted(np.bincount(aligned, minlength=3)) == \
-        sorted(np.bincount(DISCRIMINATING_OTHER, minlength=3))
-    for i in range(len(DISCRIMINATING_OTHER)):
-        for j in range(len(DISCRIMINATING_OTHER)):
-            same_before = DISCRIMINATING_OTHER[i] == DISCRIMINATING_OTHER[j]
+        sorted(np.bincount(other, minlength=3))
+    for i in range(len(other)):
+        for j in range(len(other)):
+            same_before = other[i] == other[j]
             assert same_before == (aligned[i] == aligned[j])
 
 
@@ -198,3 +210,33 @@ def test_align_selected_stores_the_canonical_labels_of_the_reference():
     ])
     aligned = align_selected(selected).set_index("algorithm")
     assert aligned.loc["tabu", "solution_aligned"] == [0, 0, 1, 1]
+
+
+def test_align_selected_breaks_cost_ties_by_tabu_aco_pso_order():
+    # Os tres `total_cost` sao iguais: sem o desempate `tabu, aco, pso`, a
+    # escolha da referencia dependeria da ordem de insercao das linhas.
+    selected = pd.DataFrame([
+        {"instance": "i", "algorithm": "tabu", "k": 3, "seed": 10, "total_cost": 0.5,
+         "scenario_id": "a", "solution": DISCRIMINATING_REFERENCE},
+        {"instance": "i", "algorithm": "aco", "k": 3, "seed": 11, "total_cost": 0.5,
+         "scenario_id": "b", "solution": DISCRIMINATING_OTHER},
+        {"instance": "i", "algorithm": "pso", "k": 3, "seed": 12, "total_cost": 0.5,
+         "scenario_id": "c", "solution": [2, 2, 0, 0, 1, 1]},
+    ])
+    aligned = align_selected(selected)
+    assert set(aligned["reference_algorithm"]) == {"tabu"}
+
+
+def test_align_selected_breaks_ties_among_non_reference_methods_too():
+    # `tabu` e' o mais caro; `aco` e `pso` empatam entre si. O desempate tem
+    # de escolher `aco` pela ordem `tabu, aco, pso`, nao `pso`.
+    selected = pd.DataFrame([
+        {"instance": "i", "algorithm": "tabu", "k": 3, "seed": 10, "total_cost": 0.9,
+         "scenario_id": "a", "solution": DISCRIMINATING_REFERENCE},
+        {"instance": "i", "algorithm": "aco", "k": 3, "seed": 11, "total_cost": 0.2,
+         "scenario_id": "b", "solution": DISCRIMINATING_OTHER},
+        {"instance": "i", "algorithm": "pso", "k": 3, "seed": 12, "total_cost": 0.2,
+         "scenario_id": "c", "solution": [2, 2, 0, 0, 1, 1]},
+    ])
+    aligned = align_selected(selected)
+    assert set(aligned["reference_algorithm"]) == {"aco"}
