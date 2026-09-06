@@ -37,6 +37,10 @@ results/gpu/sessions/
 results/gpu/operational/
 results/gpu/diagnostic/
 results/**/*.tmp
+# Temporário da escrita atômica do GPKG: o sufixo é `.gpkg`, e não `.tmp`, para
+# não disparar o aviso de extensão do pyogrio a cada camada escrita. O `finally`
+# de `write_gpkg` o remove; esta regra é a rede para o processo morto no meio.
+results/**/.*.gpkg
 # Rede contra barreira de lote executada por versão antiga do código, que
 # gravava as tabelas do lote dentro da árvore de artefatos oficiais.
 results/tables/benchmark_batches/
