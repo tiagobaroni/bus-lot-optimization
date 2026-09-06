@@ -7,9 +7,10 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 04/09/2026
-- **Bloco ativo:** nenhum. **A B12 está concluída; a próxima ação atômica é
-  iniciar a B13.**
+- **Atualizado em:** 06/09/2026
+- **Bloco ativo:** nenhum. **A B13 está concluída. A próxima ação atômica é a
+  revisão do relatório técnico pelo usuário; a B14 está retida por decisão dele
+  em 06/09/2026 e só pode ser iniciada após liberação explícita.**
 - **O estudo adicional de GPU foi encerrado em 03/09/2026, por escopo e não por
   impedimento técnico.** A implementação está correta: conformidade aprovada com
   diferença máxima de `3,33e-16` contra régua de `1e-12`. Os três cenários ACO
@@ -43,13 +44,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   regenerado (5 lotes, 270 subgrupos, 1.620 cenários, inalterado) e manifesto
   regenerado de novo. Resultado científico do piloto idêntico ao anterior em
   tudo que não é temporal ou de proveniência.
-- **Último bloco concluído:** B11A-R - renovação da infraestrutura GPU após a
-  B11-E.
-- **Branch de trabalho:** `main`, árvore limpa. HEAD em `ee6c837` (fecho da
-  transação de congelamento); o recorte PSO não gera commit
-  (`results/gpu/raw/` é ignorado). **Os cinco commits da transação de
-  congelamento estão só locais** — `main` está 5 à frente de `origin/main` —,
-  e o push é decisão do usuário.
+- **Último bloco concluído:** B13 - relatório, README e empacotamento.
+- **Branch de trabalho:** `main`, sincronizada com `origin/main`. Os dezesseis
+  commits da B13 (`39adab6` a `4f2d8f8`) já foram enviados ao remoto. Seguem
+  não rastreados na árvore, à espera de decisão, o material de apoio
+  `docs/texto_Base.tex` e artefatos de compilação do LaTeX.
 - **A B11A-E foi iniciada em 02/09/2026 e interrompida no cenário 4 de 60.** O
   guarda térmico recusou a entrada do cenário com `GpuSafetyError`, e a sessão
   ficou registrada como `interrupted`. Os cenários 1 a 3 concluíram e foram
@@ -1479,7 +1478,7 @@ iniciar a B13** (relatório, README e empacotamento).
 
 ## B13 - Relatório, README e empacotamento
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDA`
 
 **Depende de:** B12.
 
@@ -1488,17 +1487,52 @@ si.
 
 **Tarefas:**
 
-- [ ] Atualizar o estado real e os comandos do README.
-- [ ] Documentar formulação, algoritmos e adaptação Random Keys.
-- [ ] Documentar dados, limitações e decisões aprovadas.
-- [ ] Documentar tuning, protocolo, ambiente e resultados.
-- [ ] Produzir comparação crítica entre PSO, TS e ACO.
-- [ ] Conferir citações e distinguir fontes de decisões do projeto.
-- [ ] Verificar instalação e execução em ambiente limpo.
-- [ ] Conferir licença, dados versionados e tamanho do pacote.
+- [x] Atualizar o estado real e os comandos do README.
+- [x] Documentar formulação, algoritmos e adaptação Random Keys.
+- [x] Documentar dados, limitações e decisões aprovadas.
+- [x] Documentar tuning, protocolo, ambiente e resultados.
+- [x] Produzir comparação crítica entre PSO, TS e ACO.
+- [x] Conferir citações e distinguir fontes de decisões do projeto.
+- [x] Verificar instalação e execução em ambiente limpo (passou, mas só depois
+      da correção do README no commit `32a138b`: o pacote-fonte bruto da ARTESP
+      em `_temp/dados_artesp/` não é versionado, e um clone sem ele precisa
+      declarar a ausência com `BUS_LOT_SEM_PACOTE_FONTE=1`, o que dá 561
+      aprovados e 3 pulados em vez dos 564 aprovados).
+- [x] Conferir licença, dados versionados e tamanho do pacote.
 
 **Critério de saída:** uma pessoa externa reproduz o fluxo documentado sem
 informação adicional dos autores.
+
+**Checkpoint de retomada (06/09/2026).** A B13 foi concluída em 04/09/2026, no
+commit `4f2d8f8`, e os dezesseis commits do bloco (`39adab6` a `4f2d8f8`) estão
+no remoto desde então. Este checkpoint é escrito dois dias depois porque a
+seção seguiu marcada como `PENDENTE` após o fecho: dívida de documentação, não
+trabalho pendente, da mesma classe já registrada no fecho da B11B.
+
+Entregas. O relatório técnico está em `docs/relatorio/relatorio.tex`,
+compilável por `docs/relatorio/build.sh`, com **22 páginas** e as seis seções
+exigidas — introdução, descrição do problema, metaheurísticas implementadas e
+adaptações, metodologia experimental, resultados e análise, discussão e
+conclusões —, além do resumo. As nove referências de
+`docs/relatorio/referencias.bib` estão todas citadas e todas resolvem. O README
+teve a seção "Estado atual" reescrita até a B12 e passou a declarar a
+dependência do pacote-fonte ausente. A verificação de ambiente limpo foi feita
+por clone temporário, seguindo apenas as instruções do README. O pacote
+versionado tem **25 MB**, com `LICENSE` (MIT) e `data/instances/` completos.
+
+Suíte de CPU medida em 06/09/2026: **564 aprovados** em 104 s
+(`uv run pytest tests/ -q`). O checkpoint da B12 acima registra 563 porque foi
+escrito antes de `0a92a10`, o último commit da própria B12, que acrescentou um
+teste. **A diferença não é regressão.**
+
+Pendências conhecidas, nenhuma impeditiva: `docs/texto_Base.tex` e seus
+artefatos de compilação seguem não rastreados, à espera de decisão sobre
+versionar, ignorar ou remover; e o `.gitignore` cobre os artefatos de build do
+relatório mas não `docs/relatorio/*.synctex.gz`, que reaparece a cada
+compilação feita por editor com SyncTeX.
+
+**Próxima ação atômica: revisão do relatório técnico pelo usuário.** A B14 não
+deve ser iniciada até liberação explícita dele.
 
 ---
 

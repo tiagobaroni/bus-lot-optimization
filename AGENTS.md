@@ -462,6 +462,29 @@ Ao escrever relatório, comentários metodológicos ou documentação:
 
 ## 14. Estado atual do projeto
 
+**Estado registrado em 06/09/2026, com a B13 concluída e a B14 retida.** Os
+registros datados abaixo permanecem como foram escritos, por serem o
+fechamento dos blocos anteriores.
+
+- **a B13 está concluída**, com fecho técnico em 04/09/2026 no commit
+  `4f2d8f8` e registro em `TODO.md`, seção "## B13", só em 06/09/2026 — a
+  seção ficou marcada como `PENDENTE` por dois dias depois do fecho, dívida de
+  documentação da mesma classe da que ocorreu na B11B, e não trabalho
+  pendente. O relatório técnico está em `docs/relatorio/relatorio.tex`, com 22
+  páginas, as seis seções exigidas pelo enunciado e nove referências, todas
+  citadas e resolvidas; o README foi atualizado até a B12, e a instalação foi
+  verificada em clone limpo seguindo apenas as instruções nele. Pacote
+  versionado em 25 MB, com `LICENSE` (MIT) e `data/instances/` completos;
+- **a suíte de CPU está em 564 aprovados**, e não nos 563 que o checkpoint da
+  B12 registra em `TODO.md`: o teste adicional entrou em `0a92a10`, último
+  commit da própria B12, depois que aquele texto foi escrito. **Não é
+  regressão.** Um clone sem o pacote-fonte bruto da ARTESP, que não é
+  versionado, precisa declarar a ausência com `BUS_LOT_SEM_PACOTE_FONTE=1` e
+  mede 561 aprovados com 3 pulados, como o README documenta;
+- **a B14 está retida por decisão do usuário**, tomada em 06/09/2026: a
+  próxima ação é a revisão do relatório técnico por ele, e o bloco de vídeo e
+  auditoria final só começa após liberação explícita.
+
 **Estado registrado em 04/09/2026, com o PSO medido em GPU e a B11B fechada
 na documentação.** Os registros datados abaixo permanecem como foram
 escritos, por serem o fechamento dos blocos anteriores.
@@ -643,12 +666,15 @@ Estado anterior, registrado em 18/08/2026:
 
 Os detalhes de dados, formulação, automação experimental, tuning e
 infraestrutura GPU estão consolidados. A B11-E e a renovação B11A-R
-foram concluídas, e o estudo adicional de GPU foi encerrado com limitação
-registrada.
+foram concluídas, o estudo adicional de GPU foi encerrado com limitação
+registrada, e a B12 e a B13 estão concluídas: a análise estatística completa
+dos 1.620 resultados oficiais e o relatório técnico que a sintetiza.
 
 Próximo objetivo recomendado:
 
-1. publicar os commits locais pendentes;
-2. iniciar a B12, análise e visualização;
-3. se o recorte PSO em GPU for executado, atualizar os registros com os seus
-   resultados antes de qualquer afirmação sobre PSO em GPU.
+1. revisar o relatório técnico, `docs/relatorio/relatorio.tex`, com o usuário
+   conduzindo a revisão;
+2. iniciar a B14, vídeo e auditoria final, somente após liberação explícita
+   dele;
+3. decidir o destino de `docs/texto_Base.tex`, hoje não rastreado, e se o
+   `.gitignore` deve passar a cobrir `docs/relatorio/*.synctex.gz`.
