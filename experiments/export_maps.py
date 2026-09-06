@@ -34,6 +34,14 @@ DESCRIPTIVE_COLUMNS = [
 ]
 NESTING_LABELS = {20: "20_60_150", 60: "60_150", 150: "so_150"}
 
+HIGHLIGHT_K = 5
+INSTANCE_NAMES = tuple(f"artesp_rmsp_{size}" for size in INSTANCE_SIZES)
+NESTING_DESCRIPTIONS = {
+    "20_60_150": "Nos três recortes (20, 60 e 150)",
+    "60_150": "Nos recortes de 60 e 150",
+    "so_150": "Somente no recorte de 150",
+}
+
 METRIC_CRS = "EPSG:31983"
 GEOGRAPHIC_CRS = "EPSG:4326"
 DEGENERATE_BUFFER_METERS = 50.0
@@ -134,6 +142,24 @@ def column_name(instance: str, algorithm: str, k: int) -> str:
 
     size = instance.rsplit("_", 1)[-1]
     return f"lot_i{size}_{algorithm}_k{k}"
+
+
+def style_panels(k: int = HIGHLIGHT_K) -> list[tuple[str, str, int]]:
+    """Os nove painéis do recorte de destaque: nome do arquivo, coluna e K."""
+
+    panels = []
+    for instance in INSTANCE_NAMES:
+        for algorithm in ALGORITHMS:
+            attribute = column_name(instance, algorithm, k)
+            panels.append((f"itinerarios_{attribute}", attribute, k))
+    return panels
+
+
+def nesting_entries() -> list[tuple[str, str]]:
+    """Os valores de `aninhamento` gravados na camada, com seus rótulos."""
+
+    return [(NESTING_LABELS[size], NESTING_DESCRIPTIONS[NESTING_LABELS[size]])
+            for size in INSTANCE_SIZES]
 
 
 def instance_paths(instances_dir: Path, size: int) -> dict[str, Path]:

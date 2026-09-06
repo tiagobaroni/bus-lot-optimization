@@ -1,5 +1,6 @@
 import hashlib
 import json
+import xml.etree.ElementTree as ElementTree
 from itertools import permutations
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from shapely.geometry import LineString, Polygon
 from metaheuristica.errors import ConfigurationError
 from experiments import export_maps
 from experiments.export_maps import (
+    HIGHLIGHT_K,
     align_selected,
     align_to_reference,
     atomic_write_text,
@@ -20,9 +22,18 @@ from experiments.export_maps import (
     build_itinerarios,
     build_manifest,
     column_name,
+    nesting_entries,
     read_unit_ids,
     select_best_runs,
+    style_panels,
     write_gpkg,
+)
+from experiments.map_styles import (
+    LOT_COLORS,
+    NESTING_COLORS,
+    categorized_qml,
+    single_symbol_qml,
+    write_style_files,
 )
 
 UNIT_COUNTS = {"artesp_rmsp_20": 6, "artesp_rmsp_60": 6, "artesp_rmsp_150": 6}
@@ -666,3 +677,116 @@ def test_build_manifest_rejects_a_missing_instance_file(tmp_path, missing_suffix
     with pytest.raises(ConfigurationError, match="instância ausente"):
         build_manifest(runs_path, directory, aligned,
                        generated_at="2026-09-06T00:00:00")
+
+
+def test_categorized_qml_is_well_formed_and_points_at_the_attribute():
+    xml = categorized_qml(attribute="lot_i20_pso_k5", symbol_type="line",
+                          categories=[(0, "Lote 0", "#1b9e77"), (1, "Lote 1", "#d95f02")])
+    renderer = ElementTree.fromstring(xml).find("renderer-v2")
+    assert renderer.get("type") == "categorizedSymbol"
+    assert renderer.get("attr") == "lot_i20_pso_k5"
+    assert len(renderer.find("categories")) == 2
+
+
+def test_categorized_qml_links_each_category_to_the_symbol_with_its_color():
+    # Um deslocamento de indice entre categoria e simbolo produz XML bem-formado,
+    # com a contagem certa, e entrega os nove paineis com as cores trocadas.
+    xml = categorized_qml(attribute="a", symbol_type="line",
+                          categories=[(0, "Lote 0", "#1b9e77"), (1, "Lote 1", "#d95f02")])
+    renderer = ElementTree.fromstring(xml).find("renderer-v2")
+    symbols = {symbol.get("name"): symbol for symbol in renderer.find("symbols")}
+    for category, expected in zip(renderer.find("categories"),
+                                  ("27,158,119,255", "217,95,2,255")):
+        symbol = symbols[category.get("symbol")]
+        colors = [prop.get("v") for prop in symbol.iter("prop")
+                  if prop.get("k") in {"line_color", "color"}]
+        assert colors == [expected]
+
+
+def test_categorized_qml_converts_hex_to_the_rgba_qgis_expects():
+    xml = categorized_qml(attribute="a", symbol_type="fill",
+                          categories=[(0, "z", "#1b9e77")])
+    assert 'v="27,158,119,255"' in xml
+
+
+def test_single_symbol_qml_has_no_categories():
+    xml = single_symbol_qml(symbol_type="fill", color="#bdbdbd")
+    renderer = ElementTree.fromstring(xml).find("renderer-v2")
+    assert renderer.get("type") == "singleSymbol"
+    assert renderer.find("categories") is None
+
+
+def test_write_style_files_writes_the_twelve_styles(tmp_path):
+    written = write_style_files(tmp_path, panels=style_panels(),
+                                nesting=nesting_entries())
+    assert len(written) == 12
+    assert (tmp_path / "itinerarios_aninhamento.qml").exists()
+    assert (tmp_path / "itinerarios_lot_i150_tabu_k5.qml").exists()
+    assert (tmp_path / "envoltorias.qml").exists()
+    assert (tmp_path / "terminais_contexto.qml").exists()
+    for path in written.values():
+        ElementTree.fromstring(path.read_text(encoding="utf-8"))
+    # As tres camadas fora dos paineis nao tem teste dedicado ao seu `attr` ou
+    # ao seu tipo de simbolo; sem estas asercoes, trocar "aninhamento" por
+    # "aninhamentos", "lot" por "lote", ou usar categorizedSymbol em vez de
+    # singleSymbol em terminais_contexto passa por vacuo.
+    aninhamento = ElementTree.fromstring(
+        written["itinerarios_aninhamento"].read_text(encoding="utf-8")
+    ).find("renderer-v2")
+    assert aninhamento.get("attr") == "aninhamento"
+    envoltorias = ElementTree.fromstring(
+        written["envoltorias"].read_text(encoding="utf-8")
+    ).find("renderer-v2")
+    assert envoltorias.get("attr") == "lot"
+    terminais = ElementTree.fromstring(
+        written["terminais_contexto"].read_text(encoding="utf-8")
+    ).find("renderer-v2")
+    assert terminais.get("type") == "singleSymbol"
+    cor = next(
+        prop.get("v") for prop in terminais.iter("prop")
+        if prop.get("k") in {"line_color", "color"}
+    )
+    assert cor == "189,189,189,255"
+
+
+def test_write_style_files_uses_the_injected_writer(tmp_path):
+    # A restricao global manda escrever todo artefato atomicamente, inclusive os
+    # `.qml`. A injecao e' o que permite isso sem `map_styles` importar
+    # `export_maps`, o que fecharia um ciclo.
+    usados = []
+
+    def _writer(path, content):
+        usados.append(path)
+        path.write_text(content, encoding="utf-8")
+        return path
+
+    written = write_style_files(tmp_path, panels=style_panels(),
+                                nesting=nesting_entries(), writer=_writer)
+    assert sorted(usados) == sorted(written.values())
+
+
+def test_style_panels_match_the_generated_column_names(tmp_path):
+    # A travessia: o `attr` de cada painel tem de ser exatamente o nome de
+    # coluna que `build_itinerarios` grava. Sem esta asercao, um `.qml` pode
+    # apontar para coluna inexistente e o painel abre em branco.
+    panels = style_panels()
+    assert len(panels) == 9
+    expected = {column_name(f"artesp_rmsp_{size}", algorithm, HIGHLIGHT_K)
+                for size in (20, 60, 150) for algorithm in ("tabu", "aco", "pso")}
+    assert {attribute for _, attribute, _ in panels} == expected
+    written = write_style_files(tmp_path, panels=panels, nesting=nesting_entries())
+    for name, attribute, _ in panels:
+        renderer = ElementTree.fromstring(
+            written[name].read_text(encoding="utf-8")).find("renderer-v2")
+        assert renderer.get("attr") == attribute
+
+
+def test_nesting_colors_cover_every_label_the_data_uses():
+    # Divergencia de uma letra entre o rotulo gravado e o rotulo estilizado faz
+    # o mapa geral abrir em branco com a suite verde.
+    assert {value for value, _ in nesting_entries()} <= set(NESTING_COLORS)
+
+
+def test_lot_colors_are_distinct_and_cover_the_largest_k():
+    # `len(LOT_COLORS) >= 8` passaria com oito cores identicas.
+    assert len(set(LOT_COLORS)) >= 8
