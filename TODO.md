@@ -8,9 +8,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 06/09/2026
-- **Bloco ativo:** nenhum. **A B13 está concluída. A próxima ação atômica é a
-  revisão do relatório técnico pelo usuário; a B14 está retida por decisão dele
-  em 06/09/2026 e só pode ser iniciada após liberação explícita.**
+- **Bloco ativo:** B15, em especificação. **A B13 está concluída e a B14 segue
+  retida por decisão do usuário em 06/09/2026, liberável só por decisão
+  explícita dele. A próxima ação atômica é a aprovação da especificação da
+  B15**, exportação cartográfica dos agrupamentos, aberta em 06/09/2026 para
+  apoiar a revisão do relatório e a produção do vídeo.
 - **O estudo adicional de GPU foi encerrado em 03/09/2026, por escopo e não por
   impedimento técnico.** A implementação está correta: conformidade aprovada com
   diferença máxima de `3,33e-16` contra régua de `1e-12`. Os três cenários ACO
@@ -1555,6 +1557,35 @@ deve ser iniciada até liberação explícita dele.
 - [ ] Criar checklist final de entrega.
 
 **Critério de saída:** código, relatório e vídeo prontos para submissão.
+
+---
+
+## B15 - Exportação cartográfica dos agrupamentos
+
+**Estado:** `EM ESPECIFICAÇÃO`
+
+**Depende de:** B12, pelos resultados oficiais consolidados, e B13, que consome
+as figuras. Não depende da B14 e não a libera.
+
+**Objetivo:** ver no mapa, dentro do QGIS, como cada método agrupou as linhas, e
+exportar imagens de qualidade para o relatório e para o vídeo.
+
+**Tarefas:**
+
+- [ ] Selecionar, por combinação instância×método×`K`, a execução de menor custo
+      entre as 30 seeds.
+- [ ] Alinhar os rótulos de lote entre métodos dentro de cada par
+      (instância, `K`), para que a cor signifique a mesma coisa nos painéis.
+- [ ] Escrever `results/maps/lot_assignments.gpkg` com itinerários, envoltórias
+      por lote e terminais.
+- [ ] Escrever o manifesto de proveniência da exportação.
+- [ ] Gerar os doze estilos `.qml` do QGIS.
+- [ ] Documentar geração, uso e filtro das envoltórias no README.
+- [ ] Conferir no QGIS os nove painéis do recorte `K=5`.
+
+**Critério de saída:** os nove painéis de `K=5` abrem no QGIS com cores
+comparáveis entre métodos, e a diferença visível entre eles é diferença de
+partição, não de renumeração de lotes.
 
 ---
 
