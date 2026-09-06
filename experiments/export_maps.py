@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -13,6 +15,9 @@ from scipy.optimize import linear_sum_assignment
 
 from metaheuristica.canonical import canonicalize_solution, validate_solution
 from metaheuristica.errors import ConfigurationError, SolutionValidationError
+from experiments.scenarios import file_sha256
+
+MANIFEST_SCHEMA_VERSION = "1.0.0"
 
 INSTANCE_SIZES = (20, 60, 150)
 ALGORITHMS = ("tabu", "aco", "pso")
@@ -225,3 +230,87 @@ def build_envoltorias(
             })
     frame = gpd.GeoDataFrame(records, geometry="geometry", crs=METRIC_CRS)
     return frame.to_crs(GEOGRAPHIC_CRS)
+
+
+def _temporary_beside(path: Path, suffix: str) -> Path:
+    """Cria um arquivo temporário oculto no mesmo diretório do alvo."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, name = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=suffix
+    )
+    os.close(descriptor)
+    return Path(name)
+
+
+def atomic_write_text(path: Path, content: str) -> Path:
+    """Escreve texto por temporário e `os.replace`, sem deixar meio arquivo."""
+
+    temporary = _temporary_beside(path, ".tmp")
+    try:
+        temporary.write_text(content, encoding="utf-8")
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return path
+
+
+def write_gpkg(path: Path, layers: dict[str, gpd.GeoDataFrame]) -> Path:
+    """Escreve o GPKG multicamadas de forma atômica."""
+
+    # Sufixo `.gpkg` no temporário: com `.tmp`, o pyogrio emite um
+    # RuntimeWarning de extensão a cada camada escrita.
+    temporary = _temporary_beside(path, ".gpkg")
+    temporary.unlink(missing_ok=True)
+    try:
+        for position, (name, frame) in enumerate(layers.items()):
+            frame.to_file(temporary, layer=name, driver="GPKG",
+                          mode="w" if position == 0 else "a")
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return path
+
+
+def build_manifest(
+    runs_path: Path,
+    instances_dir: Path,
+    aligned: pd.DataFrame,
+    *,
+    generated_at: str,
+) -> dict:
+    """Proveniência da exportação, na forma dos demais manifestos do projeto."""
+
+    combinations = [
+        {
+            "instance": row.instance, "algorithm": row.algorithm, "k": int(row.k),
+            "seed": int(row.seed), "total_cost": float(row.total_cost),
+            "scenario_id": row.scenario_id,
+            "column": column_name(row.instance, row.algorithm, int(row.k)),
+        }
+        for row in aligned.itertuples()
+    ]
+    references = {
+        f"{row.instance}|{int(row.k)}": row.reference_algorithm
+        for row in aligned.itertuples()
+    }
+    instances = {}
+    for size in INSTANCE_SIZES:
+        paths = instance_paths(instances_dir, size)
+        for path in paths.values():
+            if not path.exists():
+                raise ConfigurationError(f"instância ausente: {path}")
+        instances[f"artesp_rmsp_{size}"] = {
+            "gpkg_path": str(paths["gpkg"]),
+            "gpkg_sha256": file_sha256(paths["gpkg"]),
+            "json_path": str(paths["json"]),
+            "json_sha256": file_sha256(paths["json"]),
+        }
+    return {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "generated_at": generated_at,
+        "source": {"path": str(runs_path), "content_sha256": file_sha256(runs_path)},
+        "instances": instances,
+        "combinations": sorted(combinations, key=lambda item: item["column"]),
+        "references": references,
+    }

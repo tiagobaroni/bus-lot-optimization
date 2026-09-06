@@ -1,3 +1,4 @@
+import hashlib
 import json
 from itertools import permutations
 from pathlib import Path
@@ -5,6 +6,7 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pyogrio
 import pytest
 from shapely.geometry import LineString, Polygon
 
@@ -12,11 +14,14 @@ from metaheuristica.errors import ConfigurationError
 from experiments.export_maps import (
     align_selected,
     align_to_reference,
+    atomic_write_text,
     build_envoltorias,
     build_itinerarios,
+    build_manifest,
     column_name,
     read_unit_ids,
     select_best_runs,
+    write_gpkg,
 )
 
 UNIT_COUNTS = {"artesp_rmsp_20": 6, "artesp_rmsp_60": 6, "artesp_rmsp_150": 6}
@@ -503,3 +508,96 @@ def test_build_envoltorias_uses_the_aligned_labels_not_the_raw_ones(tmp_path):
     envoltorias = _envoltorias(tmp_path, [0, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0])
     by_lot = envoltorias.set_index("lot")["n_units"].to_dict()
     assert by_lot == {0: 5, 1: 1}
+
+
+def _one_scenario(tmp_path):
+    directory = _instances_dir(tmp_path)
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    itinerarios = build_itinerarios(directory, aligned)
+    envoltorias = build_envoltorias(itinerarios, aligned, read_unit_ids(directory))
+    return directory, aligned, itinerarios, envoltorias
+
+
+def test_write_gpkg_writes_every_layer(tmp_path):
+    directory, aligned, itinerarios, envoltorias = _one_scenario(tmp_path)
+    terminais = gpd.read_file(directory / "artesp_rmsp_150.gpkg", layer="terminais")
+    target = tmp_path / "saida" / "lot_assignments.gpkg"
+    write_gpkg(target, {"itinerarios": itinerarios, "envoltorias": envoltorias,
+                        "terminais": terminais})
+    assert sorted(name for name, _ in pyogrio.list_layers(target)) == [
+        "envoltorias", "itinerarios", "terminais"]
+
+
+def test_write_gpkg_leaves_no_file_when_a_layer_fails(tmp_path):
+    # Atomicidade de verdade: a asercao "nao sobrou .tmp" e' satisfeita ate' por
+    # uma escrita direta sem temporario. O que so' a escrita atomica garante e'
+    # que uma falha no meio nao deixa o arquivo final pela metade.
+    _, _, itinerarios, _ = _one_scenario(tmp_path)
+    target = tmp_path / "saida" / "lot_assignments.gpkg"
+    with pytest.raises(AttributeError):
+        write_gpkg(target, {"itinerarios": itinerarios, "quebrada": "não é camada"})
+    assert not target.exists()
+    assert not list(target.parent.glob(".*tmp*"))
+
+
+def test_atomic_write_text_replaces_without_leaving_residue(tmp_path):
+    target = tmp_path / "saida" / "manifesto.json"
+    atomic_write_text(target, "primeiro")
+    atomic_write_text(target, "segundo")
+    assert target.read_text(encoding="utf-8") == "segundo"
+    assert not list(target.parent.glob(".*tmp*"))
+
+
+def test_build_manifest_records_the_real_source_digest(tmp_path):
+    directory = _instances_dir(tmp_path)
+    runs_path = tmp_path / "benchmark_runs.parquet"
+    runs_path.write_bytes(b"conteudo")
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    manifest = build_manifest(runs_path, directory, aligned,
+                              generated_at="2026-09-06T00:00:00")
+    # Comparar com o digest conhecido, e nao so' afirmar que a chave e' verdadeira:
+    # `assert manifest[...]["content_sha256"]` passa com o sha de qualquer coisa.
+    assert manifest["source"]["content_sha256"] == \
+        hashlib.sha256(b"conteudo").hexdigest()
+    assert manifest["source"]["path"] == str(runs_path)
+
+
+def test_build_manifest_lists_every_combination_with_its_winning_seed(tmp_path):
+    directory = _instances_dir(tmp_path)
+    runs_path = tmp_path / "benchmark_runs.parquet"
+    runs_path.write_bytes(b"conteudo")
+    # Tres combinacoes com seeds DIFERENTES: com uma linha so' e uma seed so',
+    # a asercao sobre a seed vencedora passa por vacuo.
+    aligned = pd.DataFrame([
+        _aligned_row("artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1],
+                     [0, 0, 0, 1, 1, 1], seed=11, cost=0.1, scenario="t"),
+        _aligned_row("artesp_rmsp_60", "aco", 2, [0, 0, 1, 1], [0, 0, 1, 1],
+                     seed=22, cost=0.2, scenario="a"),
+        _aligned_row("artesp_rmsp_20", "pso", 2, [0, 1], [0, 1],
+                     seed=33, cost=0.3, scenario="p"),
+    ])
+    manifest = build_manifest(runs_path, directory, aligned,
+                              generated_at="2026-09-06T00:00:00")
+    by_column = {item["column"]: item for item in manifest["combinations"]}
+    assert by_column["lot_i150_tabu_k2"]["seed"] == 11
+    assert by_column["lot_i60_aco_k2"]["seed"] == 22
+    assert by_column["lot_i20_pso_k2"]["seed"] == 33
+    assert manifest["references"]["artesp_rmsp_150|2"] == "tabu"
+
+
+def test_build_manifest_records_path_and_digest_of_every_instance(tmp_path):
+    directory = _instances_dir(tmp_path)
+    runs_path = tmp_path / "benchmark_runs.parquet"
+    runs_path.write_bytes(b"conteudo")
+    aligned = pd.DataFrame([_aligned_row(
+        "artesp_rmsp_150", "tabu", 2, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1])])
+    manifest = build_manifest(runs_path, directory, aligned,
+                              generated_at="2026-09-06T00:00:00")
+    entry = manifest["instances"]["artesp_rmsp_20"]
+    # A spec, secao 6.4, pede caminho E sha de cada instancia consumida, e
+    # nenhum sha pode ser nulo: instancia sem arquivo e' caso de recusa.
+    assert entry["gpkg_path"].endswith("artesp_rmsp_20.gpkg")
+    assert len(entry["gpkg_sha256"]) == 64
+    assert len(entry["json_sha256"]) == 64
