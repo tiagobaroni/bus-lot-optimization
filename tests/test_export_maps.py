@@ -73,3 +73,37 @@ def test_select_best_runs_keeps_the_whole_winning_row():
     runs.loc[winner, "scenario_id"] = None
     selected = _select(runs).set_index("algorithm")
     assert pd.isna(selected.loc["tabu", "scenario_id"])
+
+
+def test_select_best_runs_rejects_wrong_total():
+    with pytest.raises(ConfigurationError, match="execuções"):
+        _select(_runs_frame(seeds=range(10, 39)))
+
+
+def test_select_best_runs_rejects_missing_seeds():
+    runs = _runs_frame().drop(index=0)
+    with pytest.raises(ConfigurationError, match="seeds esperadas"):
+        _select(runs, expected_runs=89)
+
+
+def test_select_best_runs_rejects_missing_combination():
+    with pytest.raises(ConfigurationError, match="combinações"):
+        _select(_runs_frame(algorithms=("tabu", "aco")), expected_runs=60)
+
+
+def test_select_best_runs_rejects_solution_with_wrong_length():
+    runs = _runs_frame()
+    winner = (runs["seed"] == 25) & (runs["algorithm"] == "tabu")
+    runs.loc[winner, "solution_json"] = json.dumps([0, 1, 2])
+    with pytest.raises(ConfigurationError, match="solução inválida"):
+        _select(runs)
+
+
+def test_select_best_runs_rejects_solution_with_wrong_lot_count():
+    # k=3 declarado, dois lotes de fato: a spec manda recusar, e sem esta guarda
+    # a coluna sairia com rotulos nao contiguos e a simbologia perderia a classe.
+    runs = _runs_frame()
+    winner = (runs["seed"] == 25) & (runs["algorithm"] == "tabu")
+    runs.loc[winner, "solution_json"] = json.dumps([0, 0, 0, 1, 1, 1])
+    with pytest.raises(ConfigurationError, match="solução inválida"):
+        _select(runs)
