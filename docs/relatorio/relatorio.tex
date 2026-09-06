@@ -1348,7 +1348,9 @@ unzip caminho/para/dados_origem_artesp.zip
 O arquivo já carrega a estrutura de diretórios correta, de modo que seu
 conteúdo é colocado automaticamente em \texttt{\_temp/dados\_artesp/},
 que é onde o projeto o procura; não é necessário criar diretório algum
-nem mover arquivos. Ao final, esse diretório conterá os arquivos de dados
+nem mover arquivos. O pacote traz também, em
+\texttt{\_temp/shapes/}, a malha municipal do IBGE usada como camada de
+contexto no projeto do QGIS mencionado no Passo~6. Ao final, esse diretório conterá os arquivos de dados
 de origem, o dicionário de dados e o \texttt{manifest.json} que registra
 a proveniência do pacote. O diretório \texttt{\_temp/} é ignorado pelo
 controle de versão, de modo que o pacote não altera o estado do
@@ -1433,10 +1435,23 @@ uv run python -m experiments.export_maps
 
 O segundo comando produz, em \texttt{results/maps/}, um arquivo
 GeoPackage com as camadas de itinerários, envoltórias e terminais, um
-manifesto de proveniência e doze arquivos de estilo \texttt{.qml}. Para
-visualizá-los, abra \texttt{results/maps/lot\_assignments.gpkg} no QGIS
-e aplique o estilo desejado em Propriedades da camada, Simbologia,
-Estilo, Carregar estilo.
+manifesto de proveniência e doze arquivos de estilo \texttt{.qml}.
+
+A forma mais rápida de visualizar o resultado é abrir o projeto do QGIS
+que acompanha o repositório,
+
+\begin{verbatim}
+results/maps/resultados.qgz
+\end{verbatim}
+
+que já traz as camadas carregadas e a simbologia aplicada, com todos os
+caminhos relativos ao repositório. Alternativamente, é possível montar a
+visualização manualmente: abra
+\texttt{results/maps/lot\_assignments.gpkg} no QGIS e aplique o estilo
+desejado em Propriedades da camada, Simbologia, Estilo, Carregar estilo,
+apontando para o arquivo correspondente em \texttt{results/maps/qml/}.
+Os mapas exportados que ilustram a Seção~\ref{sec:analise-espacial} estão
+em \texttt{results/maps/imagens/}.
 
 \subsection{Passo 7 --- réplica em GPU, apenas se houver GPU disponível}
 \label{sec:guia-gpu}
