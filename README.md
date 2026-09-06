@@ -154,9 +154,13 @@ metaheuristica/
 │   ├── processed/
 │   └── instances/
 ├── experiments/
+│   ├── export_maps.py
+│   └── map_styles.py
 └── results/
     ├── tables/
-    └── figures/
+    ├── figures/
+    └── maps/
+        └── qml/
 ```
 
 Os módulos do núcleo e das três metaheurísticas estão em `src/metaheuristica`.
@@ -633,6 +637,30 @@ Resumo de uma frase por pergunta da Seção 31 de `docs/experiments.md`
 12. Não há um método uniformemente superior: a Busca Tabu é a escolha mais
     consistente na faixa testada, com a ressalva registrada na instância
     grande.
+
+Exportação cartográfica dos agrupamentos, para inspeção visual no QGIS:
+
+```bash
+uv run python -m experiments.export_maps
+```
+
+O comando seleciona, para cada combinação instância×algoritmo×K, a execução de
+menor custo entre as 30 seeds, alinha os rótulos de lote entre os três métodos
+dentro de cada par (instância, K) e escreve `results/maps/lot_assignments.gpkg`
+com três camadas: `itinerarios` (uma linha por unidade, com uma coluna de lote
+por combinação), `envoltorias` (um polígono por lote, na forma longa, com uma
+linha por combinação×lote) e `terminais` (contexto geográfico fixo). Escreve
+também o manifesto de proveniência `results/maps/lot_maps_manifest.json` e os
+doze estilos `.qml` em `results/maps/qml/`: um por painel do recorte `K=5`
+(nove, um por instância×método) mais os estilos de aninhamento das instâncias,
+de envoltórias e de contexto dos terminais.
+
+Para isolar um cenário na camada `envoltorias`, que é longa, aplicar o filtro
+de subconjunto do QGIS:
+
+```text
+instance = 'artesp_rmsp_60' AND algorithm = 'tabu' AND k = 5
+```
 
 ## Licença
 
