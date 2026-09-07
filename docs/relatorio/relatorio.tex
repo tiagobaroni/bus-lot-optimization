@@ -5,11 +5,14 @@
 \usepackage[brazil]{babel}
 \usepackage{amsmath,amsthm,amsfonts,amssymb}
 \usepackage{graphicx}
+\usepackage{xurl}
 \usepackage{hyperref}
 \usepackage{array}
 \usepackage{float}
 \usepackage{longtable}
 \usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{microtype}
 \usepackage{textcomp}
 
 \hypersetup{%
@@ -19,33 +22,45 @@
   urlcolor=blue,
 }
 
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\setlength{\emergencystretch}{1em}
 \setlength{\parindent}{0.0in}
 \setlength{\parskip}{0.08in}
 
 \title{Formação de Lotes Operacionais de Linhas de Ônibus com Metaheurísticas}
 \author{Tiago Henrique França Baroni}
-\date{\today}
+\date{7 de setembro de 2026}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-Este trabalho trata da formação de lotes operacionais de linhas de ônibus,
-particionando unidades indivisíveis em um número fixo de lotes equilibrados
-e coerentes, segundo uma função objetivo de quatro componentes de peso
-igual. Três metaheurísticas -- Busca Tabu, Ant Colony Optimization (ACO) e
-Particle Swarm Optimization (PSO) com adaptação por Random Keys -- são
-comparadas sob um protocolo com três tamanhos de instância, seis valores de
-$K$ e 30 execuções independentes por combinação. A Busca Tabu vence na
-maioria das combinações testadas; o PSO se beneficia de aceleração por GPU,
-o ACO não.
+\small
+Este trabalho compara Busca Tabu, Otimização por Colônia de Formigas (ACO) e Otimização
+por Enxame de Partículas (PSO) na formação de lotes de unidades operacionais de ônibus
+da Região Metropolitana de São Paulo. A formulação combina equilíbrio de demanda e
+produção, coerência territorial e afinidade funcional, com pesos iguais e número de
+lotes fixado em cada execução. O PSO é adaptado por chaves contínuas, decodificação em
+faixas, reparo e projeção. O experimento reúne três instâncias aninhadas de 20, 60 e 150
+unidades, seis valores de $K$ e 30 sementes por cenário, totalizando 1.620 execuções sob
+limites comuns do contador de avaliações. A Busca Tabu apresenta o menor custo médio em
+17 dos 18 cenários e o menor tempo médio de parede em 16. Na instância grande, a
+heurística gulosa de referência supera as três metaheurísticas em custo médio, embora
+execuções individuais da Busca Tabu e do ACO obtenham soluções melhores. A análise
+espacial ilustra limitações da formulação, que penaliza relações cortadas, mas não impõe
+compacidade nem incorpora localização de garagens. No estudo adicional de GPU, restrito
+a $N=150$ e $K=5$, o PSO alcança aceleração média de 1,814 vezes em 30 execuções; os
+três casos medidos do ACO apresentam ganhos próximos de zero. As conclusões se
+restringem à formulação, às implementações e às instâncias avaliadas.
+
 \end{abstract}
 
 \tableofcontents
 \newpage
 
 \section{Introdução}
+\label{sec:introducao}
 
 Este trabalho trata do problema de formação de lotes operacionais de linhas
 de ônibus: dado um conjunto de sentidos/variantes operacionais de linhas,
@@ -54,7 +69,7 @@ particioná-los em um número fixo de lotes que sejam, ao mesmo tempo,
 coerentes e equilibrados entre si. Cada sentido/variante é uma unidade
 indivisível e deve pertencer a exatamente um lote.
 
-A formulação adota critérios progressivos, na seguinte ordem de introdução:
+A formulação combina quatro critérios:
 equilíbrio de demanda entre lotes, equilíbrio de produção quilométrica entre
 lotes, coerência territorial dos agrupamentos e afinidade funcional entre as
 linhas alocadas a um mesmo lote. Esses quatro critérios compõem a função
@@ -76,14 +91,15 @@ melhores soluções, com menor variabilidade entre execuções e menor custo
 computacional, e como esse comportamento se altera em função do tamanho da
 instância e do número de lotes \(K\)? A resposta é buscada por meio de
 execuções repetidas sobre instâncias de tamanhos distintos, com medição
-conjunta de qualidade da solução e tempo de CPU.
+conjunta de qualidade da solução e tempo de parede da otimização.
 
-A formulação matemática completa do problema e os resultados brutos das
-execuções experimentais estão auditáveis em \texttt{docs/formulation.md} e
-\texttt{docs/experiments.md}, no repositório do projeto. Este relatório
-sintetiza esse material.
+A formulação e o protocolo experimental estão documentados em
+\path{docs/formulation.md} e \path{docs/experiments.md}. Os resultados
+consolidados acompanham o repositório em \path{results/tables/}. Este relatório
+apresenta a metodologia e as evidências necessárias à interpretação da comparação.
 
 \section{Descrição do problema}
+\label{sec:problema}
 
 \subsection{Unidade de decisão}
 
@@ -151,9 +167,10 @@ x_i\in\{1,\ldots,K\},\quad \forall i\in\mathcal{L},
 O baseline não impõe limites rígidos de passageiros, PU$\cdot$km, número
 de linhas, frota ou extensão por lote: o equilíbrio entre lotes é
 induzido inteiramente pela função objetivo, e não por restrições de
-porte. Soluções em que algum lote fique vazio são reparadas antes da
-avaliação, de modo que toda solução avaliada satisfaz as duas restrições
-acima.
+porte. A Busca Tabu e o ACO preservam essas restrições por construção. No PSO,
+alocações com lotes vazios passam por reparo, que pode consultar avaliações
+provisórias ainda inviáveis. Apenas soluções com todos os lotes ativos são
+aceitas como melhores e retornadas como resultado final.
 
 \subsection{Função objetivo}
 
@@ -171,8 +188,8 @@ onde \(C_D\) mede o desequilíbrio de demanda entre lotes, \(C_P\) mede o
 desequilíbrio de produção em PU$\cdot$km entre lotes, \(C_T\) penaliza a
 separação, entre lotes distintos, de linhas territorialmente próximas ou
 sobrepostas, e \(C_A\) penaliza a separação de linhas funcionalmente
-afins. Os pesos iguais representam uma hipótese inicial de neutralidade
-entre os quatro pilares, deixando para trabalhos futuros a análise de
+afins. Os pesos iguais representam uma hipótese inicial de igual ponderação
+entre os quatro pilares, sem garantir igual influência efetiva de cada termo, deixando para trabalhos futuros a análise de
 sensibilidade a outras ponderações.
 
 Os dois componentes de equilíbrio partem do coeficiente de variação dos
@@ -235,28 +252,29 @@ melhores resultados, e sob quais critérios, é deixada para a seção de
 Resultados.
 
 \section{Metaheurísticas implementadas e adaptações}
+\label{sec:algoritmos}
 
 Foram implementados quatro algoritmos sobre a mesma função objetivo e as
-mesmas restrições estruturais da Seção 2: uma heurística gulosa
+mesmas restrições estruturais da Seção~\ref{sec:problema}: uma heurística gulosa
 determinística, usada apenas como referência descritiva, e três
-metaheurísticas -- Busca Tabu, Ant Colony Optimization (ACO) e Particle
-Swarm Optimization (PSO) -- avaliadas sob orçamento comparável de avaliações
+metaheurísticas - Busca Tabu, Ant Colony Optimization (ACO) e Particle
+Swarm Optimization (PSO) - avaliadas sob orçamento comparável de avaliações
 da função objetivo. As quatro subseções a seguir descrevem a construção de
 solução, os operadores de vizinhança ou de atualização, o tratamento de
 inviabilidade e os hiperparâmetros congelados de cada método. O PSO recebe
-tratamento mais extenso porque sua adaptação ao domínio combinatório --
+tratamento mais extenso porque sua adaptação ao domínio combinatório -
 partição de unidades indivisíveis em lotes rotulados, e não um problema
-definido nativamente sobre variáveis contínuas -- exige um esquema de
+definido nativamente sobre variáveis contínuas - exige um esquema de
 codificação, decodificação, reparo e reprojeção que não tem equivalente nos
 outros três métodos.
 
 \subsection{Heurística gulosa de referência}
+\label{subsec:gulosa}
 
 A heurística gulosa é uma construção determinística de solução única, sem
 componente estocástico e sem etapa de reparo, usada como referência de
-comparação para as três metaheurísticas. Por ser determinística, ela não
-admite réplicas independentes e por isso não entra nas análises estatísticas
-inferenciais da Seção de Resultados: sua função é apenas fornecer um ponto de
+comparação para as três metaheurísticas. Por ser determinística, ela fornece um custo fixo e, por decisão do protocolo, não entra nas
+análises estatísticas inferenciais da Seção de Resultados: sua função é apenas fornecer um ponto de
 referência descritivo, estável entre execuções, contra o qual o
 comportamento estocástico dos demais métodos pode ser contextualizado.
 
@@ -278,6 +296,7 @@ avaliações parciais, e a última avaliação parcial escolhida coincide com a
 função objetivo completa, sendo reaproveitada sem nova chamada.
 
 \subsection{Busca Tabu}
+\label{subsec:tabu}
 
 A Busca Tabu \cite{glover1989,glover1990} parte de uma solução inicial
 aleatória e balanceada: uma permutação das unidades é distribuída
@@ -291,8 +310,8 @@ cada iteração todos os movimentos válidos são enumerados e até
 \texttt{neighborhood\_size} deles são amostrados uniformemente, sem
 reposição, sendo cada candidato amostrado uma avaliação consumida do
 orçamento. O melhor movimento admissível da amostra é sempre aceito, mesmo
-quando piora a solução corrente -- é a memória tabu, e não um critério de
-aceitação, que evita a ciclagem. Empates de custo entre movimentos são
+quando piora a solução corrente - a memória tabu restringe retornos recentes,
+reduzindo a ocorrência de ciclos curtos. Empates de custo entre movimentos são
 resolvidos primeiro pela solução canônica resultante e depois pela tupla do
 movimento, e os rótulos de lote permanecem estáveis ao longo da trajetória
 para preservar a semântica da memória.
@@ -302,7 +321,7 @@ A memória tabu é baseada em atributos do movimento: depois de aceitar
 destino, origem)} fica proibido pelas próximas \texttt{tabu\_tenure}
 iterações em que um movimento é aceito. Um critério de aspiração permite
 ignorar essa proibição, mas apenas quando o retorno melhora o melhor global
-em mais de $10^{-12}$ -- ou seja, a aspiração é estritamente baseada em
+em mais de $10^{-12}$ - ou seja, a aspiração é estritamente baseada em
 qualidade, e não em outro atributo da trajetória.
 
 Após \texttt{stagnation\_limit} movimentos aceitos consecutivos sem melhora
@@ -319,6 +338,7 @@ operador único. Os parâmetros congelados desta implementação são
 \texttt{stagnation\_limit=100}.
 
 \subsection{Ant Colony Optimization}
+\label{subsec:aco}
 
 O ACO \cite{dorigo1996} constrói, para cada formiga, uma partição completa
 por crescimento sequencial e restrito, percorrendo as unidades na ordem
@@ -358,6 +378,7 @@ formigas. Os parâmetros congelados são \texttt{alpha=1.0}, \texttt{beta=2.0},
 \texttt{rho=0.1} e \texttt{n\_ants=40}.
 
 \subsection{Particle Swarm Optimization com Random Keys}
+\label{subsec:pso}
 
 O PSO \cite{kennedy1995} foi originalmente formulado para otimização
 contínua, sobre um espaço de posições e velocidades em $\mathbb{R}^n$. O
@@ -365,70 +386,68 @@ problema de formação de lotes, no entanto, é combinatório: cada solução é
 uma atribuição de $N$ unidades indivisíveis a $K$ lotes rotulados, e não um
 ponto de um espaço contínuo. A adaptação usada aqui segue a técnica de
 \emph{Random Keys} \cite{bean1994}, que separa o espaço de busca do PSO em
-duas camadas -- uma camada contínua, onde o enxame de fato evolui, e uma
-camada discreta, obtida por uma regra de decodificação determinística --,
+duas camadas - uma camada contínua, onde o enxame de fato evolui, e uma
+camada discreta, obtida por uma regra de decodificação determinística -,
 permitindo reaproveitar as equações clássicas de atualização de posição e
 velocidade sem modificá-las para operar sobre rótulos.
 
 \subsubsection*{Representação contínua e decodificação}
 
-Cada partícula é representada por um vetor de posição \texttt{float64} de
-dimensão $N$, com uma coordenada $x_i \in [0,1]$ por unidade. A técnica
-clássica de \emph{Random Keys} de Bean decodifica um vetor de chaves
-contínuas ordenando seus valores para produzir uma permutação, o que é
-adequado a problemas de sequenciamento. O problema de formação de lotes não
-é um problema de sequenciamento, e sim de partição em $K$ grupos rotulados,
-de modo que a decodificação foi adaptada: em vez de ordenar as chaves, cada
-coordenada é discretizada de forma independente, dividindo o intervalo
-$[0,1]$ em $K$ subintervalos iguais e mapeando cada chave ao subintervalo em
-que ela cai,
+Para evitar sobreposição de símbolos, mantenha-se \(x_i\) para a decisão discreta da
+formulação, com rótulos de 1 a $K$. Denote-se por \(z_{p,i}\in[0,1]\) a chave contínua
+da unidade i na partícula p. Na implementação, a alocação usa rótulos
+\(\ell_{p,i}\in\{0,\ldots,K-1\}\), de modo que a alocação da partícula p corresponde a
+\(x_i=\ell_{p,i}+1\) na formulação. A decodificação é
 
 \[
-x_i \;\longmapsto\; \text{lote}(x_i) = \min\bigl(\lfloor K\,x_i \rfloor,\; K-1\bigr).
+\ell_{p,i}=\min\{\lfloor Kz_{p,i}\rfloor,K-1\}.
 \]
 
-O truncamento por $\min(\cdot, K-1)$ trata o caso de fronteira $x_i=1{,}0$,
-que sem essa correção decodificaria para o rótulo inexistente $K$. Essa
-regra preserva o espírito da técnica original -- uma chave contínua
-independente por elemento, decodificada por uma função determinística e
-sobrejetora sobre a estrutura discreta de interesse -- trocando apenas o
-mecanismo de decodificação (ordenação $\to$ permutação) por outro adequado
-ao problema em questão (discretização em faixas $\to$ partição rotulada). A
-inicialização de cada partícula parte de uma alocação aleatória balanceada,
-análoga à usada na Busca Tabu, e sorteia a chave de cada unidade dentro do
-subintervalo correspondente ao lote sorteado para ela, garantindo que a
-posição inicial decodifique exatamente para essa alocação balanceada e que
-todos os $K$ lotes estejam ativos desde a primeira avaliação.
+Na técnica original de Random Keys de Bean \cite{bean1994}, a ordenação das
+chaves produz uma permutação. Aqui a decodificação foi adaptada à partição:
+cada chave é discretizada em uma faixa de lote. O mínimo com $K-1$ trata a
+fronteira $z_{p,i}=1$, que de outro modo produziria o rótulo inexistente $K$.
+A inicialização parte de alocações aleatórias balanceadas e sorteia cada chave
+dentro da faixa do lote correspondente, mantendo todos os lotes ativos.
 
 \subsubsection*{Atualização de posição e velocidade}
 
-A atualização de velocidade segue a formulação clássica de PSO, com peso de
-inércia, componente cognitivo (atração ao melhor pessoal da partícula) e
-componente social (atração ao melhor global do enxame), cada um escalado por
-um vetor de números aleatórios independentes por dimensão, sob topologia
-global -- um único melhor global, atualizado por um único \emph{snapshot} a
-cada iteração, e não recalculado durante a varredura das partículas dessa
-mesma iteração. A velocidade resultante é limitada ao intervalo
-$[-0{,}5,\,0{,}5]$ e a posição resultante ao intervalo $[0,1]$, ambos por
-truncamento simples (\emph{clipping}), preservando a codificação de cada
-coordenada como chave válida. Esta camada contínua -- posições, velocidades
-e as próprias equações de atualização -- é inteiramente a do PSO clássico;
-a adaptação combinatória está concentrada na decodificação, no reparo e na
-reprojeção, descritos a seguir.
+Denotando por \(b_{p,i}\) a coordenada do melhor estado pessoal e por \(g_i\) a do
+melhor global, a atualização é
+
+\[
+\widetilde v_{p,i}^{t+1}=\omega v_{p,i}^{t}
++c_1r_{1,p,i}^{t}(b_{p,i}^{t}-z_{p,i}^{t})
++c_2r_{2,p,i}^{t}(g_i^{t}-z_{p,i}^{t}),
+\]
+\[
+v_{p,i}^{t+1}=\operatorname{clip}(\widetilde v_{p,i}^{t+1},-0{,}5,0{,}5),
+\qquad
+\widetilde z_{p,i}^{t+1}=\operatorname{clip}(z_{p,i}^{t}+v_{p,i}^{t+1},0,1).
+\]
+
+A operação de truncamento é definida por
+\(\operatorname{clip}(a,L,U)=\min(\max(a,L),U)\). Os coeficientes aleatórios são
+uniformes em [0,1) e independentes por dimensão e atualização. O melhor global usado na
+geração das tentativas é mantido fixo durante essa geração. As chaves candidatas são
+decodificadas e submetidas a reparo quando necessário. Após canonicalização, a projeção
+ajusta as chaves aos rótulos efetivamente avaliados. A posição aceita pode, portanto,
+diferir de \(\widetilde z\), que representa apenas a tentativa anterior ao tratamento
+discreto. A projeção modifica a posição; a velocidade saturada da tentativa é mantida,
+sem ser recalculada pela diferença entre posições projetadas.
 
 \subsubsection*{Reparo de soluções inválidas}
 
 Como a decodificação discretiza cada coordenada de forma independente, nada
 impede que um subintervalo $[k/K, (k+1)/K)$ fique sem nenhuma chave a ele
-associada depois de um passo de atualização, produzindo um lote vazio --
+associada depois de um passo de atualização, produzindo um lote vazio -
 uma violação direta da hipótese de que todos os $K$ lotes devem estar ativos
-(Seção 2). Quando isso ocorre, o PSO aplica o mesmo procedimento de reparo
-usado pelos demais métodos que podem gerar inviabilidade: para cada lote
+(Seção~\ref{sec:problema}). Quando isso ocorre, o PSO aplica o procedimento determinístico de reparo do projeto: para cada lote
 vazio, entre as unidades pertencentes a lotes com pelo menos duas unidades,
 calcula-se o impacto de mover cada candidata para o lote vazio e executa-se
 o movimento de menor aumento estimado na função objetivo, repetindo até que
-todos os lotes estejam ativos. A escolha é determinística -- sem sorteio
-entre candidatos empatados -- para preservar estabilidade e
+todos os lotes estejam ativos. A escolha é determinística - sem sorteio
+entre candidatos empatados - para preservar estabilidade e
 reprodutibilidade, e cada avaliação provisória realizada durante o reparo é
 contabilizada no orçamento do experimento.
 
@@ -443,9 +462,9 @@ e posição continuaria operando sobre chaves que decodificam para o lote
 solução reparada é por isso projetada de volta ao espaço contínuo,
 recalculando cada chave de modo a decodificar exatamente para o rótulo
 reparado, preservando a fração interna que a chave original já carregava
-dentro do seu subintervalo -- ou seja, a posição relativa da unidade dentro
+dentro do seu subintervalo - ou seja, a posição relativa da unidade dentro
 do lote antigo é mantida como posição relativa dentro do novo lote, e apenas
-o subintervalo-base muda. Essa reprojeção é o que garante que a próxima
+o subintervalo-base muda. Essa reprojeção, também aplicada quando a canonicalização altera os rótulos, garante que a próxima
 iteração do PSO continue operando sobre um estado interno coerente, em que
 posição contínua e alocação discreta descrevem sempre a mesma solução:
 sem ela, a busca no espaço contínuo divergiria silenciosamente da
@@ -455,65 +474,192 @@ Somente candidatos cuja avaliação completa (após decodificação e eventual
 reparo) seja viável chegam a atualizar a posição corrente da partícula e os
 seus melhores pessoal e global; um candidato cujo reparo não se complete
 dentro do orçamento disponível é descartado sem alterar o estado da
-partícula, que permanece no seu último estado consistente. Os parâmetros
-congelados desta implementação são \texttt{n\_particles=40},
-\texttt{inertia=0.4}, \texttt{cognitive=2.0} e \texttt{social=2.0}.
+partícula, que permanece no seu último estado consistente. Os parâmetros congelados são 40 partículas, inércia 0,4 e coeficientes
+cognitivo e social iguais a 2,0.
+
+\subsubsection*{Exemplo de reparo e projeção}
+
+Considere $K=3$ e chaves \((0{,}10;0{,}20;0{,}80;0{,}90)\). A decodificação produz
+\((0,0,2,2)\), deixando o lote 1 vazio. Suponha, apenas para ilustrar a projeção, que a
+avaliação dos candidatos de reparo escolha mover a segunda unidade, produzindo
+\((0,1,2,2)\). Essa escolha depende dos dados da função objetivo e não pode ser deduzida
+das chaves isoladamente.
+
+A fração interna da segunda chave é \(3\times0{,}20-0=0{,}60\). Para preservar essa
+fração no novo lote, a chave passa a \((1+0{,}60)/3\), aproximadamente 0,533333. As
+chaves projetadas passam a decodificar a alocação reparada. Neste exemplo a alocação já
+está em forma canônica; em outros casos, a mudança de rótulos pela canonicalização
+também exige projeção coerente.
 
 \section{Metodologia experimental}
+\label{sec:metodologia}
 
 \subsection{Instâncias e cobertura}
+\label{subsec:instancias}
 
-O experimento principal é organizado em torno de três classes de tamanho da
-instância -- 20, 60 e 150 unidades --, todas resolvidas para
-$K\in\{3,4,5,6,7,8\}$ lotes. Cada combinação de instância e $K$ é executada
-30 vezes de forma independente por algoritmo, usando as seeds 10 a 39. Esse
-mesmo conjunto de 30 seeds é compartilhado entre Busca Tabu, ACO e PSO, o que
-permite tratar as comparações como pareadas: para uma dada seed, os três
-algoritmos partem de condições de aleatoriedade controladas e comparáveis,
-ainda que a inicialização propriamente dita possa diferir conforme a
-natureza de cada método.
+O estudo utiliza dados da rede de transporte coletivo da Região Metropolitana de São
+Paulo, preparados a partir do pacote de dados da ARTESP utilizado no projeto \cite{pacoteartesp2026}. O universo
+de origem contém 894 unidades operacionais, das quais 883 são elegíveis após a exclusão
+de 11 unidades sem informação de produção em PU$\cdot$km. A elegibilidade exige valores
+não nulos de demanda, produção, centroide das paradas e atributos necessários à
+estratificação. As unidades selecionadas representam sentidos/variantes operacionais, e
+não necessariamente linhas completas.
 
-O orçamento de avaliações da função objetivo é proporcional ao tamanho da
-instância, e não o número de iterações, já que uma iteração tem custo e
-significado distintos em cada metaheurística. Cada execução também registra
-100 checkpoints de convergência igualmente espaçados ao longo do orçamento
-consumido, permitindo comparar a trajetória de melhoria do custo entre
-algoritmos e tamanhos de instância em escala normalizada.
+A seleção combina cobertura territorial e diversidade operacional. Uma grade de 4 por 4
+é definida pelos quartis das coordenadas dos centroides médios das paradas das unidades
+elegíveis. A instância de 20 unidades cobre as 16 células dessa grade. A ampliação da
+seleção procura aproximar as distribuições do universo por célula espacial, quartil de
+demanda e quartil de produção, atribuindo peso 2 ao desvio territorial e peso 1 aos
+outros dois desvios. Os desempates utilizam prioridade pseudoaleatória com semente
+20260816 e, por fim, o identificador da unidade.
+
+As instâncias são aninhadas, de forma que \(\mathcal L_{20}\subset\mathcal
+L_{60}\subset\mathcal L_{150}\). Esse desenho preserva as unidades já selecionadas à
+medida que $N$ cresce. Entretanto, há apenas uma instância em cada tamanho, todas
+provenientes da mesma rede, o que limita a generalização para outras amostras e sistemas
+de transporte.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Cobertura do experimento principal. Cada cenário tem 30 sementes.}
+\label{tab:instancias}
+\begin{tabularx}{\textwidth}{rYYYY}
+\toprule
+Unidades $N$ & Valores de $K$ & Orçamento por execução & Execuções por algoritmo & Execuções dos três algoritmos \\
+\midrule
+20 & 3 a 8 & 20.000 & 180 & 540 \\
+60 & 3 a 8 & 60.000 & 180 & 540 \\
+150 & 3 a 8 & 150.000 & 180 & 540 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Cada cenário instância $\times$ $K$ $\times$ algoritmo contém 30 execuções, com sementes
+de 10 a 39, totalizando 1.620 execuções. Cada execução registra 100 pontos de
+acompanhamento do melhor custo, igualmente espaçados no contador de avaliações. Os
+identificadores das unidades e os critérios de seleção estão registrados no manifesto
+que acompanha as instâncias.
+
+Os dados funcionais devem ser interpretados como indicadores de afinidade potencial. As
+oportunidades espaciais de transferência não representam transferências efetivamente
+observadas. Além disso, conforme a documentação de preparação dos dados, aproximadamente
+64,1\% da massa da matriz O-D de origem possui destino estimado por modelo
+gravitacional. Essa proporção caracteriza a fonte e não deve ser atribuída
+automaticamente a cada uma das três instâncias. A matriz combina, portanto, informação
+observada e modelada. Na preparação, pares ausentes das tabelas esparsas recebem valor
+zero; isso define o tratamento computacional da ausência, sem demonstrar que a relação
+correspondente seja inexistente na operação real.
+
+O manifesto-fonte identifica o pacote como versão 1.0.0, gerado em 16/08/2026, com data
+de referência de serviço em 13/05/2026 e telemetria de 13, 14 e 20/05/2026. Essas datas
+têm funções distintas: geração do pacote, referência cadastral de serviço e dias de
+telemetria. Não definem uma data única de observação para todas as fontes, inclusive a
+matriz O-D. O processamento espacial utiliza o sistema métrico EPSG:31983. A
+proveniência detalhada permanece no manifesto-fonte, cujos hashes das tabelas de
+unidades e paradas coincidem com os do manifesto de seleção versionado.
+
+\subsection{Contabilização de avaliações}
+\label{subsec:contagem}
+
+A comparação fixa o mesmo limite do contador de avaliações para os três métodos em cada
+instância. O contador não representa uma unidade uniforme de tempo ou de trabalho
+interno: uma avaliação de solução completa pode exigir procedimentos auxiliares
+distintos em cada algoritmo.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Contagem de avaliações e trabalho auxiliar por algoritmo.}
+\label{tab:contagem}
+\begin{tabularx}{\textwidth}{lYY}
+\toprule
+Método & Trabalho contabilizado no orçamento & Trabalho auxiliar fora do contador \\
+\midrule
+Busca Tabu & Avaliações da solução inicial, de reinícios e de movimentos candidatos & Enumeração e amostragem da vizinhança, consulta e atualização da memória \\
+ACO & Avaliação da solução completa de cada formiga & Custos parciais usados na construção, cálculo das probabilidades e atualização do
+feromônio \\
+PSO & Avaliações de partículas e avaliações provisórias do reparo, com reaproveitamento da
+avaliação final quando disponível & Atualização contínua, decodificação, canonicalização e projeção das chaves \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+No PSO, o reaproveitamento evita cobrar novamente uma solução final já avaliada durante
+o reparo. Avaliações provisórias podem envolver alocações ainda com lotes vazios; os
+resultados finais retornados e as soluções aceitas como melhores respeitam a exigência
+de $K$ lotes ativos. Assim, a afirmação de viabilidade aplica-se às soluções aceitas, e
+não indistintamente a todas as consultas internas ao avaliador.
+
+No ACO, uma avaliação contabilizada é precedida por uma construção sequencial que
+consulta custos parciais em várias alternativas de alocação. Essa diferença ajuda a
+interpretar seu tempo de execução elevado. As curvas por avaliações comparam a evolução
+sob a regra de orçamento adotada; não equivalem a curvas sob tempo de execução igual.
 
 \subsection{Tuning de hiperparâmetros}
+\label{subsec:tuning}
 
-Antes do experimento principal, os hiperparâmetros de cada metaheurística
-foram calibrados por uma busca em grade curta e controlada, restrita à
-instância de tamanho médio ($N=60$, $K=5$). Para cada configuração da grade
-foram realizadas 10 execuções independentes, usando as seeds $\{0,\dots,9\}$
--- um conjunto disjunto das seeds 10--39 usadas no benchmark principal, para
-que a seleção dos parâmetros não vaze informação para a avaliação final.
+O ajuste de hiperparâmetros utiliza uma grade fatorial por algoritmo na instância de 60
+unidades com $K=5$ e orçamento de 60.000 avaliações. Cada configuração é executada com
+dez sementes, de 0 a 9. A grade contém 12 configurações da Busca Tabu, 16 do ACO e 16 do
+PSO, totalizando 440 execuções.
 
-A configuração vencedora, por algoritmo, foi selecionada por ordem de
-critérios: (1) menor custo médio final; (2) em caso de empate, menor
-desvio-padrão amostral; (3) persistindo o empate, menor tempo médio de
-execução. Os parâmetros assim selecionados foram então congelados e
-reutilizados em todas as instâncias e valores de $K$ do experimento
-principal, evitando ajuste específico por cenário e reduzindo o risco de
-sobreajuste experimental. A Tabela~\ref{tab:tuning} reproduz o resultado
-vigente do tuning oficial.
+\begin{table}[htbp]
+\centering\small
+\caption{Grade de hiperparâmetros testada na instância de 60 unidades, com $K=5$.}
+\label{tab:grade-tuning}
+\begin{tabularx}{\textwidth}{lYY}
+\toprule
+Algoritmo & Parâmetro & Valores testados \\
+\midrule
+Busca Tabu & duração tabu & 5, 10 e 20 \\
+Busca Tabu & tamanho da vizinhança amostrada & 20 e 50 \\
+Busca Tabu & limite de estagnação & 50 e 100 \\
+ACO & alfa & 1,0 e 2,0 \\
+ACO & beta & 1,0 e 2,0 \\
+ACO & taxa de evaporação & 0,1 e 0,3 \\
+ACO & número de formigas & 20 e 40 \\
+PSO & número de partículas & 20 e 40 \\
+PSO & peso de inércia & 0,4 e 0,7 \\
+PSO & coeficiente cognitivo & 1,5 e 2,0 \\
+PSO & coeficiente social & 1,5 e 2,0 \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-\begin{table}[H]
+A seleção compara, sucessivamente, custo médio, desvio-padrão amostral e tempo médio. Em
+cada etapa, mantém candidatos dentro da tolerância em relação ao mínimo: $10^{-12}$ para
+custo e desvio-padrão e zero para tempo. Persistindo empate, utiliza a ordem
+lexicográfica da tupla dos parâmetros. Os parâmetros selecionados são mantidos nos 18
+cenários do experimento principal. A separação das sementes evita reutilizar as mesmas
+realizações estocásticas do tuning na avaliação final, mas não constitui validação em
+uma rede independente: a instância usada no ajuste também integra o benchmark. O uso de
+uma única combinação de $N$ e $K$ no tuning limita a abrangência das conclusões sobre
+parâmetros.
+
+As médias marginais por nível descrevem a sensibilidade dentro dessa grade. Por se
+tratar de uma grade fatorial, cada nível é observado em combinação com os demais
+fatores; a síntese marginal não demonstra que o efeito seja uniforme entre combinações
+nem descreve interações entre parâmetros. Os resultados não serão apresentados como
+prova de que apenas um parâmetro explica o comportamento do algoritmo.
+
+A Tabela~\ref{tab:tuning} apresenta os parâmetros selecionados.
+
+\begin{table}[htbp]
 \centering
 \caption{Parâmetros selecionados pelo tuning oficial.}
 \label{tab:tuning}
-\begin{tabular}{lp{6cm}rr}
+\begin{tabularx}{\textwidth}{lYrr}
 \toprule
 Algoritmo & Parâmetros & Custo médio & Desvio-padrão \\
 \midrule
-Busca Tabu & tabu\_tenure=10, neighborhood\_size=20, stagnation\_limit=100 & 0,126415 & 0,013287 \\
-ACO & alpha=1,0, beta=2,0, rho=0,1, n\_ants=40 & 0,146303 & 0,021000 \\
-PSO & n\_particles=40, inertia=0,4, cognitive=2,0, social=2,0 & 0,269236 & 0,030456 \\
+Busca Tabu & Duração tabu: 10; vizinhança: 20; estagnação: 100 & 0,126415 & 0,013287 \\
+ACO & $\alpha=1{,}0$; $\beta=2{,}0$; $\rho=0{,}1$; 40 formigas & 0,146303 & 0,021000 \\
+PSO & 40 partículas; inércia: 0,4; cognitivo: 2,0; social: 2,0 & 0,269236 & 0,030456 \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsection{Ambiente computacional}
+\label{subsec:ambiente}
 
 Os benchmarks foram executados em Linux nativo, em uma máquina equipada com
 processador AMD Ryzen 9 5900XT (16 núcleos físicos, 32 threads lógicas) e
@@ -529,13 +675,26 @@ interno entre PSO, TS e ACO introduzam uma vantagem artificial de um método
 sobre os demais.
 
 \subsection{Medição de tempo}
+\label{subsec:tempo}
 
-O tempo reportado corresponde exclusivamente ao tempo de otimização,
-medido com \texttt{time.perf\_counter()}, uma função monotônica de alta
-resolução. Ficam excluídos da medição a leitura de arquivos, a construção
-das matrizes de entrada, o processamento geoespacial e a geração de
-gráficos, de modo que o tempo registrado reflita apenas o custo
-computacional do algoritmo de busca propriamente dito.
+O tempo apresentado nas tabelas e figuras é o tempo de parede da otimização, medido por
+\texttt{time.perf\_counter()}. A janela começa antes da criação do gerador
+pseudoaleatório, do registrador de convergência e do avaliador, e termina imediatamente
+após a busca, antes da montagem do resultado. Exclui leitura dos arquivos, preparação
+geoespacial e geração das análises. Cada execução utiliza uma thread de cálculo,
+enquanto até 16 execuções independentes são processadas em paralelo.
+
+Tempo de parede e tempo de CPU do processo são medidas distintas \cite{pythontime}. A execução com uma
+thread não elimina possíveis diferenças decorrentes de escalonamento e concorrência. O
+monitoramento de recursos fornece evidências sobre as condições da campanha, mas não
+transforma o tempo de parede em tempo de CPU nem demonstra ausência absoluta de
+contenção.
+
+O enunciado solicita tempo de CPU. A métrica consolidada neste estudo é tempo de parede,
+o que constitui uma limitação de aderência a esse requisito. Os valores existentes são
+mantidos com sua identificação correta; não se presume que possam ser convertidos em
+tempo de CPU. Uma complementação exigiria obter uma medida por execução com limites
+temporais compatíveis com a otimização.
 
 \subsection{Piloto pré-benchmark}
 \label{sec:piloto}
@@ -547,10 +706,10 @@ suficiente para que os algoritmos estabilizem? Quanto tempo custa cada
 combinação? A máquina suporta o paralelismo pretendido sem degradar a
 medição?
 
-O piloto cobriu 18 execuções --- as três instâncias, os dois extremos da
-faixa de $K$ ($3$ e $8$) e os três algoritmos ---, com os
+O piloto cobriu 18 execuções - as três instâncias, os dois extremos da
+faixa de $K$ ($3$ e $8$) e os três algoritmos -, com os
 hiperparâmetros já congelados pelo tuning, os orçamentos finais e uma
-única seed, \texttt{20260818}. Uma seed basta porque o piloto não produz
+única semente, \texttt{20260818}. Uma semente basta porque o piloto não produz
 inferência: ele dimensiona a campanha, e não compara métodos.
 
 \subsubsection*{O orçamento é suficiente?}
@@ -563,34 +722,27 @@ avaliações consumidas, por instância e por $K$.}
 \label{fig:piloto-convergencia}
 \end{figure}
 
-A Figura~\ref{fig:piloto-convergencia} mostra que a resposta depende do
-algoritmo. Medindo a fração do orçamento consumida até que cada execução
-alcance $99{,}9\,\%$ da melhoria total que viria a obter, o ACO estabiliza
-entre $3\,\%$ e $18\,\%$ do orçamento, e a Busca Tabu entre $5\,\%$ e
-$88\,\%$ --- o extremo superior é o cenário $N=60$, $K=3$, em que uma
-queda tardia aparece com o orçamento já quase esgotado, comportamento
-compatível com a aceitação de movimentos de piora que a memória tabu
-permite.
+A Figura~\ref{fig:piloto-convergencia} apresenta as curvas do piloto.
 
-O PSO é o caso que merece registro. Em $N=150$ com $K=8$ ele consome
-$100\,\%$ do orçamento, isto é, ainda estava melhorando quando as
-avaliações acabaram; em $N=20$ com $K=8$, consome $90\,\%$. Nesses dois
-cenários o orçamento não é suficiente para o PSO, e os resultados que ele
-apresenta na Seção~5 devem ser lidos com essa ressalva: parte da
-desvantagem do PSO em $K$ alto é desvantagem de convergência não
-concluída, e não apenas de qualidade da solução alcançável.
+O piloto fornece uma verificação preliminar do orçamento, com uma semente por combinação
+avaliada. Tomando como referência a redução de custo entre o primeiro e o último dos 100
+pontos de acompanhamento, identifica-se o primeiro ponto que registra pelo menos 99,9\%
+dessa redução. O primeiro ponto ocorre em 1\% do orçamento e não corresponde
+necessariamente à solução inicial; a localização das melhorias tem resolução de 1\% do
+orçamento. Esse indicador é retrospectivo: utiliza o resultado obtido ao término do
+orçamento como referência e não estima a distância ao ótimo.
 
-A figura também expõe um comportamento do ACO que a análise agregada não
-mostraria: em $N=20$ com $K=8$, sua curva é praticamente horizontal, com
-melhoria de apenas $0{,}50\,\%$ sobre a solução inicial ao longo de todo
-o orçamento. A construção gulosa guiada por feromônio, nesse cenário de
-poucas unidades e muitos lotes, produz de saída uma solução que ela
-própria não consegue melhorar.
+Nas execuções do ACO, o primeiro ponto que registra esse patamar ocorre entre 3\% e 18\%
+do orçamento; na Busca Tabu, entre 5\% e 88\%. No PSO, há casos em que esse patamar é
+atingido apenas em 90\% ou 100\% do orçamento. Melhorias próximas do limite indicam que
+a estabilização não ficou demonstrada nesses casos, mas não permitem quantificar o ganho
+que seria obtido com mais avaliações.
 
-Para os dois algoritmos que estabilizam bem antes do limite, o orçamento
-está corretamente dimensionado, e ampliá-lo não mudaria o resultado. Foi
-essa constatação que autorizou fixar os orçamentos da campanha oficial
-nos valores da Seção~4.1, em vez de aumentá-los por precaução.
+De forma análoga, um trecho final sem melhoria não demonstra que aumentar o orçamento
+seria inútil. A busca pode permanecer estagnada e posteriormente alcançar outra solução.
+Os orçamentos foram mantidos como condições comuns do experimento, com base na
+viabilidade operacional observada no piloto, sem afirmar convergência definitiva dos
+métodos ou suficiência universal do limite escolhido.
 
 \subsubsection*{Quanto tempo custa?}
 
@@ -609,7 +761,7 @@ $70$ a $76$~s, enquanto o ACO consome de $2\,595$ a $2\,967$~s, isto é,
 entre $43$ e $49$ minutos por execução. Sobre o conjunto dos seis
 cenários, o ACO é de $11$ a $61$ vezes mais lento que a Busca Tabu.
 
-A causa é estrutural e decorre da descrição da Seção~3.3: o ACO avalia o
+A causa é estrutural e decorre da descrição da Seção~\ref{subsec:aco}: o ACO avalia o
 custo parcial de cada alocação candidata a cada passo da construção de
 cada formiga, de modo que o trabalho por avaliação de solução completa é
 muito maior que o dos outros dois métodos, ainda que o orçamento contado
@@ -631,9 +783,9 @@ residente do processo e memória disponível do sistema.}
 A Figura~\ref{fig:piloto-recursos} reúne 27.913 amostras coletadas em
 dez sessões de monitoração. O painel superior mostra a CPU agregada
 atingindo picos de $1\,635\,\%$, coerentes com os 16 \emph{workers}
-configurados numa máquina de 16 núcleos lógicos disponíveis ao processo,
-e caindo em patamares sucessivos --- cerca de $400\,\%$, $200\,\%$ e
-$100\,\%$ --- à medida que os cenários mais curtos terminam e restam
+configurados para os 16 núcleos físicos da máquina,
+e caindo em patamares sucessivos - cerca de $400\,\%$, $200\,\%$ e
+$100\,\%$ - à medida que os cenários mais curtos terminam e restam
 apenas os mais longos, invariavelmente os do ACO.
 
 O painel central mostra a memória residente estabilizada em torno de
@@ -645,95 +797,127 @@ manteve uma única \emph{thread} ativa, que a CPU consumida permaneceu
 dentro do limite dos \emph{workers} declarados e que nenhum processo de
 otimização sobreviveu ao fim da campanha.
 
-A conclusão operacional é que a máquina comporta o paralelismo com folga
-larga: o fator limitante da campanha é tempo de CPU, não memória. Foi com
-base nesses números que se fixaram os 16 \emph{workers} da execução
-oficial, com a garantia de que a contenção de recursos não contaminaria a
-medição de tempo usada na comparação entre algoritmos.
+O monitoramento do piloto indicou condições favoráveis para operar com até 16 processos
+de otimização. Esses registros apoiam o dimensionamento da campanha, mas não constituem
+prova de ausência de contenção nem substituem a medição direta do tempo de CPU de cada
+execução.
 
 \subsection{Protocolo estatístico}
+\label{subsec:estatistica}
 
-A comparação entre as três metaheurísticas segue um protocolo não
-paramétrico, sem suposição de normalidade sobre a distribuição dos
-resultados. Para cada combinação de instância e $K$, aplica-se o teste de
-Friedman \cite{friedman1937} como teste global, comparando PSO, Busca Tabu e
-ACO simultaneamente sob a hipótese nula $H_0$ de desempenho equivalente
-entre os três algoritmos, com nível de significância $\alpha=0{,}05$.
+A análise inferencial registrada no projeto organiza as execuções por instância, $K$ e
+semente. Em cada um dos 18 cenários, aplica o teste de Friedman \cite{friedman1937} aos três algoritmos.
+Quando o teste global rejeita a hipótese nula ao nível de 5\%, aplica testes bilaterais
+de Wilcoxon aos três pares de algoritmos. A correção de Holm \cite{holm1979} é aplicada separadamente à
+família dos três testes pareados de cada cenário. Não há correção global envolvendo os
+18 testes de Friedman ou os 54 contrastes pareados do benchmark.
 
-Quando $H_0$ é rejeitada, são aplicados testes de Wilcoxon pareado
-\cite{wilcoxon1945} entre os três pares de algoritmos (PSO $\times$ TS, PSO
-$\times$ ACO, TS $\times$ ACO), com base nas seeds controladas
-compartilhadas entre os métodos. Como essas comparações múltiplas inflam a
-taxa de falsos positivos, os valores-$p$ resultantes são ajustados pela
-correção de Holm \cite{holm1979}. Para cada par, além da significância
-estatística, é reportado o tamanho de efeito via rank-biserial correlation
-\cite{kerby2014}, permitindo distinguir diferenças estatisticamente
-detectáveis de diferenças com magnitude prática relevante.
+Os valores-p de Friedman utilizam a aproximação qui-quadrado implementada no SciPy \cite{scipyfriedman}. A
+documentação recomenda cautela com essa aproximação quando há poucas amostras repetidas;
+aqui são apenas três algoritmos, ainda que existam 30 sementes. Não foi realizada
+calibração por permutação. Essa ressalva se refere à quantidade de algoritmos
+comparados, não ao número $K$ de lotes.
 
-A comparação com a heurística gulosa é tratada de forma descritiva, sem
-teste inferencial: por se tratar de um método determinístico, a gulosa
-serve apenas como referência fixa para reportar diferença absoluta de custo,
-melhoria percentual e diferença de tempo de execução em relação a cada
-metaheurística.
+O pareamento por semente é uma convenção do protocolo executado. Como os algoritmos
+inicializam e consomem números pseudoaleatórios de maneiras distintas, a igualdade
+numérica da semente não demonstra que as execuções estejam expostas à mesma dificuldade
+aleatória. Essa limitação restringe a justificativa substantiva do pareamento e deve
+acompanhar a interpretação dos valores-p. Uma análise de robustez com tratamento não
+pareado seria uma extensão, não um resultado já obtido neste estudo.
+
+O uso de testes não paramétricos dispensa a hipótese de normalidade, mas não elimina
+outros pressupostos. O teste de Wilcoxon avalia a distribuição das diferenças pareadas,
+com hipótese nula de simetria em torno de zero \cite{scipywilcoxon}. A aplicação registrada não inclui um
+diagnóstico específico dessa simetria. Os valores-p são apresentados sob o protocolo
+executado, com essas limitações explícitas.
+
+O tamanho de efeito é expresso pela correlação bisserial de postos das diferenças de
+custo, removendo diferenças exatamente nulas. Para um contraste A menos B, efeito
+positivo indica custos maiores para A, portanto vantagem para B; efeito negativo indica
+vantagem para A. Esse indicador resume a direção e os postos das diferenças. Sua
+magnitude não mede diretamente economia financeira nem estabelece a relevância
+operacional da redução de custo. Por isso, a interpretação deve considerar também as
+diferenças absolutas e relativas do objetivo.
+
+A ausência de rejeição não demonstra equivalência entre algoritmos. A comparação com a
+gulosa permanece descritiva por decisão do protocolo: seu custo determinístico é tratado
+como referência fixa, sem criar réplicas artificiais. Essa decisão não significa que
+toda comparação inferencial com uma referência determinística seja matematicamente
+impossível.
 
 \subsection{Reprodutibilidade e pacote entregável}
+\label{subsec:reproducao}
 
-Por execução (combinação de instância, $K$, algoritmo e seed) são
-registrados o custo final e o tempo de otimização (Seção 4.4), além dos 100
-checkpoints de convergência já descritos na Seção 4.1, igualmente espaçados
+Por execução (combinação de instância, $K$, algoritmo e semente) são
+registrados o custo final e o tempo de otimização (Seção~\ref{subsec:tempo}), além dos 100
+checkpoints de convergência já descritos na Seção~\ref{subsec:instancias}, igualmente espaçados
 ao longo do orçamento de avaliações, cada um com o melhor custo acumulado
-registrado até aquele ponto. Agregando as 30 seeds de cada combinação
-instância$\times K\times$algoritmo, consolidam-se as métricas
-\texttt{cost\_mean}, \texttt{cost\_std} e \texttt{runtime\_mean}, usadas em
-toda a Seção 5.
+registrado até aquele ponto. Agregando as 30 sementes de cada combinação
+instância$\times K\times$algoritmo, consolidam-se as métricas de
+custo médio, desvio-padrão e tempo médio, usadas em
+toda a Seção~\ref{sec:resultados}.
 
-O pacote entregável do projeto -- código-fonte, dados de instância e este
-relatório -- é composto só pelos arquivos rastreados pelo Git, com tamanho
-total de 25~MB. O projeto é distribuído sob licença MIT, atribuída a Tiago
-H.~F.~Baroni. A reprodutibilidade foi verificada por clonagem em um
-diretório isolado, fora da árvore de trabalho, seguindo apenas as
-instruções do \texttt{README.md} (\texttt{uv sync --dev} e a suíte de
-testes automatizados); a clonagem e a execução completaram-se com sucesso,
-confirmando que nenhum passo manual não documentado é necessário para
-reproduzir o pacote a partir do repositório versionado.
+O código, as instâncias e os resultados consolidados acompanham o repositório.
+O código é distribuído sob licença MIT. Uma verificação anterior em clone
+isolado confirmou a instalação pelo README e a execução da suíte automatizada.
+O Apêndice~\ref{sec:guia-execucao} reúne as instruções de reprodução; as tabelas
+complementares e a nova figura de distribuição são geradas por
+\path{docs/relatorio/gerar_complementos.py}, a partir dos mesmos dados oficiais.
 
 \section{Resultados e análise}
-% Tarefas 7 e 8
+\label{sec:resultados}
 
 \subsection{Qualidade das soluções}
 \label{subsec:qualidade-solucoes}
 
-Sobre as 18 combinações instância$\times$$K$ do experimento principal (três
-instâncias -- \texttt{artesp\_rmsp\_20}, \texttt{artesp\_rmsp\_60} e
-\texttt{artesp\_rmsp\_150} -- combinadas com $K\in\{3,4,5,6,7,8\}$), a Busca
-Tabu apresenta o menor custo médio entre os três algoritmos. A média de
-\texttt{cost\_mean} sobre as 18 combinações é $0{,}156831$ para a Busca Tabu,
+\begin{sloppypar}
+Sobre as 18 combinações instância$\times K$ do experimento principal (três
+instâncias - \texttt{artesp\_rmsp\_20}, \texttt{artesp\_rmsp\_60} e
+\texttt{artesp\_rmsp\_150} - combinadas com $K\in\{3,4,5,6,7,8\}$), a Busca
+Tabu apresenta o menor custo médio agregado entre os três algoritmos. A média do
+custo sobre as 18 combinações é $0{,}156831$ para a Busca Tabu,
 contra $0{,}208578$ para o ACO e $0{,}286118$ para o PSO. Comparando
 combinação a combinação, a Busca Tabu tem o menor custo médio em 17 das 18
-combinações instância$\times$$K$.
+combinações instância$\times K$.
+\end{sloppypar}
 
-A única exceção ocorre em \texttt{artesp\_rmsp\_150}, $K=5$ -- a maior
-instância do benchmark --, onde o ACO obtém \texttt{cost\_mean}$=0{,}156884$,
+A única exceção ocorre em \texttt{artesp\_rmsp\_150}, $K=5$ - a maior
+instância do benchmark -, onde o ACO obtém custo médio de $0{,}156884$,
 ligeiramente melhor que os $0{,}161771$ da Busca Tabu. Essa inversão de
 ranking está isolada a um único cenário entre os 18, não configurando um
 padrão sistemático de vantagem do ACO em instâncias grandes.
 
-Quanto à variabilidade entre as 30 seeds de cada combinação, a Busca Tabu
+Quanto à variabilidade entre as 30 sementes de cada combinação, a Busca Tabu
 também tem, em média, a menor dispersão: o desvio-padrão médio
-(\texttt{cost\_std}) sobre as 18 combinações é $0{,}012639$ para a Busca
+(desvio-padrão) sobre as 18 combinações é $0{,}012639$ para a Busca
 Tabu, $0{,}022381$ para o ACO e $0{,}028481$ para o PSO. A Busca Tabu tem o
-menor \texttt{cost\_std} em 11 das 18 combinações -- uma margem mais estreita
+menor desvio-padrão em 11 das 18 combinações - uma margem mais estreita
 que a observada para o custo médio, indicando que a vantagem de estabilidade
 da Busca Tabu, embora presente, é menos consistente do que sua vantagem em
 custo médio.
 
 Em algumas combinações da instância pequena (\texttt{artesp\_rmsp\_20}), o
-desvio-padrão da Busca Tabu chega a ser praticamente nulo -- da ordem de
-$10^{-17}$ a $10^{-4}$ --, sinal de que, para essa instância, a busca local
-converge de forma quase determinística ao mesmo ponto a partir de sementes
-diferentes.
+desvio-padrão da Busca Tabu chega a ser praticamente nulo - da ordem de
+$10^{-17}$ a $10^{-4}$ -, indicando custos finais muito semelhantes entre sementes. Custos iguais
+não demonstram, por si sós, que as partições encontradas sejam idênticas.
+
+Os resultados completos por cenário, com melhor custo, média, desvio-padrão
+amostral e tempo médio de parede, estão no Apêndice~\ref{ap:resultados}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figuras/distribuicao_custos_k5.pdf}
+\caption{Distribuição dos custos finais em $K=5$, com 30 execuções por
+algoritmo. Cada ponto representa uma execução. As caixas vão do primeiro ao
+terceiro quartil, e a linha interna é a mediana. Os bigodes alcançam os valores
+observados dentro de $Q_1-1{,}5\,IQR$ e $Q_3+1{,}5\,IQR$, com $IQR=Q_3-Q_1$.
+A linha tracejada indica o custo da gulosa; os painéis compartilham a escala
+vertical. O deslocamento horizontal dos pontos serve apenas à legibilidade.}
+\label{fig:distribuicao}
+\end{figure}
 
 \subsection{Convergência}
+\label{subsec:convergencia}
 
 As Figuras~\ref{fig:convergencia-20}, \ref{fig:convergencia-60} e
 \ref{fig:convergencia-150} mostram as curvas de convergência dos três
@@ -768,8 +952,8 @@ corrente fica a até 5\% do valor mediano final do próprio algoritmo, esse
 ponto ocorre, para o PSO, entre 74\% do orçamento computacional consumido na
 instância pequena (\texttt{artesp\_rmsp\_20}) e 35\% na instância grande
 (\texttt{artesp\_rmsp\_150}), passando por 49\% na instância intermediária
-(\texttt{artesp\_rmsp\_60}) -- fração que diminui com o tamanho da instância
---, enquanto para ACO e Busca Tabu esse mesmo ponto ocorre entre 2\% e 22\%
+(\texttt{artesp\_rmsp\_60}) - fração que diminui com o tamanho da instância
+-, enquanto para ACO e Busca Tabu esse mesmo ponto ocorre entre 2\% e 22\%
 do orçamento, em qualquer uma das três classes de tamanho.
 
 Convergir rapidamente em relação ao próprio patamar final não implica,
@@ -779,42 +963,37 @@ isso não o impede de ter, na maioria das combinações, custo médio final
 superior ao da Busca Tabu (Seção~\ref{subsec:qualidade-solucoes}).
 
 \subsection{Significância estatística}
+\label{subsec:significancia}
 
 O teste de Friedman, aplicado a cada uma das 18 combinações
-instância$\times$$K$ comparando simultaneamente PSO, Busca Tabu e ACO,
+instância$\times K$ comparando simultaneamente PSO, Busca Tabu e ACO,
 rejeita a hipótese nula $H_0$ de desempenho equivalente entre os três
 algoritmos nas 18 combinações, com nível de significância $\alpha=0{,}05$.
 Todos os valores-$p$ ficam abaixo de $0{,}05$, sendo o maior deles
 aproximadamente $2{,}94\times10^{-7}$ (instância \texttt{artesp\_rmsp\_20},
-$K=3$). Há, portanto, evidência estatística de diferença de desempenho entre
-os três algoritmos em todo o benchmark.
+$K=3$). A rejeição global indica diferença entre pelo menos dois algoritmos em cada
+cenário, sob as aproximações e limitações da Seção~\ref{subsec:estatistica}.
 
-Diante da rejeição de $H_0$, aplicam-se testes de Wilcoxon pareado entre os
-três pares de algoritmos, com correção de Holm para comparações múltiplas.
-PSO$\times$Busca Tabu e PSO$\times$ACO são estatisticamente significativos
-($p_{holm}<0{,}05$) nas 18 combinações. Já Busca Tabu$\times$ACO perde
-significância em 5 das 18 combinações, todas concentradas em
-\texttt{artesp\_rmsp\_150}, para $K$ de 4 a 8; na mesma instância, $K=3$
-permanece significativo ($p_{holm}=0{,}0248$).
+Sob o protocolo inferencial executado, os contrastes do PSO com os outros dois métodos
+são significativos nos 18 cenários após a correção de Holm dentro de cada cenário. Na
+comparação entre Busca Tabu e ACO, não há rejeição em cinco cenários, todos na instância
+de 150 unidades com $K$ de 4 a 8. Esse resultado não demonstra equivalência: indica que
+o procedimento utilizado não detectou diferença nesses casos ao nível adotado.
 
-O tamanho de efeito, medido pela correlação rank-biserial, acompanha esse
-padrão de significância. A magnitude média é $0{,}9965$ para PSO$\times$Busca
-Tabu e $0{,}9752$ para PSO$\times$ACO -- em ambos os casos, próxima do máximo
-teórico e consistente nas 18 combinações, refletindo diferenças de grande
-magnitude prática entre o PSO e os outros dois algoritmos. Já para Busca
-Tabu$\times$ACO, a magnitude média é $0{,}6782$, com dispersão bem maior: os
-cinco pares sem significância estatística coincidem exatamente com os cinco
-de menor magnitude de efeito, com $|\text{rank\_biserial}|$ entre $0{,}0108$
-e $0{,}2731$. Há, portanto, coerência entre valor-$p$ e tamanho de efeito --
-não uma contradição entre os dois --: a diferença entre Busca Tabu e ACO,
-nesses cinco cenários, é pequena tanto em significância estatística quanto
-em magnitude prática.
+As correlações bisseriais de postos desses cinco contrastes apresentam magnitude entre
+0,0108 e 0,2731. Esses valores descrevem diferenças menos sistemáticas em postos que as
+observadas nos contrastes envolvendo PSO. A relevância prática precisa ser avaliada em
+conjunto com a diferença de custo e o tempo de execução. O objetivo é um índice composto
+adimensional, não uma estimativa de economia operacional em moeda.
+
+Os valores-p ajustados, efeitos com sinal e diferenças de custo médio estão no Apêndice~\ref{ap:contrastes}.
 
 \subsection{Tempo computacional}
+\label{subsec:tempo-resultados}
 
-Sobre as 18 combinações instância$\times$$K$, a Busca Tabu tem o menor tempo
-médio de execução (\texttt{runtime\_mean}) entre os três algoritmos em 16
-delas. A média de \texttt{runtime\_mean} sobre as 18 combinações é
+Sobre as 18 combinações instância$\times K$, a Busca Tabu tem o menor tempo
+médio de execução (tempo médio) entre os três algoritmos em 16
+delas. A média de tempo médio sobre as 18 combinações é
 $20{,}05$~s para a Busca Tabu, contra $30{,}89$~s para o PSO e
 $1.095{,}93$~s para o ACO. O PSO só supera a Busca Tabu por margem mínima em
 duas combinações de instância pequena (\texttt{artesp\_rmsp\_20}, $K=7$ e
@@ -822,24 +1001,29 @@ $K=8$), com diferenças de $0{,}007$~s e $0{,}186$~s, respectivamente.
 
 O ACO é sistematicamente o mais lento dos três, entre cerca de ×20 e ×61
 mais lento que a Busca Tabu conforme a combinação, com a construção
-sequencial das formigas -- e não a avaliação da função objetivo -- dominando
+sequencial das formigas - e não a avaliação da função objetivo - dominando
 esse custo. Em \texttt{artesp\_rmsp\_150}, $K=5$, por exemplo,
-\texttt{runtime\_mean} é $2.765{,}72$~s no ACO contra $73{,}98$~s no PSO e
+tempo médio é $2.765{,}72$~s no ACO contra $73{,}98$~s no PSO e
 $48{,}73$~s na Busca Tabu. O tempo reportado é de parede, medido sob 1
 thread por execução; não é uma medida de complexidade assintótica nem inclui
 o custo do tuning de hiperparâmetros.
 
 \subsection{Escalabilidade}
+\label{subsec:escala}
 
-Para $K=5$, caso representativo adotado na análise de escalabilidade, o
-tempo de execução cresce com o tamanho da instância nos três algoritmos ao
-passar de $N=20$ para $N=150$, mas de forma bastante distinta entre eles: o
-fator de crescimento é ×22,37 para a Busca Tabu, ×24,36 para o PSO e ×55,55
-para o ACO -- ou seja, o ACO escala substancialmente pior que os outros dois
-algoritmos com o aumento do tamanho da instância. Esse fator de escala
-$N=20\to N=150$ não deve ser confundido com o intervalo de ×20 a ×61 citado
-na Seção anterior, que é a razão de tempo ACO/Busca Tabu combinação a
-combinação, e não um fator de crescimento em função de $N$.
+Os fatores de crescimento do tempo entre $N=20$ e $N=150$, para $K=5$, são 22,37 para a
+Busca Tabu, 24,36 para o PSO e 55,55 para o ACO. Eles descrevem o crescimento sob o
+protocolo adotado, no qual o orçamento também aumenta de 20.000 para 150.000 avaliações.
+Portanto, combinam o efeito de ampliar a instância, aumentar o número de avaliações e
+alterar a composição dos dados. Não são estimativas de complexidade assintótica nem
+isolam o custo por avaliação.
+
+A comparação de custos entre tamanhos também exige cautela. Embora os componentes sejam
+normalizados, cada instância tem unidades, distribuição de cargas e matrizes de
+relacionamento próprias. Um custo menor na instância grande não prova que o algoritmo se
+aproxime mais do ótimo. A comparação mais direta entre algoritmos ocorre dentro de uma
+mesma instância e $K$; a comparação entre tamanhos descreve o desempenho nos três
+recortes disponíveis.
 
 \begin{figure}[H]
 \centering
@@ -858,53 +1042,85 @@ combinação, e não um fator de crescimento em função de $N$.
 O custo médio final não acompanha o mesmo padrão de crescimento monótono com
 o tamanho da instância que se observa para o tempo. Comparando apenas os
 extremos $N=20$ e $N=150$, o ACO melhora com o aumento de $N$
-($-29{,}31\%$), de forma monótona -- o custo em $N=60$ fica entre os dois
-extremos --, enquanto PSO ($+78{,}37\%$) e Busca Tabu ($+13{,}93\%$) pioram.
+($-29{,}31\%$), de forma monótona - o custo em $N=60$ fica entre os dois
+extremos -, enquanto PSO ($+78{,}37\%$) e Busca Tabu ($+13{,}93\%$) pioram.
 No PSO essa piora também é monótona; já na Busca Tabu não é: o custo cai em
 $N=60$ (abaixo tanto de $N=20$ quanto de $N=150$) antes de voltar a subir em
 $N=150$. Em termos de posição relativa entre algoritmos, o ranking geral se
 mantém sem inversão ao longo do crescimento da instância, com a
 exceção já registrada de \texttt{artesp\_rmsp\_150}, $K=5$, em que o ACO
-supera ligeiramente a Busca Tabu (Seção~\ref{subsec:qualidade-solucoes}) --
+supera ligeiramente a Busca Tabu (Seção~\ref{subsec:qualidade-solucoes}) -
 mesmo assim, ali o tempo de execução do ACO permanece ordens de grandeza
 maior que o da Busca Tabu. Não há, nestes dados, explicação causal para a
 melhora de custo do ACO com o aumento de $N$; a leitura desta seção usa
 apenas $K=5$ e não foi verificada nos demais valores de $K$.
 
 \subsection{Comparação com a heurística gulosa}
+\label{subsec:comparacao-gulosa}
 
-A comparação com a heurística gulosa é descritiva, sem teste inferencial,
-por se tratar de um método determinístico sem réplicas (Seção 4.5). Sobre as
-18 combinações instância$\times$$K$, a Busca Tabu melhora sobre a gulosa em
-12 delas, com melhoria percentual média de $+18{,}75\%$; o ACO piora em
-média ($-2{,}17\%$, melhorando em apenas 6 combinações) e o PSO piora de
-forma mais acentuada e consistente ($-55{,}65\%$ em média, melhorando em
-apenas 5 combinações).
+A comparação com a heurística gulosa distingue duas perguntas: qual é a qualidade média
+de uma execução estocástica e qual foi a melhor solução encontrada entre as 30
+execuções. Para o primeiro critério, utiliza-se
 
-Esse padrão depende fortemente do tamanho da instância. Em
-\texttt{artesp\_rmsp\_150}, nenhum dos três algoritmos supera a heurística
-gulosa em nenhum dos seis valores de $K$ testados -- um resultado unânime
-nas 18 combinações algoritmo$\times$$K$ dessa instância, sendo o pior caso o
-do PSO em $K=3$ ($-238{,}96\%$). Já em \texttt{artesp\_rmsp\_20} e
-\texttt{artesp\_rmsp\_60}, a Busca Tabu melhora sobre a gulosa nas 12
-combinações correspondentes, entre $+13{,}20\%$ e $+52{,}27\%$.
+\[
+G_{\mathrm{medio}}=100\frac{C_{\mathrm{gulosa}}-\overline C_{\mathrm{meta}}}{C_{\mathrm{gulosa}}}.
+\]
 
-Esse ganho de qualidade nas instâncias pequena e média tem um custo elevado
-em tempo: a gulosa roda em frações de segundo em todas as combinações
-(máximo $0{,}242$~s), enquanto o tempo das metaheurísticas chega, em média,
-a centenas ou milhares de vezes o da gulosa. Os dados não permitem explicar
-causalmente por que a vantagem das metaheurísticas se inverte na instância
-grande; hipóteses como orçamento insuficiente relativamente ao tamanho do
-espaço de busca não foram testadas e não devem ser lidas como conclusão.
+Valores positivos indicam menor custo médio da metaheurística. A média desse indicador
+sobre os 18 cenários é 18,75\% para a Busca Tabu, -2,17\% para o ACO e -55,65\% para o
+PSO. A Busca Tabu supera a gulosa em média nos 12 cenários das instâncias pequena e
+média, enquanto nenhum dos três métodos o faz nos seis cenários da instância de 150
+unidades.
+
+Esse resultado não significa que todas as execuções individuais sejam piores que a
+gulosa. Na instância grande, a melhor execução da Busca Tabu supera a referência nos
+seis valores de $K$; a melhor execução do ACO a supera em $K=4$, 5, 6 e 7. O PSO não a
+supera pelo melhor custo em nenhum desses seis cenários.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Comparação de média e melhor execução em $N=150$, $K=5$.}
+\label{tab:gulosa-k5}
+\begin{tabularx}{\textwidth}{YYYY}
+\toprule
+Método, $N=150$ e $K=5$ & Custo médio & Desvio-padrão amostral & Melhor custo \\
+\midrule
+Gulosa & 0,151036 & Não se aplica & 0,151036 \\
+Busca Tabu & 0,161771 & 0,029457 & 0,109325 \\
+ACO & 0,156884 & 0,022879 & 0,135396 \\
+PSO & 0,335748 & 0,024647 & 0,270031 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Embora algumas execuções superem a gulosa, o conjunto das 30 execuções de cada cenário
+apresenta custo médio superior ao da referência. Os ganhos individuais não se traduzem,
+portanto, em vantagem média na instância grande. O melhor de 30 resultados também
+utiliza um conjunto de tentativas mais amplo que uma execução individual. Portanto, sua
+vantagem não deve ser apresentada como se fosse obtida pelo mesmo custo computacional de
+uma única execução.
+
+A gulosa apresenta tempos inferiores a um segundo nos cenários medidos. Assim, é uma
+referência especialmente competitiva quando se priorizam rapidez e resultado
+determinístico. Uma síntese descritiva adicional das execuções existentes mostra que, em
+$N=150$ e $K=5$, a Busca Tabu supera a gulosa em 14 das 30 execuções, o ACO em 16 e o
+PSO em nenhuma, usando tolerância de $10^{-12}$. Assim, mesmo uma maioria de execuções
+melhores, como ocorre com o ACO nesse cenário, pode coexistir com custo médio superior à
+referência. Essas frequências descrevem a amostra e não garantem sucesso em novas
+execuções. Inicializar as metaheurísticas com a gulosa é uma extensão possível, que
+exigiria um novo experimento.
+
+As frequências de superação nos seis valores de $K$ da instância grande estão no Apêndice~\ref{ap:frequencias}.
 
 \subsection{Análise por \texorpdfstring{$K$}{K}}
+\label{subsec:k}
 
 A Tabela~\ref{tab:k3-k8} reproduz, para $K=3$ e $K=8$, as médias sobre as
 três instâncias do custo total, dos coeficientes de variação $CV_D$ e $CV_P$
 e dos componentes $C_T$ e $C_A$, por algoritmo. As cinco métricas crescem,
 para os três algoritmos, ao passar de $K=3$ para $K=8$.
 
-\begin{table}[H]
+\begin{table}[htbp]
 \centering
 \caption{Custo total, coeficientes de variação e componentes por algoritmo, $K=3$ e $K=8$ (médias sobre as três instâncias).}
 \label{tab:k3-k8}
@@ -926,14 +1142,14 @@ Busca Tabu & 0,2404 & 0,3178 & 0,2513 & 0,2510 & 0,3474 \\
 \end{table}
 
 Aumentar o número de lotes de 3 para 8 piora, em média, todas as métricas
-medidas para os três algoritmos -- não há, nestes dados, nenhum valor de $K$
+medidas para os três algoritmos - não há, nestes dados, nenhum valor de $K$
 que reduza simultaneamente todas as cinco métricas em relação a valores
 de $K$ menores. O ACO é o mais sensível ao aumento de $K$ em $CV_D$ e
 $CV_P$ (razão $K{=}8/K{=}3$ de cerca de dezoito e oito vezes,
 respectivamente). Em termos de crescimento absoluto de custo total, a Busca
 Tabu tem o menor aumento entre os três ($+0{,}1776$, contra $+0{,}2701$ no
 ACO e $+0{,}2683$ no PSO); em termos de razão $K{=}8/K{=}3$, porém, é o PSO
-que cresce menos (×2,80, contra ×3,83 na Busca Tabu e ×4,79 no ACO) -- as
+que cresce menos (×2,80, contra ×3,83 na Busca Tabu e ×4,79 no ACO) - as
 duas leituras, absoluta e relativa, não apontam para o mesmo algoritmo.
 
 Estendendo essa leitura aos seis valores de $K$, o crescimento é monótono ou
@@ -945,19 +1161,20 @@ relatando apenas ganhos marginais e possíveis compromissos entre os cinco
 indicadores. Nesse sentido, os dados não
 mostram, na faixa $K\in\{3,\ldots,8\}$ testada, um ponto em que mais lotes
 melhorem coerência territorial ou funcional às custas de equilíbrio, ou
-vice-versa -- as duas famílias de métrica pioram juntas, o que caracteriza
+vice-versa - as duas famílias de métrica pioram juntas, o que caracteriza
 um compromisso a ser resolvido por critérios institucionais e não por um
 ótimo automático desta formulação.
 
 \subsection{Sensibilidade a hiperparâmetros}
+\label{subsec:sensibilidade}
 
-A análise de sensibilidade, reaproveitada do artefato de tuning sem
-reexecução, é descritiva e não sustenta inferência causal sobre qual
-parâmetro determina a variação de custo: os valores comparam médias
-marginais por nível de parâmetro dentro da grade de tuning testada, sem
-isolar o efeito de um parâmetro mantendo os demais fixos.
+As médias marginais por nível descrevem a sensibilidade dentro dessa grade. Por se
+tratar de uma grade fatorial, cada nível é observado em combinação com os demais
+fatores; a síntese marginal não demonstra que o efeito seja uniforme entre combinações
+nem descreve interações entre parâmetros. Os resultados não serão apresentados como
+prova de que apenas um parâmetro explica o comportamento do algoritmo.
 
-Dentro dessa ressalva, o parâmetro mais sensível do ACO é \texttt{alpha}: a
+Na grade avaliada, o parâmetro com maior diferença marginal do ACO é \texttt{alpha}: a
 diferença de custo médio entre seus dois níveis testados
 ($0{,}1342$) é cerca de três vezes a do segundo parâmetro mais influente do
 próprio ACO (\texttt{beta}, $0{,}0434$) e entre nove e cinquenta vezes maior
@@ -971,312 +1188,226 @@ ocorre no nível intermediário (tenure$=10$), não nos extremos testados
 (tenure$=5$ ou tenure$=20$).
 
 \subsection{Aceleração por GPU}
+\label{subsec:gpu}
 
-Um estudo adicional mediu a aceleração obtida ao delegar a avaliação da
-função objetivo a uma GPU NVIDIA RTX 3060, mantendo o restante do algoritmo
-no host, sobre uma campanha de 60 cenários oficiais planejados no total (30
-por algoritmo, $N=150$, $K=5$): os 30 cenários do PSO foram executados por
-completo, enquanto do ACO apenas três de seus 30 cenários planejados foram
-efetivamente medidos -- uma amostra parcial, não o recorte inteiro. O PSO
-obtém aceleração real e mensurável: speedup
-médio de $1{,}814\times$ sobre CPU, com valores individuais entre
-$1{,}520\times$ e $1{,}974\times$ nos 30 cenários medidos. Esse resultado é
-consistente com a fração de custo do PSO que a avaliação representa
-(aproximadamente $46\%$): pela lei de Amdahl, o teto de aceleração implicado
-por essa fração, com o tempo de avaliação tendendo a zero, é
-$1/(1-0{,}46)\approx 1{,}852\times$ -- o speedup médio medido fica a cerca
-de $98\%$ desse teto, com a distância residual explicada pelo tempo ainda
-gasto em lançamento de kernel e transferências de dados entre host e
-dispositivo.
+O estudo adicional transfere a avaliação em lote da função objetivo à GPU e mantém as
+demais etapas no processador. A cobertura é restrita a $N=150$ e $K=5$: 30 execuções do
+PSO e três do ACO. A aceleração é calculada como razão entre o tempo da execução em CPU
+e o da execução em GPU de mesma semente. A média dessas razões para o PSO é 1,814, com
+desvio-padrão amostral de 0,078 e valores de 1,520 a 1,974; os três casos do ACO ficam
+entre 1,002 e 1,026.
 
-O ACO, por outro lado, não obtém aceleração relevante: o speedup medido em
-três cenários oficiais fica próximo de $1{,}0\times$ (entre $1{,}002\times$
-e $1{,}026\times$). A causa é estrutural, e não uma deficiência de
-implementação: no desenho híbrido adotado, apenas a avaliação em lote é
-delegável à GPU, e a construção sequencial das formigas -- não
-paralelizável nesse desenho, por depender do estado parcial já construído a
-cada posição -- domina $98{,}7\%$ do tempo de execução de uma geração. A
-Busca Tabu não foi objeto deste estudo adicional de GPU.
+Para o PSO, a fração de aproximadamente 46\% do tempo atribuída à avaliação fornece,
+pela lei de Amdahl \cite{amdahl1967}, uma referência idealizada de $1/(1-0{,}46)$, aproximadamente 1,852. A
+proximidade da média observada a esse valor é compatível com o perfilamento, mas não
+demonstra que cada execução esteja limitada pelo mesmo número. A fração é aproximada e
+tempos variam entre execuções; de fato, alguns valores individuais superam essa
+referência. Não se atribui a diferença residual exclusivamente a transferências ou
+lançamento de kernels sem decomposição suficiente para demonstrá-lo.
+
+No perfilamento do ACO, a construção sequencial concentra aproximadamente 98,7\% do
+tempo de uma geração. Essa etapa permanece no processador no desenho avaliado, o que
+limita o ganho de acelerar apenas a avaliação final em lote. As decisões de uma mesma
+formiga dependem do estado parcial anterior; isso não implica impossibilidade de
+paralelizar formigas independentes em outro desenho. O resultado obtido caracteriza esta
+implementação híbrida e os três casos medidos, não todos os usos de ACO em GPU.
 
 \section{Análise espacial dos agrupamentos}
 \label{sec:analise-espacial}
 
-As seções anteriores compararam os três algoritmos por indicadores
-agregados: custo total, componentes, tempo, escalabilidade e
-significância estatística. Nenhum desses indicadores diz onde, no
-território, os lotes efetivamente ficaram. Esta seção examina a forma
-espacial das soluções, que é o critério pelo qual um lote operacional é
-julgado na prática.
+Os indicadores agregados descrevem equilíbrio e relações cortadas, mas não mostram
+diretamente a distribuição dos lotes no território. A análise cartográfica examina as
+imagens apresentadas para os três algoritmos na instância de 150 unidades com $K=5$. O
+recorte é ilustrativo: não representa a variabilidade entre as 30 execuções nem permite
+estender automaticamente o padrão visual aos demais cenários. O manifesto de exportação
+identifica separadamente as melhores soluções selecionadas, cujas sementes e custos são
+apresentados na tabela de apoio.
 
-As três figuras a seguir mostram a melhor solução de cada algoritmo para
-a instância de 150 unidades com $K=5$, sobre a Região Metropolitana de
-São Paulo. Cada cor representa um lote, e as cores são comparáveis entre
-as três figuras: os rótulos de lote foram alinhados entre os métodos por
-sobreposição máxima, de modo que a mesma cor identifica o mesmo conjunto
-de linhas sempre que os algoritmos concordam. Sem esse alinhamento, os
-rótulos seriam inteiros arbitrários e as três figuras pareceriam
-maximamente diferentes por artefato de numeração.
+No processo de exportação, os rótulos são alinhados por máxima sobreposição de unidades
+em relação à solução de referência. O alinhamento remove a arbitrariedade dos nomes dos
+lotes, sem tornar os grupos idênticos. A associação entre cores de imagens diferentes
+depende de elas terem sido produzidas com esse mesmo alinhamento. A leitura qualitativa
+de concentração e mistura de cores dentro de cada imagem independe de conhecer o nome
+atribuído a cada lote.
+
+O manifesto identifica as soluções exportadas, mas os PNG incluídos não
+registram semente, custo ou identificador que comprovem essa correspondência.
+Por isso, a interpretação das imagens é qualitativa. As soluções identificadas
+no manifesto são descritas separadamente no Apêndice~\ref{ap:lotes}.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{figuras/mapa_tabu_k5.png}
-  \caption{Busca Tabu, instância de 150 unidades, $K=5$. Os lotes formam
-  regiões contíguas e reconhecíveis, com poucas linhas destacadas de sua
-  concentração principal.}
+  \caption{Distribuição dos itinerários por lote na solução ilustrada da Busca Tabu, para 150 unidades e $K=5$. A concentração visual de cores não demonstra conectividade ou compacidade.}
   \label{fig:mapa-tabu}
 \end{figure}
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{figuras/mapa_aco_k5.png}
-  \caption{ACO, instância de 150 unidades, $K=5$. O padrão é semelhante
-  ao da Busca Tabu, também com lotes territorialmente coesos.}
+  \caption{Distribuição dos itinerários por lote na solução ilustrada do ACO, para 150 unidades e $K=5$. A interpretação é qualitativa e se refere à execução representada.}
   \label{fig:mapa-aco}
 \end{figure}
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{figuras/mapa_pso_k5.png}
-  \caption{PSO com Random Keys, instância de 150 unidades, $K=5$. Os
-  lotes se interpenetram: uma mesma vizinhança concentra linhas de dois
-  ou mais lotes distintos.}
+  \caption{Distribuição dos itinerários por lote na solução ilustrada do PSO, para 150 unidades e $K=5$. A mistura de cores permite examinar a separação de itinerários em áreas comuns.}
   \label{fig:mapa-pso}
 \end{figure}
 
-\subsection{O que as figuras mostram}
+\subsection{Leitura visual e implicações operacionais}
 
-A Busca Tabu (Figura~\ref{fig:mapa-tabu}) e o ACO
-(Figura~\ref{fig:mapa-aco}) produzem lotes territorialmente coesos: cada
-cor ocupa uma região reconhecível do território metropolitano, e um
-operador poderia descrever seu lote por referência geográfica. O PSO
-(Figura~\ref{fig:mapa-pso}) produz o oposto: os lotes se interpenetram, e
-uma mesma cidade ou vizinhança concentra linhas atribuídas a dois ou mais
-lotes distintos.
+Nas soluções ilustradas, Busca Tabu e ACO apresentam concentrações territoriais
+visualmente mais reconhecíveis, enquanto o PSO mostra maior mistura de cores em áreas
+comuns. Essa leitura é qualitativa. Coesão visual, conectividade e compacidade são
+propriedades distintas, e o modelo não impõe uma restrição explícita que garanta as duas
+últimas.
 
-A diferença tem consequência operacional direta, e não apenas estética.
-Se lotes distintos correspondem a operadores distintos, a solução do PSO
-implica duas ou mais empresas atendendo o mesmo território, com
-sobreposição de itinerários, de pontos de parada e de necessidades de
-apoio. Isso multiplica custos fixos, dificulta a fiscalização por área e
-complica qualquer racionalização futura da rede. É uma configuração que
-seria difícil de administrar no mundo real, independentemente do valor da
-função objetivo que a produziu.
+Se os lotes forem atribuídos a operadores diferentes, a presença de vários operadores em
+um mesmo território poderá implicar maior necessidade de coordenação. Entretanto, o
+experimento não mede custos fixos, fiscalização ou reorganização da rede. Portanto, as
+figuras não demonstram, por si sós, aumento de custo operacional nem inviabilidade
+administrativa das soluções.
 
-\subsection{Por que os três algoritmos divergem}
+\subsection{Mecanismos compatíveis com os padrões observados}
 
-A explicação está na relação entre a estrutura de cada algoritmo e a
-forma como a informação territorial chega até ele.
+Os três algoritmos avaliam a mesma função objetivo, mas incorporam essa informação em
+decisões diferentes. Na Busca Tabu, cada candidato realoca uma unidade, e seu custo
+permite comparar diretamente as alternativas amostradas. A decisão utiliza o custo
+total: um aumento do componente territorial pode ser compensado por reduções de
+desequilíbrio ou de afinidade cortada. Além disso, a busca pode aceitar piora no custo
+total quando esse é o melhor movimento admissível.
 
-O componente territorial $C_T$ da função objetivo
-(Equação~\ref{eq:custo-total}) é uma razão entre a massa de sobreposição
-cortada pela partição e a massa total: penaliza separar, em lotes
-distintos, linhas cujos buffers de 200 m se sobrepõem. Essa informação
-existe para os três algoritmos, mas cada um a recebe de uma forma
-diferente.
+No ACO, os custos parciais orientam a atribuição de cada unidade aos lotes permitidos. A
+heurística considera as relações com as unidades já alocadas; o feromônio reforça
+atribuições presentes em boas soluções completas. Essa construção usa informação local
+sobre as alternativas, sem demonstrar que o efeito de uma decisão seja independente das
+demais.
 
-A Busca Tabu opera pelo movimento \texttt{move(i, origem, destino)}, que
-realoca uma unidade por vez, e avalia cada movimento candidato
-individualmente. Mover uma linha para longe daquelas com as quais ela se
-sobrepõe eleva $C_T$ de imediato, e esse movimento perde para outro na
-mesma amostra de vizinhança. O crédito pela decisão é atribuído à unidade
-movida.
+No PSO, cada chave é decodificada em uma faixa de lote. A atualização contínua é
+orientada pelos melhores estados pessoal e global, que refletem indiretamente todos os
+componentes da função objetivo. O reparo também consulta o custo das realocações
+candidatas. Portanto, a informação territorial não está ausente do PSO, embora o
+operador de velocidade não utilize explicitamente a matriz de afinidade para decidir
+cada movimento de unidade.
 
-O ACO constrói a solução unidade a unidade e, a cada escolha, calcula o
-custo parcial da alocação candidata, convertendo-o na informação
-heurística $\eta_{i,k}$. Esse custo parcial inclui o componente
-territorial, de modo que a formiga, ao decidir o lote da unidade $i$,
-enxerga o efeito territorial daquela decisão específica. O feromônio
-$\tau_{i,k}$ depois reforça as alocações que participaram de boas
-soluções completas. Também aqui a informação territorial é local e
-dirigida à decisão individual.
+A diferença de acesso à informação local é uma hipótese compatível com o padrão espacial
+encontrado. O experimento não a isola das demais diferenças de inicialização,
+representação, memória e uso do orçamento. Atribuir causalidade exigiria comparar
+variantes controladas, por exemplo com e sem um operador de refinamento territorial,
+preservando as demais condições.
 
-O PSO com Random Keys não tem nenhum desses mecanismos. Sua decodificação
-é independente por coordenada: cada chave $x_i$ é discretizada
-isoladamente em $\text{lote}(x_i)=\min(\lfloor K x_i\rfloor, K-1)$, sem
-qualquer interação entre unidades. Duas linhas territorialmente
-sobrepostas ocupam coordenadas que não se comunicam, e nada na
-representação ou nos operadores de posição e velocidade faz com que elas
-tendam ao mesmo lote. A única informação territorial que o enxame recebe
-é o valor escalar da função objetivo, calculado \emph{depois} da
-decodificação, agregado sobre todos os pares e diluído a um quarto do
-custo total pelos pesos iguais. O PSO sabe que uma solução inteira é
-melhor ou pior; não sabe qual par de linhas foi cortado, nem qual
-coordenada é responsável.
+\subsection{Unidades com poucas relações territoriais}
 
-Essa é a raiz da diferença: Busca Tabu e ACO atribuem crédito a decisões
-individuais de alocação, e o PSO na formulação adotada não atribui. A
-coesão espacial é uma propriedade que emerge de decisões locais bem
-informadas, e é justamente essa informação local que a adaptação Random
-Keys não transporta.
+O componente territorial penaliza a massa de sobreposição cortada entre lotes. Por isso,
+unidades com pequena soma de relações territoriais exercem influência limitada sobre
+esse componente, mesmo quando ficam afastadas da concentração principal do lote.
 
-\subsection{As distorções que permanecem em ACO e Busca Tabu}
+Para a matriz territorial simétrica e não negativa, definindo \(s_i=\sum_{j\ne
+i}S_{ij}\) e \(M=\sum_{i<j}S_{ij}>0\), uma realocação isolada da unidade i que preserve
+os $K$ lotes ativos satisfaz
 
-Mesmo nas duas soluções coesas restam linhas isoladas, deslocadas da
-concentração principal do lote a que pertencem. Não se trata de falha de
-convergência: é consequência direta da forma de $C_T$.
+\[
+|\Delta C_T|\leq \frac{s_i}{M}.
+\]
 
-Como $C_T$ é a razão entre massa de sobreposição cortada e massa total,
-uma linha que não se sobrepõe a nenhuma outra contribui com massa
-próxima de zero, e sua alocação praticamente não altera o componente
-territorial. Medindo a instância de 150 unidades, a massa territorial por
-unidade --- a soma de $S_{ij}$ sobre todos os pares que a contêm --- tem
-mediana de $2{,}781$, mas as quinze unidades do decil inferior somam
-apenas $1{,}58\,\%$ de toda a massa de sobreposição do problema, e a mais
-isolada delas registra $0{,}081$, cerca de trinta e quatro vezes abaixo
-da mediana. Para essas linhas, o custo territorial é quase cego: movê-las
-de um lote a outro altera $C_T$ em quantidade desprezível, e quem decide
-sua alocação são os componentes de equilíbrio $C_D$ e $C_P$, que podem
-empurrá-las para qualquer lote que precise de carga.
+Isso ocorre porque apenas os pares incidentes em i podem mudar de situação, e sua massa
+total é \(s_i\). Para \(M=0\), o componente territorial é zero por definição. A
+desigualdade descreve a sensibilidade de um componente da função, não a qualidade final
+da solução ou a dinâmica completa da busca.
 
-Dito de outro modo, a função objetivo penaliza \emph{cortar vizinhança
-existente}, mas não penaliza \emph{dispersão geográfica}. Não há termo de
-compacidade --- diâmetro do lote, raio, distância ao centroide --- que
-torne custosa a alocação de uma linha periférica a um lote distante. As
-distorções observadas são, portanto, o comportamento correto do
-algoritmo sobre a função objetivo especificada, e indicam que é a
-formulação, e não a busca, que deve ser aprimorada.
+Uma pequena massa territorial não torna a alocação indiferente para o objetivo completo.
+O componente funcional também depende das relações incidentes na unidade, e os
+componentes de demanda e produção respondem à sua transferência. Assim, a ocorrência de
+linhas afastadas é compatível com uma limitação do critério territorial adotado, mas não
+permite excluir influência dos demais componentes ou insuficiência da busca.
 
-\subsection{A limitação de garagens e oficinas}
+Na instância de 150 unidades, a mediana da massa territorial incidente por unidade é
+2,781. As quinze unidades com menor massa reúnem 1,58\% da soma das massas incidentes de
+todas as unidades, na qual cada par é contado duas vezes. A menor massa é 0,0813,
+aproximadamente 2,92\% da mediana. Essas estatísticas foram recalculadas a partir da
+matriz territorial da instância versionada.
 
-Há uma segunda razão, esta de modelagem, para que a coesão obtida não
-corresponda inteiramente à coesão desejável na prática. A alocação real
-de linhas a operadores é fortemente condicionada pela localização das
-garagens e oficinas: um lote é operacionalmente viável quando suas linhas
-podem ser atendidas a partir de uma base comum, com percursos mortos
-curtos entre a base e os pontos inicial e final de cada itinerário.
+\subsection{Garagens e oficinas}
 
-O modelo não incorpora essa dimensão. O levantamento das localizações de
-garagens e oficinas dos operadores não pôde ser realizado no prazo deste
-trabalho, e a decisão foi documentar a ausência como limitação em vez de
-substituí-la por uma aproximação não verificada. A consequência é que uma
-linha periférica pode ser atribuída a um lote geograficamente distante
-sem qualquer penalidade, quando na prática o percurso morto tornaria essa
-atribuição onerosa ou inviável.
+A localização de garagens e oficinas é uma dimensão operacional não representada na
+formulação. Os dados necessários não foram incorporados ao estudo; portanto, o modelo
+não calcula percursos sem passageiros entre bases e itinerários nem verifica capacidade
+ou disponibilidade dessas instalações.
 
-As duas limitações apontam para a mesma extensão: acrescentar à função
-objetivo um termo que capture distância, seja como medida de compacidade
-do lote, seja como custo de acesso a uma base de apoio cuja localização
-tenha sido levantada. Ambas mudam a formulação, não os algoritmos, e
-qualquer uma delas exigiria repetir o protocolo experimental completo
-descrito na Seção~4.
+Uma solução com baixo custo no objetivo adotado não constitui, por isso, uma
+demonstração de viabilidade operacional de uma concessão ou de um arranjo real de
+operadores. Acrescentar distância a bases, capacidade de atendimento ou uma medida de
+compacidade seria uma extensão da formulação. Cada termo exigiria dados, interpretação
+operacional, normalização e nova comparação dos algoritmos.
 
 \section{Discussão e conclusões}
+\label{sec:conclusoes}
 
-\subsection{Qual algoritmo é mais adequado}
+Entre as três metaheurísticas avaliadas, a Busca Tabu apresenta a combinação mais
+favorável de qualidade média e tempo de parede: alcança o menor custo médio em 17 dos 18
+cenários e o menor tempo médio em 16. Essa conclusão se refere às implementações,
+parâmetros congelados e limites de avaliação deste estudo, sem estabelecer superioridade
+geral da Busca Tabu em problemas de transporte.
 
-Considerando conjuntamente qualidade da solução e tempo computacional, a
-Busca Tabu é a metaheurística mais adequada ao problema de formação de lotes
-tal como formulado neste trabalho. Sobre as 18 combinações
-instância$\times$$K$, ela tem o menor \texttt{cost\_mean} em 17 das 18
-combinações, com médias de custo de $0{,}156831$ para a Busca Tabu contra
-$0{,}208578$ para o ACO e $0{,}286118$ para o PSO
-(Seção~\ref{subsec:qualidade-solucoes}), e é também o algoritmo mais rápido
-em 16 das 18 combinações, com \texttt{runtime\_mean} médio de $20{,}05$~s
-contra $30{,}89$~s do PSO e $1.095{,}93$~s do ACO (Seção 5.4).
+A inclusão da heurística gulosa modifica a recomendação prática. Na instância grande,
+seu custo é inferior à média das três metaheurísticas, com tempo muito menor. A Busca
+Tabu, entretanto, encontra soluções individuais melhores nos seis valores de $K$, e o
+ACO em quatro. Assim, a escolha depende de privilegiar uma solução rápida e
+determinística ou aceitar o custo de múltiplas tentativas em busca de soluções melhores.
+A vantagem do melhor resultado observado deve ser ponderada pelo custo de realizar e
+selecionar essas tentativas.
 
-A única exceção de qualidade ocorre em \texttt{artesp\_rmsp\_150}, $K=5$ --
-a maior instância do benchmark --, onde o ACO obtém
-\texttt{cost\_mean}$=0{,}156884$, ligeiramente melhor que os $0{,}161771$ da
-Busca Tabu (Seção~\ref{subsec:qualidade-solucoes}). É uma inversão isolada a
-um único cenário entre os 18, e mesmo nele o tempo de execução do ACO
-permanece ordens de grandeza maior que o da Busca Tabu -- $2.765{,}72$~s
-contra $48{,}73$~s (Seção 5.4). Essa inversão pontual não deve ser lida de
-forma isolada: na mesma instância, o par Busca Tabu$\times$ACO perde
-significância estatística em 5 dos 6 valores de $K$ testados (Seção 5.3), e
-nenhum dos três algoritmos supera a heurística gulosa em nenhum dos seis
-valores de $K$ de \texttt{artesp\_rmsp\_150} (Seção 5.6). Tomado em
-conjunto, esse quadro sugere que a vantagem da Busca Tabu se atenua na maior
-instância, mas não sustenta um mecanismo causal: a hipótese de que o espaço
-de busca maior favoreceria a exploração mais ampla da construção estocástica
-do ACO não foi testada nestes dados e não deve ser lida como conclusão. Em
-qualquer leitura, o ACO paga por isso um tempo de execução muito superior,
-entre ×20 e ×61 o da Busca Tabu conforme a combinação, e um fator de
-crescimento com o tamanho da instância (×55,55 de $N=20$ para $N=150$) bem
-acima dos ×22,37 da Busca Tabu e ×24,36 do PSO (Seção 5.5).
+A adaptação do PSO exige compatibilizar atualizações contínuas com a partição discreta.
+A decodificação, o reparo quando necessário e a projeção mantêm a coerência entre
+estados contínuo e discreto, mas introduzem trabalho adicional. Os experimentos não
+isolam quanto cada mecanismo contribui para o desempenho final. Seu ganho com GPU reduz
+tempo no recorte medido, sem demonstrar melhora na qualidade da solução.
 
-O PSO fica atrás dos outros dois em qualidade na quase totalidade das
-combinações -- só supera a Busca Tabu em tempo, e por margem mínima, em duas
-combinações de \texttt{artesp\_rmsp\_20} ($K=7$ e $K=8$, diferenças de
-$0{,}007$~s e $0{,}186$~s, Seção 5.4) --, mas é o único dos três que se
-beneficia de fato de aceleração por GPU: speedup médio de $1{,}814\times$
-sobre CPU, entre $1{,}520\times$ e $1{,}974\times$ nos cenários medidos,
-cerca de $98\%$ do teto de $1{,}852\times$ implicado pela lei de Amdahl para
-sua fração de custo em avaliação (aproximadamente $46\%$, Seção 5.9). Sob o
-mesmo desenho híbrido, o ACO não obtém aceleração relevante -- speedup entre
-$1{,}002\times$ e $1{,}026\times$ nos três cenários oficiais medidos (Seção
-5.9).
+No ACO, o custo da construção orientada por avaliações parciais explica uma parcela
+substancial do esforço computacional observado. A pequena aceleração no desenho híbrido
+acompanha o fato de que essa etapa permanece no processador. O estudo adicional não
+inclui Busca Tabu e não cobre outros tamanhos ou valores de $K$.
 
-Houve dificuldade de adaptação real de um dos três algoritmos ao domínio do
-problema: o PSO. Sua representação nativa é contínua -- um vetor de posições
-em $\mathbb{R}^N$ --, enquanto o problema é uma partição discreta de
-unidades indivisíveis em lotes rotulados (Seção 3.4). A adaptação por Random
-Keys resolve essa incompatibilidade decodificando, de forma independente,
-cada coordenada contínua da partícula no rótulo de lote correspondente, mas
-essa decodificação pode deixar um lote sem nenhuma chave associada,
-exigindo uma etapa de reparo determinístico a cada iteração em que isso
-ocorre; e como o reparo altera rótulos discretos sem tocar na posição
-contínua da partícula, é necessária ainda uma reprojeção de volta ao espaço
-de chaves, para manter coerentes a camada contínua em que o enxame evolui e
-a solução discreta de fato avaliada. Esse reparo e essa reprojeção são um
-custo estrutural extra, pago a cada iteração, que os outros dois algoritmos,
-discretos por construção, não têm.
-
-O ACO tem a segunda maior dificuldade estrutural de adaptação, de natureza
-distinta: sua construção é sequencial por dependência -- cada posição da
-partição depende do estado parcial já construído pelas atribuições
-anteriores da mesma formiga (Seção 3.3) --, o que limita severamente o
-ganho de paralelizar apenas a avaliação em lote da função objetivo, único
-componente delegável à GPU no desenho híbrido adotado. É essa a causa
-estrutural, medida e não hipotética, da ausência de aceleração relevante do
-ACO: a construção sequencial das formigas domina $98{,}7\%$ do tempo de
-execução de uma geração (Seção 5.9).
+A análise cartográfica complementa os indicadores e evidencia que penalizar relações
+cortadas não garante lotes compactos ou viabilidade de atendimento a partir de garagens.
+As extensões prioritárias são examinar a robustez aos pesos e às aproximações dos dados,
+testar inicialização pela gulosa e estudar medidas explícitas de distância ou acesso a
+bases operacionais. Mudanças de formulação ou de algoritmo exigiriam nova comparação
+experimental. O número de lotes permanece externo ao modelo; os resultados não
+fundamentam uma recomendação institucional de $K$ ótimo.
 
 \subsection{Limitações e extensões futuras}
 
-Algumas leituras deste relatório são descritivas e não sustentam inferência
-causal. A análise de sensibilidade a hiperparâmetros (Seção 5.8) compara
-médias marginais por nível de parâmetro dentro da grade de tuning testada,
-sem isolar o efeito de um parâmetro mantendo os demais fixos; e a melhora de
-custo do ACO com o aumento do tamanho da instância, observada na análise de
-escalabilidade (Seção 5.5), não tem explicação causal identificada nestes
-dados -- a leitura usa apenas $K=5$ e não foi verificada nos demais valores
-de $K$. Por decisão metodológica, este relatório também não declara um
-valor de $K$ ótimo (Seção 5.7): relata apenas ganhos marginais e possíveis
-compromissos entre os componentes do custo, deixando a escolha de $K$ para
-critérios institucionais.
+O estudo utiliza uma instância por tamanho, proveniente de uma única rede,
+e parâmetros ajustados apenas em $N=60$, $K=5$. O orçamento cresce com $N$,
+de modo que a escalabilidade observada combina ampliação da instância e maior
+número de avaliações. O tempo consolidado é de parede; a medida de CPU
+solicitada pelo enunciado não foi obtida na mesma janela por execução.
+As inferências seguem o pareamento por semente e as aproximações estatísticas
+descritas na Seção~\ref{subsec:estatistica}. Essas limitações restringem a
+generalização dos resultados.
 
-O estudo adicional de aceleração por GPU (Seção 5.9) tem cobertura parcial
-por desenho, e de forma desigual entre os dois algoritmos que dele
-participaram: dos 60 cenários oficiais planejados para a campanha -- 30 por
-algoritmo --, o PSO teve sua metade executada por completo, os 30 dos 60
-citados na Seção 5.9, enquanto o ACO teve apenas três cenários oficiais
-executados de sua própria metade de 30 -- uma amostra distinta e bem mais
-parcial, que não permite generalizar a ausência de aceleração do ACO além
-do que foi efetivamente medido nesses três cenários. A Busca Tabu, por sua
-vez, não foi objeto desse estudo adicional. Um teste específico da
-suíte de conformidade GPU adota, além disso, uma régua de tolerância
-numérica mais estrita que a régua normativa do projeto: a asserção do teste
-exige diferença absoluta inferior a $10^{-15}$, contra a tolerância
-normativa de $10^{-12}$ adotada no restante do projeto -- uma divergência de
-critério já registrada como limitação de escopo do teste, sem impacto sobre
-a conclusão de correção da implementação em GPU.
+Os pesos iguais e os raios de 200~m para sobreposição e 400~m para acesso
+e transferências são hipóteses fixadas pelo projeto. Estudos de sensibilidade
+poderiam verificar sua influência sobre o ranking. Outra extensão é retirar
+a similaridade de mercados O-D e renormalizar a afinidade, distinguindo sua
+contribuição das relações de terminal e integração potencial. A inclusão de
+garagens, medidas de compacidade e custos institucionais de $K$ exige dados
+adicionais e uma nova formulação, sem modificar retroativamente o benchmark
+apresentado.
 
-Além dessas limitações operacionais, a formulação do problema também
-carrega hipóteses metodológicas fixadas a priori que abrem espaço para
-extensões futuras (\texttt{docs/formulation.md}, seções 17 e 19). Os quatro
-componentes da função objetivo recebem peso igual; um estudo de
-sensibilidade com pesos não uniformes permitiria avaliar se essa escolha
-domina alguma das conclusões de ranking entre algoritmos. O raio de acesso
-de 400~m entre paradas e pontos de origem/destino, usado tanto na
-integração funcional quanto na similaridade de mercados O-D, é outro
-parâmetro fixado por hipótese cuja sensibilidade não foi testada. Também não
-foi avaliado o efeito de remover o componente O-D da afinidade funcional, o
-que isolaria a contribuição desse componente frente a terminal compartilhado
-e integração funcional. Por fim, o número de lotes $K$ é tratado neste
-trabalho como parâmetro externo, resolvido separadamente para cada valor
-entre 3 e 8 (Seção 5.7); uma extensão natural é a seleção endógena de $K$,
-incorporando seu custo institucional diretamente à otimização, em vez de
-deixá-lo para comparação a posteriori.
+\clearpage
+\phantomsection
+\addcontentsline{toc}{section}{Referências}
+\bibliographystyle{plain}
+\bibliography{referencias}
+
+\clearpage
+\appendix
+\input{tabelas/resultados_complementares}
+\clearpage
 
 \section{Guia de execução em máquina Linux}
 \label{sec:guia-execucao}
@@ -1288,9 +1419,9 @@ o monitor de recursos usado na automação depende de interfaces do sistema
 e os números de tempo relatados neste documento só são comparáveis nesse
 ambiente.
 
-Os algoritmos de CPU --- Busca Tabu, ACO e PSO --- podem ser executados
+Os algoritmos de CPU - Busca Tabu, ACO e PSO - podem ser executados
 livremente, sem hardware especial. A réplica em GPU, descrita na
-Seção~\ref{sec:guia-gpu} abaixo, \textbf{só pode ser executada em uma
+subseção~\ref{sec:guia-gpu} abaixo, \textbf{só pode ser executada em uma
 máquina que disponha de GPU NVIDIA compatível com CUDA 12}; sem ela, o
 Passo~7 deve simplesmente ser omitido, sem prejuízo para todo o restante.
 
@@ -1303,7 +1434,7 @@ Instale, se ainda não estiverem presentes:
   \item \textbf{Python 3.14}, versão exigida pelo projeto;
   \item \textbf{uv}, o gerenciador de ambiente e dependências usado aqui.
     A forma mais direta de instalá-lo, em Linux, é executar
-    \verb+curl -LsSf https://astral.sh/uv/install.sh | sh+.
+    \small\path{curl -LsSf https://astral.sh/uv/install.sh | sh}.
 \end{itemize}
 
 Para compilar este relatório a partir da fonte é necessária, além disso,
@@ -1312,7 +1443,7 @@ executar os algoritmos. Para visualizar os mapas da
 Seção~\ref{sec:analise-espacial} é necessário o QGIS 3.40 ou superior,
 também opcional.
 
-\subsection{Passo 1 --- obter o repositório}
+\subsection{Passo 1 - obter o repositório}
 
 Em um diretório de trabalho de sua escolha:
 
@@ -1325,7 +1456,7 @@ Todos os comandos seguintes devem ser executados a partir da raiz do
 repositório, isto é, do diretório \texttt{bus-lot-optimization} criado
 pelo comando acima.
 
-\subsection{Passo 2 --- obter os dados de origem}
+\subsection{Passo 2 - obter os dados de origem}
 
 As três instâncias do estudo já acompanham o repositório, em
 \texttt{data/instances/}, e são suficientes para executar os algoritmos e
@@ -1341,7 +1472,6 @@ descompacte-o \textbf{na raiz do repositório clonado}, isto é, dentro do
 diretório \texttt{bus-lot-optimization} criado no Passo~1:
 
 \begin{verbatim}
-cd bus-lot-optimization
 unzip caminho/para/dados_origem_artesp.zip
 \end{verbatim}
 
@@ -1360,7 +1490,7 @@ O pacote-fonte é necessário apenas para os três testes que reexecutam a
 geração das instâncias a partir dos dados brutos. Se preferir executar
 sem ele, o Passo~4 indica como declarar sua ausência.
 
-\subsection{Passo 3 --- preparar o ambiente}
+\subsection{Passo 3 - preparar o ambiente}
 
 \begin{verbatim}
 uv sync --dev
@@ -1371,7 +1501,7 @@ dependências nas versões exatas em que o trabalho foi executado. Nenhum
 outro passo de instalação é necessário: todos os comandos seguintes são
 prefixados por \texttt{uv run}, que resolve o ambiente automaticamente.
 
-\subsection{Passo 4 --- verificar a instalação}
+\subsection{Passo 4 - verificar a instalação}
 
 Com o pacote-fonte do Passo~2 instalado:
 
@@ -1391,7 +1521,7 @@ BUS_LOT_SEM_PACOTE_FONTE=1 uv run pytest -q tests
 Nesse caso, três testes aparecem como pulados e o restante da suíte é
 aprovado normalmente.
 
-\subsection{Passo 5 --- executar os algoritmos}
+\subsection{Passo 5 - executar os algoritmos}
 
 Para inspecionar o plano de execução de um conjunto de cenários, sem
 executá-los, o que é a forma mais rápida de confirmar que o ambiente está
@@ -1418,16 +1548,23 @@ próprios de lote, documentados no \texttt{README.md}, e leva várias
 horas; ela não precisa ser repetida para avaliar o trabalho, uma vez que
 seus resultados consolidados acompanham o repositório.
 
-\subsection{Passo 6 --- reproduzir as análises e os mapas}
+\subsection{Passo 6 - reproduzir as análises e os mapas}
 
-As tabelas e figuras estatísticas apresentadas na Seção~5 são regeradas
+As figuras estatísticas originais apresentadas na Seção~\ref{sec:resultados} são regeradas
 a partir dos resultados consolidados por:
 
 \begin{verbatim}
 uv run python -m experiments.analyze_benchmark
 \end{verbatim}
 
-Os mapas da Seção~\ref{sec:analise-espacial} são regerados por:
+As tabelas dos apêndices e a Figura~\ref{fig:distribuicao} são regeradas a
+partir dos resultados oficiais já existentes por:
+
+\begin{verbatim}
+uv run python docs/relatorio/gerar_complementos.py
+\end{verbatim}
+
+As camadas e os estilos cartográficos são regerados por:
 
 \begin{verbatim}
 uv run python -m experiments.export_maps
@@ -1450,10 +1587,10 @@ visualização manualmente: abra
 \texttt{results/maps/lot\_assignments.gpkg} no QGIS e aplique o estilo
 desejado em Propriedades da camada, Simbologia, Estilo, Carregar estilo,
 apontando para o arquivo correspondente em \texttt{results/maps/qml/}.
-Os mapas exportados que ilustram a Seção~\ref{sec:analise-espacial} estão
-em \texttt{results/maps/imagens/}.
+As imagens PNG incluídas no relatório estão em \path{docs/relatorio/figuras/}.
+O comando de exportação gera camadas e estilos, não essas renderizações PNG.
 
-\subsection{Passo 7 --- réplica em GPU, apenas se houver GPU disponível}
+\subsection{Passo 7 - réplica em GPU, apenas se houver GPU disponível}
 \label{sec:guia-gpu}
 
 Este passo é \textbf{condicional}. Ele exige uma GPU NVIDIA com suporte a
@@ -1473,7 +1610,7 @@ conformidade numérica, e recusa a execução se algo não estiver
 disponível. A suíte de testes específica da GPU é executada por
 \texttt{uv run --project gpu pytest -q gpu/tests}.
 
-Convém lembrar, ao interpretar o resultado, o que a Seção~5.9 já
+Convém lembrar, ao interpretar o resultado, o que a Seção~\ref{subsec:gpu} já
 registra: a aceleração observada depende do algoritmo, sendo relevante no
 PSO e praticamente nula no ACO, e o estudo de GPU foi encerrado com essa
 limitação documentada.
@@ -1486,8 +1623,5 @@ resultado permaneça rastreável ao estado exato do código que o produziu.
 Se você alterar arquivos do repositório e quiser executar mesmo assim, os
 comandos oferecem uma opção explícita para isso, e a execução resultante
 é marcada como não oficial no registro de proveniência.
-
-\bibliographystyle{plain}
-\bibliography{referencias}
 
 \end{document}

@@ -1,0 +1,398 @@
+% Gerado por docs/relatorio/gerar_complementos.py; não editar as tabelas manualmente.
+
+% Fonte: results/tables/benchmark_runs.parquet; SHA256: 362b73efe890dc115e73ee12cd1c9c8b5b4c06ae858d947bb2191ae84a7ca93f
+
+% Fonte: results/tables/benchmark_summary.parquet; SHA256: 107f507f19ea58c837ce75098c0db7240953509c719478e4b8167eff2ce8240d
+
+% Fonte: results/tables/greedy_runs.parquet; SHA256: f7d3f4d60086058baebbd6940d1411d0d7b87c18038bfeb644eb3c2e24b6dec4
+
+% Fonte: results/tables/benchmark_statistical_tests.parquet; SHA256: 9b8122b875897e136d547a3f88c72571a7ed72f9d55dbde1500b2bff4a6f9e6f
+
+% Fonte: results/maps/lot_maps_manifest.json; SHA256: 258acec2ca1f5cb19a169f6b7b70e90bb9d62cc4a7a86f9a26ff1b42984ade38
+
+% Fonte: data/instances/artesp_rmsp_150.json; SHA256: 7ab22bad2ea9669a1fc1205e2ba2f1cf6af4d608c2ce5a2e2b6cb474c072be5d
+
+% Fonte: data/instances/artesp_rmsp_150_units.parquet; SHA256: 8c4bd3cb5b1367259406cadfe36bf6654f1d230a7383604d346863ae6eaeb617
+
+% Fonte: data/instances/artesp_rmsp_150_pair_metrics.parquet; SHA256: 4bf5b7b1b68bac594a1aab6b0b47119dfd7ccf7b48eca89f26c0f095a1ebc2cd
+
+\section{Resultados completos por cenário}\label{ap:resultados}
+
+Média, desvio-padrão amostral (DP) e melhor custo das 30 execuções de cada cenário. O tempo é a média do tempo de parede de uma execução, em segundos. O melhor de 30 resultados não representa o esforço de uma tentativa única. As tabelas são extraídas dos resultados oficiais, sem novas execuções. Valores exibidos são arredondados; as comparações usam os números completos.
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rlrrrr}
+\caption{Resultados da instância de 20 unidades.}\label{tab:resultados-20}\\
+\toprule
+$K$ & Algoritmo & Custo médio & DP & Melhor custo & Tempo (s) \\
+\midrule
+\endfirsthead
+\multicolumn{6}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+$K$ & Algoritmo & Custo médio & DP & Melhor custo & Tempo (s) \\
+\midrule
+\endhead
+\midrule\multicolumn{6}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+3 & Busca Tabu & 0,053567 & 0,004054 & 0,052082 & 2,17 \\
+3 & ACO & 0,054689 & 0,004032 & 0,053244 & 47,26 \\
+3 & PSO & 0,072698 & 0,014452 & 0,052082 & 4,02 \\
+4 & Busca Tabu & 0,085926 & 0,001080 & 0,085520 & 2,16 \\
+4 & ACO & 0,151439 & 0,022184 & 0,103257 & 48,52 \\
+4 & PSO & 0,109686 & 0,020028 & 0,085520 & 3,52 \\
+5 & Busca Tabu & 0,141994 & 0,000670 & 0,141814 & 2,18 \\
+5 & ACO & 0,221928 & 0,003362 & 0,207856 & 49,79 \\
+5 & PSO & 0,188231 & 0,026990 & 0,147567 & 3,04 \\
+6 & Busca Tabu & 0,182745 & 0,000077 & 0,182725 & 2,18 \\
+6 & ACO & 0,293670 & 0,017588 & 0,254001 & 48,22 \\
+6 & PSO & 0,253155 & 0,030507 & 0,197295 & 2,44 \\
+7 & Busca Tabu & 0,214347 & 0,000000 & 0,214347 & 2,19 \\
+7 & ACO & 0,379521 & 0,023039 & 0,315987 & 45,81 \\
+7 & PSO & 0,308183 & 0,030370 & 0,256408 & 2,18 \\
+8 & Busca Tabu & 0,237502 & 0,000000 & 0,237502 & 2,19 \\
+8 & ACO & 0,448785 & 0,029295 & 0,342081 & 43,44 \\
+8 & PSO & 0,359115 & 0,028553 & 0,289573 & 2,01 \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rlrrrr}
+\caption{Resultados da instância de 60 unidades.}\label{tab:resultados-60}\\
+\toprule
+$K$ & Algoritmo & Custo médio & DP & Melhor custo & Tempo (s) \\
+\midrule
+\endfirsthead
+\multicolumn{6}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+$K$ & Algoritmo & Custo médio & DP & Melhor custo & Tempo (s) \\
+\midrule
+\endhead
+\midrule\multicolumn{6}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+3 & Busca Tabu & 0,053257 & 0,003080 & 0,047411 & 9,08 \\
+3 & ACO & 0,068253 & 0,015180 & 0,054883 & 416,11 \\
+3 & PSO & 0,151270 & 0,035280 & 0,088751 & 15,51 \\
+4 & Busca Tabu & 0,088016 & 0,010192 & 0,074024 & 9,09 \\
+4 & ACO & 0,107587 & 0,030069 & 0,086436 & 424,02 \\
+4 & PSO & 0,216054 & 0,034348 & 0,155640 & 15,87 \\
+5 & Busca Tabu & 0,128066 & 0,010369 & 0,112348 & 9,11 \\
+5 & ACO & 0,158217 & 0,035142 & 0,128840 & 443,24 \\
+5 & PSO & 0,268452 & 0,032512 & 0,205520 & 16,37 \\
+6 & Busca Tabu & 0,168704 & 0,013201 & 0,147566 & 9,16 \\
+6 & ACO & 0,226626 & 0,030660 & 0,199141 & 450,79 \\
+6 & PSO & 0,317783 & 0,033632 & 0,243557 & 15,88 \\
+7 & Busca Tabu & 0,202099 & 0,009116 & 0,185950 & 9,22 \\
+7 & ACO & 0,272018 & 0,024228 & 0,247270 & 462,66 \\
+7 & PSO & 0,370812 & 0,043999 & 0,257776 & 15,49 \\
+8 & Busca Tabu & 0,223860 & 0,011900 & 0,203663 & 9,26 \\
+8 & ACO & 0,304312 & 0,022114 & 0,282321 & 452,59 \\
+8 & PSO & 0,446351 & 0,029340 & 0,369180 & 13,65 \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rlrrrr}
+\caption{Resultados da instância de 150 unidades.}\label{tab:resultados-150}\\
+\toprule
+$K$ & Algoritmo & Custo médio & DP & Melhor custo & Tempo (s) \\
+\midrule
+\endfirsthead
+\multicolumn{6}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+$K$ & Algoritmo & Custo médio & DP & Melhor custo & Tempo (s) \\
+\midrule
+\endhead
+\midrule\multicolumn{6}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+3 & Busca Tabu & 0,081520 & 0,012842 & 0,057546 & 49,19 \\
+3 & ACO & 0,090609 & 0,011456 & 0,078135 & 2.580,49 \\
+3 & PSO & 0,223133 & 0,031561 & 0,155871 & 68,82 \\
+4 & Busca Tabu & 0,119955 & 0,022551 & 0,081822 & 48,94 \\
+4 & ACO & 0,122532 & 0,017022 & 0,108098 & 2.666,26 \\
+4 & PSO & 0,280226 & 0,024958 & 0,238471 & 74,19 \\
+5 & Busca Tabu & 0,161771 & 0,029457 & 0,109325 & 48,73 \\
+5 & ACO & 0,156884 & 0,022879 & 0,135396 & 2.765,72 \\
+5 & PSO & 0,335748 & 0,024647 & 0,270031 & 73,98 \\
+6 & Busca Tabu & 0,192895 & 0,033404 & 0,146416 & 48,65 \\
+6 & ACO & 0,193469 & 0,035457 & 0,164434 & 2.853,72 \\
+6 & PSO & 0,380541 & 0,023103 & 0,341417 & 76,44 \\
+7 & Busca Tabu & 0,226864 & 0,031307 & 0,185720 & 48,67 \\
+7 & ACO & 0,233008 & 0,030656 & 0,202655 & 2.931,26 \\
+7 & PSO & 0,422071 & 0,022487 & 0,381690 & 75,92 \\
+8 & Busca Tabu & 0,259868 & 0,034197 & 0,195275 & 48,76 \\
+8 & ACO & 0,270861 & 0,028488 & 0,247561 & 2.996,80 \\
+8 & PSO & 0,446621 & 0,025900 & 0,396751 & 76,66 \\
+\end{longtable}
+\endgroup
+
+\subsection{Frequência de superação da gulosa}\label{ap:frequencias}
+
+Na instância grande, conta-se uma superação quando o custo da metaheurística é menor que o da gulosa em mais de $10^{-12}$. As entradas indicam quantas das 30 execuções superam a referência. Não ocorreram empates dentro dessa tolerância. Essas frequências descrevem a amostra, sem garantir sucesso em novas execuções.
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rrrrr}
+\caption{Superações da gulosa na instância de 150 unidades.}\label{tab:frequencias}\\
+\toprule
+$K$ & Custo da gulosa & Busca Tabu & ACO & PSO \\
+\midrule
+\endfirsthead
+\multicolumn{5}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+$K$ & Custo da gulosa & Busca Tabu & ACO & PSO \\
+\midrule
+\endhead
+\midrule\multicolumn{5}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+3 & 0,065828 & 3/30 & 0/30 & 0/30 \\
+4 & 0,109708 & 13/30 & 4/30 & 0/30 \\
+5 & 0,151036 & 14/30 & 16/30 & 0/30 \\
+6 & 0,186512 & 15/30 & 20/30 & 0/30 \\
+7 & 0,222531 & 14/30 & 18/30 & 0/30 \\
+8 & 0,205050 & 2/30 & 0/30 & 0/30 \\
+\end{longtable}
+\endgroup
+
+\clearpage\section{Contrastes estatísticos}\label{ap:contrastes}
+
+Os valores-p ajustados e os efeitos são extraídos do artefato estatístico oficial. Holm corrige os três pares dentro de cada cenário. O efeito é calculado sobre A menos B: sinal negativo favorece A; positivo favorece B. A coluna $\Delta$ é a diferença de custo médio, média(A) menos média(B), e não uma estatística do teste de Wilcoxon. Aplicam-se as ressalvas da Seção~\ref{subsec:estatistica}.
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rlrrr}
+\caption{Contrastes da instância de 20 unidades.}\label{tab:contrastes-20}\\
+\toprule
+$K$ & A / B & $p$ ajustado & Efeito & $\Delta$ médio \\
+\midrule
+\endfirsthead
+\multicolumn{5}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+$K$ & A / B & $p$ ajustado & Efeito & $\Delta$ médio \\
+\midrule
+\endhead
+\midrule\multicolumn{5}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+3 & PSO / Busca Tabu & $4{,}22\times10^{-5}$ & 0,9365 & 0,019131 \\
+3 & PSO / ACO & $2{,}63\times10^{-5}$ & 0,9448 & 0,018010 \\
+3 & Busca Tabu / ACO & 0,0081 & -0,6476 & -0,001122 \\
+4 & PSO / Busca Tabu & $3{,}79\times10^{-6}$ & 1,0000 & 0,023760 \\
+4 & PSO / ACO & $2{,}40\times10^{-7}$ & -0,9570 & -0,041753 \\
+4 & Busca Tabu / ACO & $3{,}46\times10^{-6}$ & -1,0000 & -0,065513 \\
+5 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,046238 \\
+5 & PSO / ACO & $2{,}99\times10^{-6}$ & -0,8796 & -0,033697 \\
+5 & Busca Tabu / ACO & $2{,}99\times10^{-6}$ & -1,0000 & -0,079934 \\
+6 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,070409 \\
+6 & PSO / ACO & $1{,}40\times10^{-5}$ & -0,8323 & -0,040515 \\
+6 & Busca Tabu / ACO & $3{,}45\times10^{-6}$ & -1,0000 & -0,110924 \\
+7 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,093835 \\
+7 & PSO / ACO & $3{,}54\times10^{-8}$ & -0,9699 & -0,071338 \\
+7 & Busca Tabu / ACO & $5{,}59\times10^{-9}$ & -1,0000 & -0,165174 \\
+8 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,121613 \\
+8 & PSO / ACO & $7{,}45\times10^{-9}$ & -0,9957 & -0,089671 \\
+8 & Busca Tabu / ACO & $1{,}73\times10^{-6}$ & -1,0000 & -0,211284 \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rlrrr}
+\caption{Contrastes da instância de 60 unidades.}\label{tab:contrastes-60}\\
+\toprule
+$K$ & A / B & $p$ ajustado & Efeito & $\Delta$ médio \\
+\midrule
+\endfirsthead
+\multicolumn{5}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+$K$ & A / B & $p$ ajustado & Efeito & $\Delta$ médio \\
+\midrule
+\endhead
+\midrule\multicolumn{5}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+3 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,098013 \\
+3 & PSO / ACO & $5{,}59\times10^{-9}$ & 0,9957 & 0,083017 \\
+3 & Busca Tabu / ACO & $5{,}59\times10^{-9}$ & -1,0000 & -0,014996 \\
+4 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,128038 \\
+4 & PSO / ACO & $1{,}12\times10^{-8}$ & 0,9914 & 0,108467 \\
+4 & Busca Tabu / ACO & 0,0015 & -0,6430 & -0,019571 \\
+5 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,140386 \\
+5 & PSO / ACO & $5{,}59\times10^{-9}$ & 1,0000 & 0,110235 \\
+5 & Busca Tabu / ACO & $1{,}22\times10^{-5}$ & -0,8366 & -0,030151 \\
+6 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,149079 \\
+6 & PSO / ACO & $9{,}31\times10^{-9}$ & 0,9871 & 0,091157 \\
+6 & Busca Tabu / ACO & $5{,}59\times10^{-9}$ & -1,0000 & -0,057922 \\
+7 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,168713 \\
+7 & PSO / ACO & $5{,}59\times10^{-9}$ & 1,0000 & 0,098794 \\
+7 & Busca Tabu / ACO & $5{,}59\times10^{-9}$ & -1,0000 & -0,069919 \\
+8 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,222491 \\
+8 & PSO / ACO & $5{,}59\times10^{-9}$ & 1,0000 & 0,142039 \\
+8 & Busca Tabu / ACO & $5{,}59\times10^{-9}$ & -1,0000 & -0,080452 \\
+\end{longtable}
+\endgroup
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rlrrr}
+\caption{Contrastes da instância de 150 unidades.}\label{tab:contrastes-150}\\
+\toprule
+$K$ & A / B & $p$ ajustado & Efeito & $\Delta$ médio \\
+\midrule
+\endfirsthead
+\multicolumn{5}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+$K$ & A / B & $p$ ajustado & Efeito & $\Delta$ médio \\
+\midrule
+\endhead
+\midrule\multicolumn{5}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+3 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,141613 \\
+3 & PSO / ACO & $5{,}59\times10^{-9}$ & 1,0000 & 0,132524 \\
+3 & Busca Tabu / ACO & 0,0248 & -0,4667 & -0,009089 \\
+4 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,160271 \\
+4 & PSO / ACO & $5{,}59\times10^{-9}$ & 1,0000 & 0,157694 \\
+4 & Busca Tabu / ACO & 0,7766 & -0,0624 & -0,002577 \\
+5 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,173977 \\
+5 & PSO / ACO & $5{,}59\times10^{-9}$ & 1,0000 & 0,178864 \\
+5 & Busca Tabu / ACO & 0,5425 & 0,1312 & 0,004887 \\
+6 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,187645 \\
+6 & PSO / ACO & $5{,}59\times10^{-9}$ & 1,0000 & 0,187071 \\
+6 & Busca Tabu / ACO & 0,9677 & -0,0108 & -0,000574 \\
+7 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,195207 \\
+7 & PSO / ACO & $5{,}59\times10^{-9}$ & 1,0000 & 0,189064 \\
+7 & Busca Tabu / ACO & 0,5291 & -0,1355 & -0,006143 \\
+8 & PSO / Busca Tabu & $5{,}59\times10^{-9}$ & 1,0000 & 0,186754 \\
+8 & PSO / ACO & $5{,}59\times10^{-9}$ & 1,0000 & 0,175760 \\
+8 & Busca Tabu / ACO & 0,1981 & -0,2731 & -0,010993 \\
+\end{longtable}
+\endgroup
+
+\clearpage\section{Composição dos lotes selecionados}\label{ap:lotes}
+
+As tabelas descrevem as soluções de $N=150$, $K=5$ selecionadas pelo manifesto cartográfico. Cada uma usa rótulos canônicos de 0 a 4, pela ordem da primeira ocorrência no vetor. Esses rótulos não estão associados às cores dos PNG nem constituem alinhamento entre algoritmos. A identidade exata dos PNG com os resultados do manifesto permanece não comprovada.
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{lrrrrrr}
+\caption{Soluções identificadas no manifesto cartográfico.}\label{tab:selecionadas}\\
+\toprule
+Algoritmo & Semente & Custo & $C_D$ & $C_P$ & $C_T$ & $C_A$ \\
+\midrule
+\endfirsthead
+\multicolumn{7}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+Algoritmo & Semente & Custo & $C_D$ & $C_P$ & $C_T$ & $C_A$ \\
+\midrule
+\endhead
+\midrule\multicolumn{7}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+Busca Tabu & 38 & 0,109325 & 0,0316 & 0,0133 & 0,1520 & 0,2404 \\
+ACO & 27 & 0,135396 & 0,1031 & 0,0523 & 0,1547 & 0,2314 \\
+PSO & 15 & 0,270031 & 0,0217 & 0,0058 & 0,4934 & 0,5592 \\
+\end{longtable}
+\endgroup
+
+A demanda e a produção são somadas por lote, na ordem de unidades da instância. As participações dividem essas somas pelos totais da instância. Todos os lotes estão ativos e cada unidade é contada uma única vez. As somas foram verificadas antes do arredondamento; as parcelas exibidas podem diferir ligeiramente dos totais por arredondamento.
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rrrrrr}
+\caption{Porte dos lotes da solução selecionada de Busca Tabu.}\label{tab:lotes-tabu}\\
+\toprule
+Lote & Unidades (\%) & Demanda/dia & \% & PU$\cdot$km/dia & \% \\
+\midrule
+\endfirsthead
+\multicolumn{6}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+Lote & Unidades (\%) & Demanda/dia & \% & PU$\cdot$km/dia & \% \\
+\midrule
+\endhead
+\midrule\multicolumn{6}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+0 & 28 (18,67\%) & 39.306,83 & 20,28 & 1.699.537,95 & 20,17 \\
+1 & 31 (20,67\%) & 40.091,44 & 20,69 & 1.640.610,86 & 19,47 \\
+2 & 23 (15,33\%) & 39.558,78 & 20,41 & 1.689.007,40 & 20,05 \\
+3 & 33 (22,00\%) & 36.501,02 & 18,83 & 1.692.408,91 & 20,09 \\
+4 & 35 (23,33\%) & 38.338,29 & 19,78 & 1.702.733,04 & 20,21 \\
+Total & 150 (100\%) & 193.796,36 & 100,00 & 8.424.298,16 & 100,00 \\
+\end{longtable}
+\endgroup
+
+Identificador do cenário: {\footnotesize\path{e10a9e05a6655dbbbaeeb39328f96f63829a070f27ee8fddc1acaf23fd7bc30b}}.
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rrrrrr}
+\caption{Porte dos lotes da solução selecionada de ACO.}\label{tab:lotes-aco}\\
+\toprule
+Lote & Unidades (\%) & Demanda/dia & \% & PU$\cdot$km/dia & \% \\
+\midrule
+\endfirsthead
+\multicolumn{6}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+Lote & Unidades (\%) & Demanda/dia & \% & PU$\cdot$km/dia & \% \\
+\midrule
+\endhead
+\midrule\multicolumn{6}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+0 & 28 (18,67\%) & 43.357,37 & 22,37 & 1.694.532,81 & 20,11 \\
+1 & 36 (24,00\%) & 41.228,49 & 21,27 & 1.770.437,57 & 21,02 \\
+2 & 35 (23,33\%) & 30.493,05 & 15,73 & 1.791.056,31 & 21,26 \\
+3 & 17 (11,33\%) & 40.581,50 & 20,94 & 1.537.845,12 & 18,25 \\
+4 & 34 (22,67\%) & 38.135,95 & 19,68 & 1.630.426,36 & 19,35 \\
+Total & 150 (100\%) & 193.796,36 & 100,00 & 8.424.298,16 & 100,00 \\
+\end{longtable}
+\endgroup
+
+Identificador do cenário: {\footnotesize\path{dc90f1cf4072b807b86ab0f9742cbda1c984fa6f49c02fa59c7596948810ebbd}}.
+
+\begingroup\small
+\setlength{\tabcolsep}{5pt}
+\begin{longtable}{rrrrrr}
+\caption{Porte dos lotes da solução selecionada de PSO.}\label{tab:lotes-pso}\\
+\toprule
+Lote & Unidades (\%) & Demanda/dia & \% & PU$\cdot$km/dia & \% \\
+\midrule
+\endfirsthead
+\multicolumn{6}{c}{\tablename~\thetable{} (continuação)}\\
+\toprule
+Lote & Unidades (\%) & Demanda/dia & \% & PU$\cdot$km/dia & \% \\
+\midrule
+\endhead
+\midrule\multicolumn{6}{r}{Continua na próxima página}\\
+\endfoot
+\bottomrule
+\endlastfoot
+0 & 30 (20,00\%) & 39.746,01 & 20,51 & 1.687.993,94 & 20,04 \\
+1 & 22 (14,67\%) & 37.201,05 & 19,20 & 1.701.753,47 & 20,20 \\
+2 & 29 (19,33\%) & 39.268,70 & 20,26 & 1.682.250,70 & 19,97 \\
+3 & 27 (18,00\%) & 38.642,67 & 19,94 & 1.672.021,81 & 19,85 \\
+4 & 42 (28,00\%) & 38.937,93 & 20,09 & 1.680.278,25 & 19,95 \\
+Total & 150 (100\%) & 193.796,36 & 100,00 & 8.424.298,16 & 100,00 \\
+\end{longtable}
+\endgroup
+
+Identificador do cenário: {\footnotesize\path{c7b1165e6d06d4c5e5dccc8ce3feb5bc16bfc877d6260d80738d62fdb20f49b1}}.
+
+Diferenças no número de unidades podem coexistir com equilíbrio de demanda e produção, pois as unidades têm portes diferentes. As tabelas caracterizam uma solução por método e não medem compacidade, conectividade ou variabilidade entre as 30 execuções.

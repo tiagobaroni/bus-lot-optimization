@@ -7,7 +7,18 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 
 ## Estado de retomada
 
-- **Atualizado em:** 06/09/2026
+- **Atualizado em:** 07/09/2026
+- **Revisão editorial do relatório, solicitada pelo usuário em 07/09/2026:**
+  concluída com incorporação no `docs/relatorio/relatorio.tex` e compilação do
+  PDF atualizado, com 44 páginas. Foram incorporadas as correções de
+  metodologia, interpretação dos resultados, análise espacial/PSO, tabelas
+  complementares e a figura de distribuição de custos. O gerador reproduzível
+  está em `docs/relatorio/gerar_complementos.py`; o índice dos rascunhos e os
+  pareceres permanecem em `superpowers/revisao_relatorio/`. Última tarefa
+  concluída: compilação limpa, sem avisos LaTeX, com conferência visual das
+  páginas de abertura, resultados e apêndices. O tempo de CPU por execução e a
+  correspondência exata dos PNG com os resultados do manifesto permanecem
+  limitações explicitadas. Esta revisão não inicia a B14.
 - **Bloco ativo:** nenhum. **A B15, exportação cartográfica dos agrupamentos,
   está `CONCLUÍDA - PENDENTE DE CONFERENCIA VISUAL NO QGIS`: falta apenas a
   conferência visual no QGIS dos nove painéis do recorte `K=5`, que é do
