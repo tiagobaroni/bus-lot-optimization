@@ -76,6 +76,11 @@ doze perguntas da Seção 31 de `docs/experiments.md`; os detalhes estão em
 `docs/experiments.md` §33-44. O relatório técnico final, em
 `docs/relatorio/relatorio.tex` (compilável via `docs/relatorio/build.sh`),
 sintetiza toda essa análise no formato exigido pelo enunciado do trabalho.
+**A B13 (relatório, README e empacotamento) está concluída.** **A B15
+(exportação cartográfica dos agrupamentos) está concluída**, com o GeoPackage,
+o manifesto de proveniência e os doze estilos `.qml` em `results/maps/`, mais o
+projeto do QGIS `results/maps/resultados.qgz`; resta apenas a conferência visual
+dos painéis no QGIS. **A B14 (vídeo e auditoria final) está em curso.**
 
 O projeto concluiu a preparação dos dados, o núcleo comum do problema, o
 contrato comum dos otimizadores, a Busca Tabu, o ACO, o PSO e o tuning oficial. As
@@ -533,10 +538,17 @@ As instruções persistentes para agentes de desenvolvimento estão em [`AGENTS.
 
 ## Próximos passos
 
-1. Renovar a infraestrutura GPU com os parâmetros definitivos da B11-E.
-2. Executar a campanha GPU somente depois de autorização explícita.
-3. Gerar tabelas, gráficos e análises estatísticas.
-4. Produzir o relatório final e o vídeo resumo.
+Tudo o que o enunciado exige está implementado, executado e escrito. O que
+resta são ações de conferência e de entrega:
+
+1. Gravar o vídeo resumo de até 3 minutos e publicar o link.
+2. Conferir no QGIS os nove painéis do recorte `K=5` da exportação cartográfica.
+3. Montar o pacote de submissão: os arquivos versionados **mais** o PDF do
+   relatório, que é gerado por `docs/relatorio/build.sh` e não é versionado.
+
+Fora do escopo da entrega, e sem impacto sobre ela: a campanha adicional de GPU
+tem 30 dos 60 cenários oficiais planejados, só o recorte do PSO. O relatório
+registra essa cobertura parcial como limitação declarada.
 
 ## Experimento adicional com GPU
 
