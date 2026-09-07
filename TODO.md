@@ -37,9 +37,11 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   `CONCLUÍDA - PENDENTE DE CONFERENCIA VISUAL NO QGIS`**, com a conferência dos
   nove painéis do recorte `K=5` pendente do usuário; o trabalho da B15 já foi
   integrado à `main`. **As próximas ações atômicas são todas do usuário:**
-  gravar o vídeo, conferir os painéis no QGIS, decidir sobre a seção de
-  divulgação de ferramentas do `README.md`, listada no checklist da B14, e
-  enviar os commits ao remoto, que está atrasado em relação à `main` local.
+  gravar o vídeo e conferir os painéis no QGIS. Os commits foram enviados ao
+  remoto em 07/09/2026, e a seção de integridade acadêmica do `README.md` foi
+  decidida na mesma data: **mantida como está**, por ser declaração genérica,
+  sem nome de fornecedor, alinhada à cláusula de integridade do enunciado
+  (`docs/trabalho.md`, seção 7). Assunto encerrado, não reabrir.
 - **O estudo adicional de GPU foi encerrado em 03/09/2026, por escopo e não por
   impedimento técnico.** A implementação está correta: conformidade aprovada com
   diferença máxima de `3,33e-16` contra régua de `1e-12`. Os três cenários ACO
