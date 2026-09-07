@@ -66,12 +66,12 @@ O trabalho exige, entre outros itens:
 oficiais e zero falhas. **A B11A (experimento adicional com GPU) foi encerrada
 com uma limitação registrada**: o PSO foi medido em GPU, com o speedup relatado
 em `docs/experiments.md` §29.1.1-29.1.2, e o ACO não mostrou ganho relevante
-nesse ambiente — ver a mesma referência para os detalhes. **A B11B (auditoria
+nesse ambiente - ver a mesma referência para os detalhes. **A B11B (auditoria
 técnica pré-execução) está fechada**, com 89 achados diagnosticados e 29
 pacotes de correção implementados. **A B12 (análise e visualização) está
 concluída**: a campanha gulosa oficial foi executada e a análise estatística
-completa — testes de Friedman, Wilcoxon pareado com correção de Holm,
-tamanho de efeito rank-biserial, escalabilidade e convergência — respondeu às
+completa - testes de Friedman, Wilcoxon pareado com correção de Holm,
+tamanho de efeito rank-biserial, escalabilidade e convergência - respondeu às
 doze perguntas da Seção 31 de `docs/experiments.md`; os detalhes estão em
 `docs/experiments.md` §33-44. O relatório técnico final, em
 `docs/relatorio/relatorio.tex` (compilável via `docs/relatorio/build.sh`),
@@ -113,7 +113,8 @@ automaticamente e congelados são:
 Os resultados consolidados e a seleção auditável estão em `results/tables/`.
 
 O piloto pré-benchmark completou 18 execuções oficiais e 1.800 checkpoints no
-commit `5a9b805`. A interrupção e a retomada, os limites de recursos e três
+commit `a311473`, registrado na proveniência de
+`results/tables/pilot_manifest.json`. A interrupção e a retomada, os limites de recursos e três
 reproduções exatas foram aprovados. Os artefatos preliminares estão em
 `results/tables/` e `results/figures/`, e o manifesto de congelamento bloqueia a
 execução do benchmark se algum insumo protegido divergir.
@@ -549,8 +550,8 @@ uv run --project gpu python -m metaheuristica_gpu.run readiness
 ```
 
 **O estudo adicional foi encerrado com limitação registrada.** A implementação
-em GPU está correta — a conformidade aprovou com diferença máxima de `3,33e-16`
-contra a régua normativa de `1e-12` —, mas a aceleração depende do algoritmo.
+em GPU está correta - a conformidade aprovou com diferença máxima de `3,33e-16`
+contra a régua normativa de `1e-12` -, mas a aceleração depende do algoritmo.
 Três cenários ACO medidos deram speedup entre `1,002` e `1,026`, com menos de
 `0,17 %` do tempo ocorrendo no dispositivo: o custo do ACO é a construção
 sequencial das formigas no host, que responde por `98,7 %` do tempo e que a GPU
@@ -562,7 +563,7 @@ em `docs/experiments.md`, seções 29.1.1 e 29.1.2.
 A infraestrutura permanece íntegra e a campanha completa continua executável a
 qualquer momento: o `readiness` indica `infrastructure_ready=true` e
 `execution_ready=true`. A campanha GPU tem hoje 30 dos 60 resultados oficiais,
-só o recorte PSO — parcial por desenho, e `consolidate` recusa sobre esse
+só o recorte PSO - parcial por desenho, e `consolidate` recusa sobre esse
 estado corretamente. Um único ID por vez:
 
 ```bash
@@ -631,7 +632,7 @@ Resumo de uma frase por pergunta da Seção 31 de `docs/experiments.md`
 9. Todos os cinco componentes medidos pioram, para os três algoritmos, ao
    passar de `K=3` para `K=8`.
 10. Não há, na faixa `K∈{3,...,8}` testada, um `K` que melhore equilíbrio e
-    coerência territorial/funcional ao mesmo tempo — ambos pioram juntos.
+    coerência territorial/funcional ao mesmo tempo - ambos pioram juntos.
 11. A aceleração por GPU não é uniforme: o PSO obteve speedup médio real de
     `1,814×`, mas o ACO não obteve aceleração relevante (`1,002×`-`1,026×`).
 12. Não há um método uniformemente superior: a Busca Tabu é a escolha mais
