@@ -1630,10 +1630,12 @@ afeta nenhum resultado publicado. **Não regenerar o manifesto**: a regeneraçã
 puxa a transação de quatro passos com reexecução do piloto, cerca de 55 minutos,
 para arrumar algo que não está quebrado.
 
-*Risco de entrega registrado.* `docs/relatorio/relatorio.pdf` **não é
-versionado**. Montar o pacote só com os arquivos rastreados entrega o trabalho
-sem o PDF, que o enunciado exige. O pacote é "arquivos versionados mais o PDF
-gerado por `docs/relatorio/build.sh`".
+*Risco de entrega, encontrado e fechado.* `docs/relatorio/relatorio.pdf` não
+era versionado, de modo que montar o pacote só com os arquivos rastreados
+entregaria o trabalho sem o PDF que o enunciado exige. Por decisão do usuário em
+07/09/2026, o PDF passou a ser versionado, com exceção explícita no `.gitignore`;
+os artefatos intermediários do LaTeX continuam fora. O pacote de submissão é
+agora o conjunto dos arquivos versionados.
 
 *Não verificado, por escopo.* Gravação do vídeo e conferência do QGIS, ambas do
 usuário; o Passo 7 dentro do clone limpo; os 30 cenários ACO faltantes da

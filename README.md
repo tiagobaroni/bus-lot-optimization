@@ -189,8 +189,10 @@ bus-lot-optimization/
 
 Os módulos do núcleo e das três metaheurísticas estão em `src/metaheuristica`.
 O ambiente de GPU é isolado, em `gpu/`, e não é requisito para executar os
-algoritmos de CPU. O PDF do relatório é gerado por `docs/relatorio/build.sh` e
-não é versionado.
+algoritmos de CPU. O PDF do relatório é versionado em
+`docs/relatorio/relatorio.pdf` e pode ser reconstruído a partir da fonte com
+`docs/relatorio/build.sh`; os artefatos intermediários do LaTeX não são
+versionados.
 
 ## Ambiente e caminhos
 
@@ -570,8 +572,8 @@ resta são ações de conferência e de entrega:
 
 1. Gravar o vídeo resumo de até 3 minutos e publicar o link.
 2. Conferir no QGIS os nove painéis do recorte `K=5` da exportação cartográfica.
-3. Montar o pacote de submissão: os arquivos versionados **mais** o PDF do
-   relatório, que é gerado por `docs/relatorio/build.sh` e não é versionado.
+3. Montar o pacote de submissão a partir dos arquivos versionados, que já
+   incluem o PDF do relatório.
 
 Fora do escopo da entrega, e sem impacto sobre ela: a campanha adicional de GPU
 tem 30 dos 60 cenários oficiais planejados, só o recorte do PSO. O relatório
