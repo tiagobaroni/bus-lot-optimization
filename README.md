@@ -537,7 +537,7 @@ print(result.solution, result.evaluation.total_cost, result.evaluations)
 
 ## Reprodutibilidade
 
-Toda execução experimental deverá registrar, no mínimo:
+Cada execução experimental registra:
 
 - algoritmo;
 - instância;
@@ -546,10 +546,16 @@ Toda execução experimental deverá registrar, no mínimo:
 - número de avaliações da função objetivo;
 - melhor valor encontrado;
 - solução final;
-- histórico de convergência;
-- tempo de CPU.
+- histórico de convergência, com 100 checkpoints;
+- tempo de execução.
 
-Instâncias sintéticas deverão ser reproduzíveis a partir de uma seed explícita.
+O tempo registrado é **de parede, medido sob uma thread por execução**, e não
+tempo de CPU acumulado; a Seção de metodologia do relatório detalha o critério
+de medição e suas limitações.
+
+As instâncias são reproduzíveis a partir de uma seed explícita, e a geração a
+partir dos dados de origem é coberta por testes. A reprodução completa a partir
+de um clone limpo está descrita no guia de execução do relatório.
 
 ## Desenvolvimento assistido por IA
 
