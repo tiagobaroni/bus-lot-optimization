@@ -133,16 +133,28 @@ O estado detalhado e as pendências metodológicas estão em [`AGENTS.md`](AGENT
 ## Estrutura atual e planejada
 
 ```text
-metaheuristica/
+bus-lot-optimization/
 ├── AGENTS.md
+├── CITATION.cff
+├── LICENSE
 ├── README.md
+├── TODO.md
 ├── pyproject.toml
+├── uv.lock
 ├── .gitignore
 ├── docs/
-│   ├── dicas.md
 │   ├── trabalho.md
+│   ├── dicas.md
 │   ├── formulation.md
-│   └── experiments.md
+│   ├── experiments.md
+│   ├── auditoria.md
+│   └── relatorio/
+│       ├── relatorio.tex
+│       ├── referencias.bib
+│       ├── gerar_complementos.py
+│       ├── build.sh
+│       ├── figuras/
+│       └── tabelas/
 ├── src/
 │   └── metaheuristica/
 │       ├── __init__.py
@@ -150,6 +162,11 @@ metaheuristica/
 │       ├── objective.py
 │       ├── canonical.py
 │       ├── instances.py
+│       ├── evaluator.py
+│       ├── optimizer.py
+│       ├── repair.py
+│       ├── errors.py
+│       ├── greedy.py
 │       ├── pso.py
 │       ├── tabu.py
 │       ├── aco.py
@@ -160,16 +177,20 @@ metaheuristica/
 │   ├── processed/
 │   └── instances/
 ├── experiments/
-│   ├── export_maps.py
-│   └── map_styles.py
+├── gpu/
 └── results/
     ├── tables/
     ├── figures/
+    ├── raw/
+    │   └── pilot/
     └── maps/
         └── qml/
 ```
 
 Os módulos do núcleo e das três metaheurísticas estão em `src/metaheuristica`.
+O ambiente de GPU é isolado, em `gpu/`, e não é requisito para executar os
+algoritmos de CPU. O PDF do relatório é gerado por `docs/relatorio/build.sh` e
+não é versionado.
 
 ## Ambiente e caminhos
 
