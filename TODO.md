@@ -8,6 +8,14 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
 ## Estado de retomada
 
 - **Atualizado em:** 07/09/2026
+- **Roteiro do vídeo:** o rascunho em `_temp/roteiro_video.txt` foi revisado
+  após a leitura dos sete arquivos Mermaid em `_temp/fluxogramas/`. A versão
+  atual incorpora os fluxos de etapas gerais, execução da campanha, núcleo
+  matemático, análise e os detalhes opcionais de ACO, PSO e Busca Tabu, com
+  marcações de tela e fala dimensionadas para 410 palavras narradas e teto de
+  três minutos. Próxima ação atômica: cronometrar uma leitura em voz alta e
+  ajustar o ritmo ou os recortes visuais, se necessário. Nenhum código ou
+  resultado experimental foi alterado.
 - **Revisão editorial do relatório, solicitada pelo usuário em 07/09/2026:**
   concluída com incorporação no `docs/relatorio/relatorio.tex` e compilação do
   PDF atualizado, com 44 páginas. Foram incorporadas as correções de
@@ -19,14 +27,19 @@ sendo definidos por `docs/trabalho.md`, e as decisões metodológicas por
   páginas de abertura, resultados e apêndices. O tempo de CPU por execução e a
   correspondência exata dos PNG com os resultados do manifesto permanecem
   limitações explicitadas. Esta revisão não inicia a B14.
-- **Bloco ativo:** nenhum. **A B15, exportação cartográfica dos agrupamentos,
-  está `CONCLUÍDA - PENDENTE DE CONFERENCIA VISUAL NO QGIS`: falta apenas a
-  conferência visual no QGIS dos nove painéis do recorte `K=5`, que é do
-  usuário. A B13 está concluída e a B14 segue retida por decisão do usuário em
-  06/09/2026, liberável só por decisão explícita dele; o fecho da B15 não
-  libera a B14. A próxima ação atômica é a conferência visual da B15 pelo
-  usuário.** O trabalho da B15 está na branch `b15-mapas`, ainda não integrada
-  à `main`.
+- **Bloco ativo:** nenhum. **A B14, vídeo e auditoria final, foi liberada pelo
+  usuário em 07/09/2026 e está `CONCLUÍDA - PENDENTE DE GRAVAÇÃO DO VÍDEO`.**
+  Toda a auditoria que não depende do usuário está feita: clone limpo aprovado
+  nos passos 1 a 6 do guia com 625 testes, suíte de GPU com 121 testes,
+  conferência de 79 afirmações do relatório contra os artefatos com zero
+  divergências, e oito correções aplicadas. O checklist final está em
+  `_temp/checklist_entrega.md`. **A B15 segue
+  `CONCLUÍDA - PENDENTE DE CONFERENCIA VISUAL NO QGIS`**, com a conferência dos
+  nove painéis do recorte `K=5` pendente do usuário; o trabalho da B15 já foi
+  integrado à `main`. **As próximas ações atômicas são todas do usuário:**
+  gravar o vídeo, conferir os painéis no QGIS, decidir sobre a seção de
+  divulgação de ferramentas do `README.md`, listada no checklist da B14, e
+  enviar os commits ao remoto, que está atrasado em relação à `main` local.
 - **O estudo adicional de GPU foi encerrado em 03/09/2026, por escopo e não por
   impedimento técnico.** A implementação está correta: conformidade aprovada com
   diferença máxima de `3,33e-16` contra régua de `1e-12`. Os três cenários ACO
@@ -1562,7 +1575,7 @@ deve ser iniciada até liberação explícita dele.
 
 ## B14 - Vídeo e auditoria final
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDA - PENDENTE DE GRAVAÇÃO DO VÍDEO`
 
 **Depende de:** B13.
 
@@ -1570,16 +1583,63 @@ deve ser iniciada até liberação explícita dele.
 
 **Tarefas:**
 
-- [ ] Escrever roteiro do vídeo de até 3 minutos.
-- [ ] Selecionar problema, método, resultado e conclusão essenciais.
-- [ ] Gravar e revisar o vídeo.
-- [ ] Executar todos os testes em ambiente limpo.
-- [ ] Reproduzir uma execução curta a partir do README.
-- [ ] Conferir arquivos obrigatórios e ausência de dados temporários.
-- [ ] Conferir consistência entre relatório, tabelas e resultados brutos.
-- [ ] Criar checklist final de entrega.
+- [x] Escrever roteiro do vídeo de até 3 minutos.
+- [x] Selecionar problema, método, resultado e conclusão essenciais.
+- [ ] Gravar e revisar o vídeo (pendente do usuário; não é automatizável).
+- [x] Executar todos os testes em ambiente limpo.
+- [x] Reproduzir uma execução curta a partir do README.
+- [x] Conferir arquivos obrigatórios e ausência de dados temporários.
+- [x] Conferir consistência entre relatório, tabelas e resultados brutos.
+- [x] Criar checklist final de entrega.
 
 **Critério de saída:** código, relatório e vídeo prontos para submissão.
+
+**Fecho do bloco (07/09/2026).**
+
+Especificação em `superpowers/B14_spec.md` e plano em `superpowers/B14_plan.md`,
+ambos aprovados pelo usuário antes da execução.
+
+*Verificações.* Clone limpo do `HEAD` em diretório temporário, seguindo
+literalmente os passos 1 a 6 do guia de execução do relatório: **625 testes
+aprovados**, `plan` do piloto em 18/18 com `git_dirty: false`, e os três comandos
+de reprodução de análises concluindo sem erro. **Nenhum passo não documentado
+foi necessário**, o que sustenta a afirmação de reprodutibilidade do relatório.
+As tabelas regeradas pelo clone saem **idênticas** às versionadas. Suíte de GPU
+com **121 testes aprovados**, executada na árvore de trabalho a partir da raiz.
+Script de conferência em `_temp/audita_relatorio.py`: **79 afirmações do
+relatório contra os artefatos, zero divergências**.
+
+*Correções aplicadas.* Oito, em commits separados: commit do piloto
+desatualizado no README (`5a9b805` para `a311473`, conforme o
+`pilot_manifest.json`); sete travessões tipográficos no README; "Estado atual"
+que parava na B12; "Próximos passos" que listava trabalho já concluído; tamanho
+do repositório no comentário do `.gitignore` (27 MB para os 37 MB medidos); dois
+apostos redundantes deixados pela revisão editorial do relatório; árvore de
+diretórios do README, que nomeava a raiz como `metaheuristica/` contra o
+`bus-lot-optimization` do guia; seção de reprodutibilidade do README, em tempo
+futuro e citando "tempo de CPU" onde o relatório mede tempo de parede sob uma
+thread. Mais uma nona correção, achada durante a execução: **`gpu/uv.lock`
+estava vencido**, sem o `scipy` que entrou na raiz em `7cc9742`, de modo que o
+Passo 7 do guia alterava o lock por baixo de quem o seguisse.
+
+*Estado conhecido e tolerado, não corrigido de propósito.* `freeze verify`
+recusa com `escopo protegido divergente: ['experiments/export_maps.py',
+'experiments/map_styles.py']`. O manifesto é de 04/09/2026 e a B15 acrescentou
+esses dois módulos depois. É divergência de escopo, não de conteúdo, e não
+afeta nenhum resultado publicado. **Não regenerar o manifesto**: a regeneração
+puxa a transação de quatro passos com reexecução do piloto, cerca de 55 minutos,
+para arrumar algo que não está quebrado.
+
+*Risco de entrega registrado.* `docs/relatorio/relatorio.pdf` **não é
+versionado**. Montar o pacote só com os arquivos rastreados entrega o trabalho
+sem o PDF, que o enunciado exige. O pacote é "arquivos versionados mais o PDF
+gerado por `docs/relatorio/build.sh`".
+
+*Não verificado, por escopo.* Gravação do vídeo e conferência do QGIS, ambas do
+usuário; o Passo 7 dentro do clone limpo; os 30 cenários ACO faltantes da
+campanha de GPU; e as afirmações numéricas do relatório fora da lista curada do
+script. Os números de GPU do relatório **não são reproduzíveis a partir do
+pacote entregue**, porque `results/gpu/raw/` é ignorado pelo Git.
 
 ---
 
