@@ -50,8 +50,13 @@ results/tables/benchmark_batches/
 .env.*
 !.env.example
 
-# Artefatos de build do relatório (fonte .tex/.bib é versionado, build não)
+# Artefatos de build do relatório. A fonte .tex/.bib é versionada e os artefatos
+# intermediários do LaTeX não são. O PDF é a exceção: o enunciado exige o
+# relatório em PDF entre os entregáveis, e mantê-lo fora do controle de versão
+# fazia com que montar o pacote a partir dos arquivos rastreados entregasse o
+# trabalho sem ele. Decidido em 07/09/2026, no fecho da B14.
 docs/relatorio/*.pdf
+!docs/relatorio/relatorio.pdf
 docs/relatorio/*.aux
 docs/relatorio/*.log
 docs/relatorio/*.out
